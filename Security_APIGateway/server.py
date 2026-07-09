@@ -45,6 +45,9 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
 # Helper functions
 def find_user_by_email(email: str) -> Optional[Dict]:
     for u in mock_users:
@@ -63,6 +66,51 @@ def log_audit(message: str, is_alert: bool = False):
     timestamp = datetime.datetime.now(datetime.UTC).isoformat()
     prefix = "[Audit Log - Alert]" if is_alert else "[Audit Log]"
     print(f"{prefix} - {timestamp} - {message}", flush=True)
+
+# --- Authorization Dependencies ---
+
+async def verify_token(authorization: Optional[str] = Header(None)) -> Dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token missing or malformed. Use Bearer <token>"
+        )
+    
+    token = authorization.split(" ")[1]
+    try:
+        decoded = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        return decoded
+    except jwt.ExpiredSignatureError:
+        log_audit("Rejected expired token", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token is expired"
+        )
+    except jwt.InvalidTokenError as e:
+        log_audit(f"Rejected invalid token: {str(e)}", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token is invalid"
+        )
+
+def check_role(allowed_roles: List[str]):
+    async def role_dependency(user: Dict = Depends(verify_token)):
+        if "role" not in user:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: role signature missing"
+            )
+        if user["role"] not in allowed_roles:
+            log_audit(
+                f"Unauthorized role access attempt: User {user.get('name', 'unknown')} ({user['role']}) tried to access path",
+                is_alert=True
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Forbidden: Access restricted. Required role: one of [{', '.join(allowed_roles)}]"
+            )
+        return user
+    return role_dependency
 
 # --- Authentication Routes ---
 
@@ -91,6 +139,7 @@ async def register(req: RegisterRequest):
         "email": req.email,
         "password_hash": password_hash,
         "role": req.role,
+        "refresh_tokens": [],  # Active refresh tokens list
         "created_at": datetime.datetime.now(datetime.UTC).isoformat()
     }
     mock_users.append(new_user)
@@ -126,23 +175,38 @@ async def login(req: LoginRequest):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
-    
-    # Generate JWT Token
-    exp_time = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
-    payload = {
+
+    # Generate short-lived Access Token (15 minutes)
+    access_exp_time = datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=15)
+    access_payload = {
         "userId": user["id"],
         "name": user["name"],
         "role": user["role"],
-        "exp": int(exp_time.timestamp()),
+        "exp": int(access_exp_time.timestamp()),
         "iat": int(datetime.datetime.now(datetime.UTC).timestamp())
     }
-    token = jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
+    access_token = jwt.encode(access_payload, JWT_SECRET, algorithm=ALGORITHM)
+    
+    # Generate long-lived Refresh Token (7 days)
+    refresh_exp_time = datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=7)
+    refresh_payload = {
+        "userId": user["id"],
+        "exp": int(refresh_exp_time.timestamp()),
+        "iat": int(datetime.datetime.now(datetime.UTC).timestamp())
+    }
+    refresh_token = jwt.encode(refresh_payload, JWT_SECRET, algorithm=ALGORITHM)
+    
+    # Store refresh token in user's record
+    if "refresh_tokens" not in user:
+        user["refresh_tokens"] = []
+    user["refresh_tokens"].append(refresh_token)
     
     log_audit(f"User Logged In: {user['name']} (Role: {user['role']})")
     
     return {
         "message": "Login successful",
-        "token": token,
+        "token": access_token,
+        "refreshToken": refresh_token,
         "user": {
             "id": user["id"],
             "name": user["name"],
@@ -150,6 +214,57 @@ async def login(req: LoginRequest):
             "role": user["role"]
         }
     }
+
+@app.post("/auth/refresh")
+async def refresh_token_route(req: RefreshRequest):
+    try:
+        decoded = jwt.decode(req.refresh_token, JWT_SECRET, algorithms=[ALGORITHM])
+        user_id = decoded.get("userId")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is expired"
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is invalid"
+        )
+
+    # Verify user exists and token has not been revoked
+    user = next((u for u in mock_users if u["id"] == user_id), None)
+    if not user or "refresh_tokens" not in user or req.refresh_token not in user["refresh_tokens"]:
+        log_audit(f"Rejected invalid or revoked refresh token for user ID: {user_id}", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is revoked or invalid"
+        )
+
+    # Generate new Access Token (15 minutes)
+    access_exp_time = datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=15)
+    access_payload = {
+        "userId": user["id"],
+        "name": user["name"],
+        "role": user["role"],
+        "exp": int(access_exp_time.timestamp()),
+        "iat": int(datetime.datetime.now(datetime.UTC).timestamp())
+    }
+    new_access_token = jwt.encode(access_payload, JWT_SECRET, algorithm=ALGORITHM)
+    
+    log_audit(f"Refreshed access token for user: {user['name']}")
+    return {
+        "token": new_access_token
+    }
+
+@app.post("/auth/logout")
+async def logout(user: Dict = Depends(verify_token)):
+    # Invalidate all active refresh tokens for the logged-out user
+    user_record = next((u for u in mock_users if u["id"] == user.get("userId")), None)
+    if user_record:
+        user_record["refresh_tokens"] = []
+        log_audit(f"User Logged Out: {user_record['name']} (revoked all refresh tokens)")
+    
+    return {"message": "Logged out successfully"}
 
 # --- Authorization Dependencies ---
 

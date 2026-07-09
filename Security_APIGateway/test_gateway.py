@@ -92,9 +92,12 @@ def run_tests():
             print(f"Status: {login_owner_res.status_code}")
             login_owner_data = login_owner_res.json()
             owner_token = login_owner_data.get("token")
-            print(f"Response Token Exists: {bool(owner_token)}")
+            owner_refresh_token = login_owner_data.get("refreshToken")
+            print(f"Response Access Token Exists: {bool(owner_token)}")
+            print(f"Response Refresh Token Exists: {bool(owner_refresh_token)}")
             assert login_owner_res.status_code == 200
             assert owner_token is not None
+            assert owner_refresh_token is not None
 
             # Test 4: Login Sales Executive
             print("\n-------------------------------------------")
@@ -109,9 +112,12 @@ def run_tests():
             print(f"Status: {login_sales_res.status_code}")
             login_sales_data = login_sales_res.json()
             sales_token = login_sales_data.get("token")
-            print(f"Response Token Exists: {bool(sales_token)}")
+            sales_refresh_token = login_sales_data.get("refreshToken")
+            print(f"Response Access Token Exists: {bool(sales_token)}")
+            print(f"Response Refresh Token Exists: {bool(sales_refresh_token)}")
             assert login_sales_res.status_code == 200
             assert sales_token is not None
+            assert sales_refresh_token is not None
 
             # Test 5: Access Forecasting as Business Owner (Permitted)
             print("\n-------------------------------------------")
@@ -143,8 +149,57 @@ def run_tests():
             print(f"Response: {forecast_no_token_res.json()}")
             assert forecast_no_token_res.status_code == 401
 
+            # Test 8: Refresh Token Rotation
+            print("\n-------------------------------------------")
+            print("Test 8: Rotating Access Token using Refresh Token...")
+            time.sleep(1)  # Sleep 1s to ensure token timestamps differ
+            refresh_res = client.post(
+                f"{base_url}/auth/refresh",
+                json={"refresh_token": owner_refresh_token}
+            )
+            print(f"Status: {refresh_res.status_code}")
+            refresh_data = refresh_res.json()
+            new_access_token = refresh_data.get("token")
+            print(f"New Access Token Exists: {bool(new_access_token)}")
+            assert refresh_res.status_code == 200
+            assert new_access_token is not None
+            assert new_access_token != owner_token
+
+            # Test 9: Refresh with Invalid Token
+            print("\n-------------------------------------------")
+            print("Test 9: Refreshing with Invalid/Malformed Token...")
+            refresh_invalid_res = client.post(
+                f"{base_url}/auth/refresh",
+                json={"refresh_token": "invalid-token-value"}
+            )
+            print(f"Status: {refresh_invalid_res.status_code} (Expected: 401)")
+            print(f"Response: {refresh_invalid_res.json()}")
+            assert refresh_invalid_res.status_code == 401
+
+            # Test 10: Revoke Tokens on Logout
+            print("\n-------------------------------------------")
+            print("Test 10: Logging out and revoking refresh tokens...")
+            logout_res = client.post(
+                f"{base_url}/auth/logout",
+                headers={"Authorization": f"Bearer {new_access_token}"}
+            )
+            print(f"Status: {logout_res.status_code}")
+            print(f"Response: {logout_res.json()}")
+            assert logout_res.status_code == 200
+
+            # Verify that refresh token is now revoked
+            print("\n-------------------------------------------")
+            print("Test 11 (Verification): Refreshing with revoked token (Should fail)...")
+            refresh_revoked_res = client.post(
+                f"{base_url}/auth/refresh",
+                json={"refresh_token": owner_refresh_token}
+            )
+            print(f"Status: {refresh_revoked_res.status_code} (Expected: 401)")
+            print(f"Response: {refresh_revoked_res.json()}")
+            assert refresh_revoked_res.status_code == 401
+
             print("\n===========================================")
-            print("All API Gateway authorization tests passed successfully!")
+            print("All 11 API Gateway integration tests passed successfully!")
             print("===========================================")
 
     except Exception as e:
