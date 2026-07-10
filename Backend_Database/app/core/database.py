@@ -3,10 +3,10 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.core.config import DATABASE_URL
 
-# Create database engine
+# create database engine 
 engine = create_engine(DATABASE_URL)
 
-# Create database session
+# create database session
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -15,3 +15,13 @@ SessionLocal = sessionmaker(
 
 # Base class for all ORM models
 Base = declarative_base()
+
+
+def get_db():
+    db = SessionLocal()
+
+    try:
+        yield db
+
+    finally:
+        db.close()
