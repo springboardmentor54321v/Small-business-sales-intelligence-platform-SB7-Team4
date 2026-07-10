@@ -3,7 +3,8 @@ import datetime
 from typing import List, Dict, Optional
 import jwt
 import bcrypt
-from fastapi import FastAPI, Depends, HTTPException, Header, status
+import httpx
+from fastapi import FastAPI, Depends, HTTPException, Header, status, File, UploadFile, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 
@@ -47,6 +48,11 @@ class LoginRequest(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+class InventoryUpdateSchema(BaseModel):
+    product_id: int
+    stock_quantity: int
+    low_stock_threshold: int = 10
 
 # Helper functions
 def find_user_by_email(email: str) -> Optional[Dict]:
@@ -311,49 +317,188 @@ def check_role(allowed_roles: List[str]):
         return user
     return role_dependency
 
-# --- Proxy Route Stubs ---
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+AI_URL = os.getenv("AI_URL", "http://localhost:5002")
+
+# --- Proxy Routes with Validation ---
 
 @app.post("/api/sales/upload")
-async def proxy_sales_upload(user: Dict = Depends(check_role(["Business Owner", "Store Manager", "Sales Executive"]))):
-    return {
-        "message": "[Proxy: Gateway] Sales upload route stub hit successfully. Authorized.",
-        "requestUser": user
-    }
+async def proxy_sales_upload(
+    file: UploadFile = File(...),
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager", "Sales Executive"]))
+):
+    # Reject non-CSV uploads at the gateway layer
+    if not file.filename.lower().endswith(".csv") and file.content_type != "text/csv":
+        log_audit(f"Rejected non-CSV file upload attempt: {file.filename}", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Malformed request: Only CSV files are allowed."
+        )
+    
+    content = await file.read()
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            files = {"file": (file.filename, content, file.content_type or "text/csv")}
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            # Proxy to the Backend_Database service
+            response = await client.post(
+                f"{BACKEND_URL}/api/sales/upload",
+                files=files,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            log_audit(f"Connection failed to backend: {str(e)}", is_alert=True)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Database backend is unreachable: {str(e)}"
+            )
 
 @app.get("/api/sales/dashboard-metrics")
-async def proxy_sales_metrics(user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
-    return {
-        "message": "[Proxy: Gateway] Dashboard metrics stub hit successfully. Authorized.",
-        "requestUser": user
-    }
+async def proxy_sales_metrics(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))
+):
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{BACKEND_URL}/api/sales/dashboard-metrics",
+                params=dict(request.query_params),
+                headers=headers
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Database backend is unreachable"
+            )
 
 @app.get("/api/inventory")
-async def proxy_inventory_view(user: Dict = Depends(check_role(["Business Owner", "Store Manager", "Sales Executive"]))):
-    return {
-        "message": "[Proxy: Gateway] Inventory view stub hit successfully. Authorized.",
-        "requestUser": user
-    }
+async def proxy_inventory_view(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager", "Sales Executive"]))
+):
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{BACKEND_URL}/api/inventory",
+                params=dict(request.query_params),
+                headers=headers
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Database backend is unreachable"
+            )
 
 @app.post("/api/inventory/update")
-async def proxy_inventory_update(user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
-    return {
-        "message": "[Proxy: Gateway] Inventory edit stub hit successfully. Authorized.",
-        "requestUser": user
-    }
+async def proxy_inventory_update(
+    payload: InventoryUpdateSchema,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))
+):
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.post(
+                f"{BACKEND_URL}/api/inventory/update",
+                json=payload.model_dump(),
+                headers=headers
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Database backend is unreachable"
+            )
 
 @app.get("/api/forecast/sample")
-async def proxy_forecast_sample(user: Dict = Depends(check_role(["Business Owner"]))):
-    return {
-        "message": "[Proxy: Gateway] Forecasting stub hit successfully. Authorized.",
-        "requestUser": user
-    }
+async def proxy_forecast_sample(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner"]))
+):
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{AI_URL}/api/forecast/sample",
+                params=dict(request.query_params),
+                headers=headers
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            # Fallback stub if AI service is not running
+            return {
+                "message": "[Gateway Fallback] AI/ML forecasting service is currently unreachable.",
+                "requestUser": user
+            }
 
 @app.get("/api/audit-logs")
-async def proxy_audit_logs(user: Dict = Depends(check_role(["System Administrator"]))):
-    return {
-        "message": "[Proxy: Gateway] System audit logs stub hit successfully. Authorized.",
-        "requestUser": user
-    }
+async def proxy_audit_logs(
+    request: Request,
+    user: Dict = Depends(check_role(["System Administrator"]))
+):
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{BACKEND_URL}/api/audit-logs",
+                params=dict(request.query_params),
+                headers=headers
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            # Fallback stub for audit logs
+            return {
+                "message": "[Gateway Fallback] Audit logs backend is unreachable. Admin stubs active.",
+                "requestUser": user
+            }
 
 if __name__ == "__main__":
     import uvicorn

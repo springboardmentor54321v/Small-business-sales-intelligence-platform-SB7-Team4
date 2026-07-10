@@ -3,9 +3,48 @@ import time
 import os
 import sys
 import httpx
+import threading
+import uvicorn
+from fastapi import FastAPI, Header
+
+# Spin up a mock backend on Port 8000 to test reverse proxy routing
+mock_backend = FastAPI()
+
+@mock_backend.get("/api/inventory")
+def mock_inventory(x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock Inventory forward success",
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
+
+@mock_backend.post("/api/inventory/update")
+def mock_inventory_update(payload: dict, x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock Inventory update forward success",
+        "payload": payload,
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
+
+@mock_backend.post("/api/sales/upload")
+def mock_sales_upload(x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock Sales upload forward success",
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
+
+def run_mock_backend():
+    uvicorn.run(mock_backend, host="127.0.0.1", port=8000, log_level="warning")
 
 def run_tests():
     print("Starting API Gateway test suite in Python...")
+    
+    # Spawn Mock Backend server on Port 8000 in a background thread
+    backend_thread = threading.Thread(target=run_mock_backend, daemon=True)
+    backend_thread.start()
+    time.sleep(1) # wait for mock backend to start
     
     # 1. Spawn FastAPI server as a child process
     server_process = subprocess.Popen(
@@ -198,8 +237,80 @@ def run_tests():
             print(f"Response: {refresh_revoked_res.json()}")
             assert refresh_revoked_res.status_code == 401
 
+            # Log in Alice again to get a fresh token for admin operations
+            print("\n-------------------------------------------")
+            print("Logging Alice back in to perform admin/manager proxy tasks...")
+            login_again_res = client.post(
+                f"{base_url}/auth/login",
+                json={
+                    "email": "alice@marketmind.com",
+                    "password": "password123"
+                }
+            )
+            assert login_again_res.status_code == 200
+            alice_new_token = login_again_res.json().get("token")
+            print("New Access Token acquired for Alice.")
+
+            # Test 12: Reverse Proxy Routing & Header Injection
+            print("\n-------------------------------------------")
+            print("Test 12: Accessing /api/inventory via Gateway (Proxy forward & Header injection)...")
+            proxy_res = client.get(
+                f"{base_url}/api/inventory",
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Status: {proxy_res.status_code}")
+            proxy_data = proxy_res.json()
+            print(f"Response: {proxy_data}")
+            assert proxy_res.status_code == 200
+            assert proxy_data.get("message") == "Mock Inventory forward success"
+            assert proxy_data.get("injected_user_id") == "2"
+            assert proxy_data.get("injected_user_role") == "Sales Executive"
+
+            # Test 13: Schema Validation Rejection
+            print("\n-------------------------------------------")
+            print("Test 13: Testing Schema Validation with missing fields (Should fail 422)...")
+            malformed_payload = {"stock_quantity": 100} # missing product_id
+            validation_res = client.post(
+                f"{base_url}/api/inventory/update",
+                json=malformed_payload,
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Status: {validation_res.status_code} (Expected: 422)")
+            print(f"Response: {validation_res.json()}")
+            assert validation_res.status_code == 422
+
+            # Test 14: Ingestion MIME-Type Block
+            print("\n-------------------------------------------")
+            print("Test 14: Uploading non-CSV file (Should fail 400)...")
+            txt_files = {"file": ("test.txt", b"plain text content", "text/plain")}
+            upload_res = client.post(
+                f"{base_url}/api/sales/upload",
+                files=txt_files,
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Status: {upload_res.status_code} (Expected: 400)")
+            print(f"Response: {upload_res.json()}")
+            assert upload_res.status_code == 400
+
+            # Test 15: Valid CSV Ingestion Forwarding
+            print("\n-------------------------------------------")
+            print("Test 15: Uploading valid CSV file (Should succeed)...")
+            csv_files = {"file": ("sales.csv", b"invoice_id,customer_id,product_id,quantity,total_amount,transaction_date\nINV01,C01,P01,5,100.0,2026-07-10", "text/csv")}
+            upload_csv_res = client.post(
+                f"{base_url}/api/sales/upload",
+                files=csv_files,
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Status: {upload_csv_res.status_code} (Expected: 200)")
+            csv_data = upload_csv_res.json()
+            print(f"Response: {csv_data}")
+            assert upload_csv_res.status_code == 200
+            assert csv_data.get("message") == "Mock Sales upload forward success"
+            assert csv_data.get("injected_user_id") == "1"
+            assert csv_data.get("injected_user_role") == "Business Owner"
+
             print("\n===========================================")
-            print("All 11 API Gateway integration tests passed successfully!")
+            print("All 15 API Gateway integration tests passed successfully!")
             print("===========================================")
 
     except Exception as e:
