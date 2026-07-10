@@ -1,0 +1,129 @@
+2026-07-10 02:38:13 | INFO | ETL Pipeline Started
+2026-07-10 02:38:14 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 02:38:14 | INFO | Rows: 51290, Columns: 33
+2026-07-10 02:38:14 | INFO | Missing value analysis completed.
+2026-07-10 02:38:14 | INFO | Duplicate rows found: 0
+2026-07-10 02:38:14 | INFO | Invoice IDs generated successfully.
+2026-07-10 02:38:14 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 02:38:14 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 02:38:14 | INFO | Dataset validation completed successfully.
+2026-07-10 02:38:16 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 02:38:16 | INFO | ETL Pipeline Completed Successfully.
+2026-07-10 02:45:35 | INFO | ETL Pipeline Started
+2026-07-10 02:45:36 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 02:45:36 | INFO | Rows: 51290, Columns: 33
+2026-07-10 02:45:36 | INFO | Missing value analysis completed.
+2026-07-10 02:45:36 | INFO | Duplicate rows found: 0
+2026-07-10 02:45:36 | INFO | Invoice IDs generated successfully.
+2026-07-10 02:45:36 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 02:45:36 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 02:45:36 | INFO | Dataset validation completed successfully.
+2026-07-10 02:45:37 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 02:45:37 | INFO | Customers table generated successfully. Total customers: 1590
+2026-07-10 02:45:37 | INFO | ETL Pipeline Completed Successfully.
+2026-07-10 02:48:12 | INFO | ETL Pipeline Started
+2026-07-10 02:48:12 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 02:48:12 | INFO | Rows: 51290, Columns: 33
+2026-07-10 02:48:13 | INFO | Missing value analysis completed.
+2026-07-10 02:48:13 | INFO | Duplicate rows found: 0
+2026-07-10 02:48:13 | INFO | Invoice IDs generated successfully.
+2026-07-10 02:48:13 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 02:48:13 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 02:48:13 | INFO | Dataset validation completed successfully.
+2026-07-10 02:48:14 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 02:48:14 | INFO | Customers table generated successfully. Total customers: 1590
+2026-07-10 02:48:14 | INFO | Products table generated successfully. Total products: 22615
+2026-07-10 02:48:14 | INFO | ETL Pipeline Completed Successfully.
+2026-07-10 02:50:00 | INFO | ETL Pipeline Started
+2026-07-10 02:50:00 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 02:50:00 | INFO | Rows: 51290, Columns: 33
+2026-07-10 02:50:00 | INFO | Missing value analysis completed.
+2026-07-10 02:50:00 | INFO | Duplicate rows found: 0
+2026-07-10 02:50:00 | INFO | Invoice IDs generated successfully.
+2026-07-10 02:50:00 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 02:50:00 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 02:50:00 | INFO | Dataset validation completed successfully.
+2026-07-10 02:50:01 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 02:50:01 | INFO | Customers table generated successfully. Total customers: 1590
+2026-07-10 02:50:01 | INFO | Products table generated successfully. Total products: 22615
+2026-07-10 02:50:01 | INFO | Inventory table generated successfully. Total records: 22615
+2026-07-10 02:50:01 | INFO | ETL Pipeline Completed Successfully.
+2026-07-10 02:51:54 | INFO | ETL Pipeline Started
+2026-07-10 02:51:54 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 02:51:54 | INFO | Rows: 51290, Columns: 33
+2026-07-10 02:51:54 | INFO | Missing value analysis completed.
+2026-07-10 02:51:54 | INFO | Duplicate rows found: 0
+2026-07-10 02:51:54 | INFO | Invoice IDs generated successfully.
+2026-07-10 02:51:55 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 02:51:55 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 02:51:55 | INFO | Dataset validation completed successfully.
+2026-07-10 02:51:55 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 02:51:55 | INFO | Customers table generated successfully. Total customers: 1590
+2026-07-10 02:51:55 | INFO | Products table generated successfully. Total products: 22615
+2026-07-10 02:51:55 | INFO | Inventory table generated successfully. Total records: 22615
+2026-07-10 02:51:56 | INFO | Sales Transactions table generated successfully. Total records: 51290
+2026-07-10 02:51:56 | INFO | ETL Pipeline Completed Successfully.
+2026-07-10 03:04:36 | INFO | ETL Pipeline Started
+2026-07-10 03:04:37 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 03:04:37 | INFO | Rows: 51290, Columns: 33
+2026-07-10 03:04:37 | INFO | Missing value analysis completed.
+2026-07-10 03:04:37 | INFO | Duplicate rows found: 0
+2026-07-10 03:04:37 | INFO | Invoice IDs generated successfully.
+2026-07-10 03:04:37 | INFO | Default payment_method assigned to all transactions.
+2026-07-10 03:04:37 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 03:04:37 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 03:04:37 | INFO | Dataset validation completed successfully.
+2026-07-10 03:04:38 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 03:04:38 | INFO | Customers table generated successfully. Total customers: 1590
+2026-07-10 03:04:38 | INFO | Products table generated successfully. Total products: 22615
+2026-07-10 03:04:39 | INFO | Inventory table generated successfully. Total records: 22615
+2026-07-10 03:04:39 | INFO | Sales Transactions table generated successfully. Total records: 51290
+2026-07-10 03:04:39 | INFO | ETL Pipeline Completed Successfully.
+2026-07-10 03:55:58 | INFO | ETL Pipeline Started
+2026-07-10 03:55:58 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 03:55:58 | INFO | Rows: 51290, Columns: 33
+2026-07-10 03:55:58 | INFO | Missing value analysis completed.
+2026-07-10 03:55:59 | INFO | Duplicate rows found: 0
+2026-07-10 03:55:59 | INFO | Invoice IDs generated successfully.
+2026-07-10 03:55:59 | INFO | Default payment_method assigned to all transactions.
+2026-07-10 03:55:59 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 03:55:59 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 03:55:59 | INFO | Dataset validation completed successfully.
+2026-07-10 03:56:00 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 03:56:00 | INFO | Customers table generated successfully. Total customers: 1590
+2026-07-10 03:56:00 | INFO | Products table generated successfully. Total unique products: 10292
+2026-07-10 03:56:00 | INFO | Inventory table generated successfully. Total records: 10292
+2026-07-10 03:56:00 | INFO | Sales Transactions table generated successfully. Total records: 51290
+2026-07-10 03:56:00 | INFO | ETL Pipeline Completed Successfully.
+2026-07-10 04:12:11 | INFO | ETL Pipeline Started
+2026-07-10 04:12:11 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 04:12:11 | INFO | Rows: 51290, Columns: 33
+2026-07-10 04:12:11 | INFO | Missing value analysis completed.
+2026-07-10 04:12:11 | INFO | Duplicate rows found: 0
+2026-07-10 04:12:11 | INFO | Invoice IDs generated successfully.
+2026-07-10 04:12:11 | INFO | Default payment_method assigned to all transactions.
+2026-07-10 04:12:12 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 04:12:12 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 04:12:12 | INFO | Dataset validation completed successfully.
+2026-07-10 04:12:12 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 04:12:12 | INFO | Customers table generated successfully. Total customers: 1590
+2026-07-10 04:12:12 | INFO | Products table generated successfully. Total unique products: 10292
+2026-07-10 04:12:12 | INFO | Inventory table generated successfully. Total records: 10292
+2026-07-10 04:12:13 | INFO | Sales Transactions table generated successfully. Total records: 51290
+2026-07-10 04:12:13 | INFO | ETL Pipeline Completed Successfully.
+2026-07-10 12:14:41 | INFO | ETL Pipeline Started
+2026-07-10 12:14:41 | INFO | Dataset loaded successfully: C:\Users\Dell\Desktop\marketmind-backend\app\etl\input\cleaned_dataset.csv
+2026-07-10 12:14:41 | INFO | Rows: 51290, Columns: 33
+2026-07-10 12:14:41 | INFO | Missing value analysis completed.
+2026-07-10 12:14:42 | INFO | Duplicate rows found: 0
+2026-07-10 12:14:42 | INFO | Invoice IDs generated successfully.
+2026-07-10 12:14:42 | INFO | Default payment_method assigned to all transactions.
+2026-07-10 12:14:42 | INFO | Stores table generated successfully. Total stores: 3812
+2026-07-10 12:14:42 | INFO | created_by_user_id assigned to all transactions.
+2026-07-10 12:14:42 | INFO | Dataset validation completed successfully.
+2026-07-10 12:14:43 | INFO | Validated dataset saved at: C:\Users\Dell\Desktop\marketmind-backend\app\etl\output\validated_dataset.csv
+2026-07-10 12:14:43 | INFO | Customers table generated successfully. Total customers: 1590
+2026-07-10 12:14:43 | INFO | Products table generated successfully. Total unique products: 10292
+2026-07-10 12:14:43 | INFO | Inventory table generated successfully. Total records: 10292
+2026-07-10 12:14:43 | INFO | Sales Transactions table generated successfully. Total records: 51290
+2026-07-10 12:14:43 | INFO | ETL Pipeline Completed Successfully.
