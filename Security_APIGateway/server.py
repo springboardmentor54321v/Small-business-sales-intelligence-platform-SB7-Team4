@@ -1,10 +1,13 @@
 import os
 import datetime
+import time
+from collections import defaultdict
 from typing import List, Dict, Optional
 import jwt
 import bcrypt
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, Header, status, File, UploadFile, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 
@@ -67,11 +70,77 @@ def find_user_by_name(name: str) -> Optional[Dict]:
             return u
     return None
 
+AUDIT_LOG_FILE = os.path.join(os.path.dirname(__file__), "audit.log")
+
 # --- Custom Audit Logging ---
 def log_audit(message: str, is_alert: bool = False):
     timestamp = datetime.datetime.now(datetime.UTC).isoformat()
-    prefix = "[Audit Log - Alert]" if is_alert else "[Audit Log]"
-    print(f"{prefix} - {timestamp} - {message}", flush=True)
+    prefix = "[ALERT]" if is_alert else "[INFO]"
+    log_line = f"{timestamp} - {prefix} - {message}\n"
+    
+    # Print to console
+    print(f"[Audit Log] {log_line.strip()}", flush=True)
+    
+    # Append to persistent log file
+    try:
+        with open(AUDIT_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(log_line)
+    except Exception as e:
+        print(f"Failed to write to audit log file: {e}", flush=True)
+
+# --- In-Memory Rate Limiting ---
+RATE_LIMIT_STORE = defaultdict(list)
+
+def check_rate_limit(ip: str, limit_type: str, max_requests: int, window: int) -> bool:
+    now = time.time()
+    # Filter out records older than 1 hour to prevent memory bloat
+    if ip in RATE_LIMIT_STORE:
+        RATE_LIMIT_STORE[ip] = [(t, l_type) for t, l_type in RATE_LIMIT_STORE[ip] if now - t < 3600]
+    
+    # Count matching records in window
+    recent = [t for t, l_type in RATE_LIMIT_STORE[ip] if l_type == limit_type and now - t < window]
+    if len(recent) >= max_requests:
+        return True
+        
+    RATE_LIMIT_STORE[ip].append((now, limit_type))
+    return False
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc"):
+        return await call_next(request)
+        
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # 1. Strict Auth Limit (10 requests/60s)
+    if path.startswith("/auth/"):
+        if check_rate_limit(client_ip, "auth", max_requests=10, window=60):
+            log_audit(f"Auth rate limit exceeded for IP: {client_ip}", is_alert=True)
+            return JSONResponse(
+                content={"detail": "Too many auth attempts. Please wait 1 minute."},
+                status_code=429
+            )
+            
+    # 2. Testing Limit (3 requests/10s)
+    elif path.startswith("/api/test-rate-limit"):
+        if check_rate_limit(client_ip, "test", max_requests=3, window=10):
+            log_audit(f"Test rate limit exceeded for IP: {client_ip}", is_alert=True)
+            return JSONResponse(
+                content={"detail": "Too many requests. Testing rate limit active."},
+                status_code=429
+            )
+            
+    # 3. General API Limit (100 requests/60s)
+    elif path.startswith("/api/"):
+        if check_rate_limit(client_ip, "general", max_requests=100, window=60):
+            log_audit(f"General API rate limit exceeded for IP: {client_ip}", is_alert=True)
+            return JSONResponse(
+                content={"detail": "Too many requests. Please try again later."},
+                status_code=429
+            )
+            
+    return await call_next(request)
 
 # --- Authorization Dependencies ---
 
@@ -499,6 +568,10 @@ async def proxy_audit_logs(
                 "message": "[Gateway Fallback] Audit logs backend is unreachable. Admin stubs active.",
                 "requestUser": user
             }
+
+@app.get("/api/test-rate-limit")
+async def test_rate_limit_endpoint(user: Dict = Depends(verify_token)):
+    return {"message": "Rate limit check passed."}
 
 if __name__ == "__main__":
     import uvicorn

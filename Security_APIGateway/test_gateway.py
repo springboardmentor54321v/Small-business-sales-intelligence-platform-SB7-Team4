@@ -309,8 +309,55 @@ def run_tests():
             assert csv_data.get("injected_user_id") == "1"
             assert csv_data.get("injected_user_role") == "Business Owner"
 
+            # Test 16: Authentication Rate Limiting
+            print("\n-------------------------------------------")
+            print("Test 16: Testing Authentication Rate Limiting (Should trigger HTTP 429 on 11th call)...")
+            throttled = False
+            for i in range(11):
+                rate_res = client.post(
+                    f"{base_url}/auth/login",
+                    json={
+                        "email": "alice@marketmind.com",
+                        "password": "password123"
+                    }
+                )
+                print(f"Call {i+1} Status: {rate_res.status_code}")
+                if rate_res.status_code == 429:
+                    throttled = True
+                    print(f"Response: {rate_res.json()}")
+                    break
+            assert throttled is True
+
+            # Test 17: Testing API Path Rate Limiting
+            print("\n-------------------------------------------")
+            print("Test 17: Testing API Path Rate Limiting (Should trigger HTTP 429 on 4th call)...")
+            api_throttled = False
+            for i in range(4):
+                rate_res = client.get(
+                    f"{base_url}/api/test-rate-limit",
+                    headers={"Authorization": f"Bearer {sales_token}"}
+                )
+                print(f"Call {i+1} Status: {rate_res.status_code}")
+                if rate_res.status_code == 429:
+                    api_throttled = True
+                    print(f"Response: {rate_res.json()}")
+                    break
+            assert api_throttled is True
+
+            # Test 18: Persistent Audit Log Verification
+            print("\n-------------------------------------------")
+            print("Test 18: Verifying persistent audit.log creation and contents...")
+            log_path = os.path.join(os.path.dirname(__file__), "audit.log")
+            assert os.path.exists(log_path) is True
+            with open(log_path, "r", encoding="utf-8") as f:
+                logs = f.read()
+            assert " - [INFO] - User Registered" in logs or " - [INFO] - User Logged In" in logs
+            assert "rate limit exceeded" in logs or "rate limit triggered" in logs
+            print("Log file verified successfully. Last 5 entries:")
+            print("\n".join(logs.splitlines()[-5:]))
+
             print("\n===========================================")
-            print("All 15 API Gateway integration tests passed successfully!")
+            print("All 18 API Gateway integration tests passed successfully!")
             print("===========================================")
 
     except Exception as e:
