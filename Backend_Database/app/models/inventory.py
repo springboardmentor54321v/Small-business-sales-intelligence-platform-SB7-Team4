@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, TIMESTAMP, text
+from sqlalchemy import Column, Integer, String, ForeignKey, TIMESTAMP, text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -10,8 +10,8 @@ class Inventory(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     product_id = Column(
-        Integer,
-        ForeignKey("products.id"),
+        String(50),
+        ForeignKey("products.product_id"),
         nullable=False,
         unique=True
     )
