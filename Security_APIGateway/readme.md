@@ -1,56 +1,52 @@
-# Security & API Gateway Layer (MarketMind AI)
+# Security & API Gateway Layer
 
-This subproject implements the secure API Gateway and Authentication/Authorization (RBAC) middleware for the MarketMind AI Small Business Sales Intelligence Platform.
-
----
-
-## 1. Summary of Milestone 1 Progress
-We have built a fully secure, performant, and verified entry-point gateway using **FastAPI**, **PyJWT**, and **Bcrypt**:
-1. **Asynchronous API Gateway Skeleton**: Initiated the gateway service running on Port 5000 using FastAPI.
-2. **Credential Hashing**: Secured user registration (`POST /auth/register`) with `bcrypt` (10 work factor rounds).
-3. **Stateless Authentication**: Implemented double-token JWT generation:
-   - **Access Token**: Short-lived (15 minutes) for client requests.
-   - **Refresh Token**: Long-lived (7 days) for session rotation.
-4. **Token Rotation & Revocation**: Added `/auth/refresh` for rotating tokens and `/auth/logout` to revoke active refresh tokens immediately.
-5. **Role-Based Access Control (RBAC)**: Built a dynamic interceptor middleware (`check_role`) validating JWT role claims against a permission matrix before allowing requests.
-6. **Reverse-Proxy Engine**: Configured the gateway to forward client requests using `httpx` to the Database Backend (`http://localhost:8000`) and AI Forecasting (`http://localhost:5002`), injecting verified `x-user-id` and `x-user-role` headers.
-7. **Payload Validation**: Enabled Pydantic validations (`InventoryUpdateSchema`) and CSV MIME-type checking to block malformed requests at the gateway.
-8. **Rate Limiting & File Auditing**: Configured IP-based throttling (HTTP 429) for security and mapped an audit trail into `audit.log`.
+This subproject implements the secure API Gateway and Authentication/Authorization (RBAC) middleware for the MarketMind AI Small Business Sales Intelligence Platform. Below is a detailed, topic-wise explanation of what was built for Milestone 1 and the upcoming tasks.
 
 ---
 
-## 2. Engineering Reflections & Design Thoughts
-* **FastAPI vs. Node.js**: FastAPI was chosen for its high async performance and native Pydantic integration, making gateway request parsing and schema validation clean and fast.
-* **Token Rotation Strategy**: Using a short-lived access token ensures that if a token is leaked, the breach window is extremely narrow. The refresh token rotation prevents users from needing to re-login repeatedly, offering a balanced security-UX experience.
-* **In-Memory Store vs. Distributed Cache**: For Milestone 1, we utilized in-memory dictionary stores (`mock_users` and `RATE_LIMIT_STORE`). While this is excellent for a single local node, it creates a stateful gateway.
+## 1. Milestone 1 Progress & Architecture
+
+### Topic: Asynchronous Gateway Proxy & Routing Engine
+The gateway serves as the single entry point for client traffic. Built using **FastAPI**, it utilizes an asynchronous HTTP client (`httpx.AsyncClient`) to dynamically route incoming requests from Port 5000 to downstream microservices, specifically the PostgreSQL database backend on Port 8000 and the AI Forecasting service on Port 5002. During proxy routing, the gateway intercepts the call, validates the client's identity, and injects custom headers `x-user-id` and `x-user-role`. This header injection ensures that downstream services remain database-agnostic regarding authentication while still receiving verified audit context to populate foreign keys like `sales_transactions.created_by_user_id`.
+
+### Topic: Cryptographic Password Hashing
+To secure credentials at rest, registration requests sent to `/auth/register` are processed by hashing the raw password using the **Bcrypt** algorithm. We configured a work factor (salt rounds) of 10 to ensure a robust balance between computation speed and cryptographic resistance against brute-force dictionary attacks. The resulting hashed string, rather than the plaintext password, is stored in memory, establishing a secure baseline for login verifications.
+
+### Topic: Double-Token Session & Refresh Lifecycle
+Authentication is stateless and managed via signed **JSON Web Tokens (JWT)** using the HMAC-SHA256 algorithm. When a user authenticates at `/auth/login`, the gateway issues two distinct tokens:
+- **Access Token**: A short-lived token expiring in 15 minutes, which the client attaches as a Bearer authorization header for API requests. This short duration minimizes the vulnerability window if a token is leaked.
+- **Refresh Token**: A long-lived token expiring in 7 days, which is stored in the user's active tokens list.
+Clients use the `/auth/refresh` endpoint to exchange a valid refresh token for a fresh access token without re-entering credentials. When a user requests `/auth/logout`, the gateway invalidates the session by clearing all active refresh tokens from the user's record, ensuring any intercepted refresh tokens are immediately blocked from further rotation.
+
+### Topic: Role-Based Access Control Middleware
+Authorization rules are enforced at the gateway layer using a custom FastAPI dependency filter called `check_role`. We designed a permission matrix mapping role groups (`Business Owner`, `Store Manager`, `Sales Executive`, `System Administrator`) to allowed resource modules. When a request hits a proxy route, the middleware decodes the JWT role claim, verifies its integrity, and checks it against the path's permissions:
+- Users with authorized roles are transparently proxied to downstream endpoints.
+- Users with unauthorized roles are blocked immediately at the Gateway, returning a clean HTTP `403 Forbidden` response.
+- Requests lacking a valid Bearer token are rejected with an HTTP `401 Unauthorized` response.
+
+### Topic: Payload Validation & Input Guarding
+The gateway guards downstream services from malformed or malicious inputs by validating payloads before proxying:
+- **JSON Validation**: We defined Pydantic validation schemas (such as `InventoryUpdateSchema`) to check input properties for endpoints like `POST /api/inventory/update`. Requests with missing or improperly typed fields are rejected with an HTTP `422 Unprocessable Entity` before triggering proxy connections.
+- **File Guarding**: The CSV file upload route `/api/sales/upload` parses file headers to confirm that the file suffix is `.csv` and the header Content-Type is `text/csv`, rejecting non-compliant uploads with an HTTP `400 Bad Request`.
+
+### Topic: API Throttling & Persistent Auditing
+To prevent brute-force attacks and resource exhaustion, we implemented a custom, in-memory rate-limiting middleware that tracks client requests by IP address:
+- **Auth Endpoint Throttling**: Strict limit of 10 requests per minute on `/auth/*` paths.
+- **General API Throttling**: Limit of 100 requests per minute on `/api/*` paths.
+Clients exceeding these limits are blocked with an HTTP `429 Too Many Requests` response. Critical security actions (registrations, logins, rate-limit triggers, validation errors, and signature exceptions) are written to a persistent log file, `Security_APIGateway/audit.log`, creating an immutable log trail for security review.
 
 ---
 
-## 3. Future Roadmap (Milestone 2 & Production Steps)
-In the next phase of development, you will need to scale and productionize this security layer:
+## 2. Future Roadmap
 
-### A. Centralized Distributed Caching (Redis)
-* **Goal**: Make the gateway completely stateless.
-* **Tasks**:
-  1. Set up a Redis database.
-  2. Migrate the active `refresh_tokens` lists and `RATE_LIMIT_STORE` IP trackers from Python memory into Redis.
-  3. This will allow you to scale the API Gateway horizontally (running multiple instances behind a load balancer like Nginx or AWS ALB) without losing session states or rate-limit trackers.
+### Topic: Distributed Caching & Stateless Scaling
+The current gateway tracks active refresh tokens and rate limits in Python memory (`defaultdict`). To scale the gateway horizontally behind a load balancer (such as Nginx or AWS Application Gateway), you should migrate these stateful structures to a centralized **Redis** caching database. This change will allow multiple instances of the API Gateway to share the same rate-limit counters and session states, maintaining session persistence across separate nodes.
 
-### B. Gateway Request Signatures (HMAC)
-* **Goal**: Prevent attackers from bypassing the gateway.
-* **Tasks**:
-  1. Implement HMAC request signing at the gateway.
-  2. Every request forwarded to the Backend Database will contain a signed header (e.g. `X-Gateway-Signature`) using a shared secret.
-  3. The Backend Database will verify this signature on every request, ensuring that only requests coming through the Gateway are accepted.
+### Topic: Gateway HMAC Request Signatures
+To ensure downstream security, the reverse proxy should sign every forwarded request using a Hash-based Message Authentication Code (HMAC) with a shared secret. Downstream backend services (like the database and AI endpoints) will then verify this signature on every incoming request. This prevents malicious actors from bypassing the gateway and hitting downstream database routes directly.
 
-### C. OAuth2 / OpenID Connect (OIDC) Integration
-* **Goal**: Outsource authentication to dedicated Identity Providers (IdP).
-* **Tasks**:
-  1. Integrate the gateway with platforms like Auth0, Keycloak, or Google OAuth.
-  2. Replace custom login/register loops with standardized authorization code flows.
+### Topic: Identity Provider (IdP) Integration
+To support enterprise standards, the authentication endpoints should be migrated to integrate with an OpenID Connect (OIDC) compliant Identity Provider (like Keycloak, Auth0, or Okta). This shifts credential management, multi-factor authentication (MFA), and password resets to a specialized, secure service while the Gateway focuses on token verification and proxy routing.
 
-### D. Production Security Headers & SSL
-* **Goal**: Secure browser-based clients.
-* **Tasks**:
-  1. Enforce HTTPS (SSL/TLS certificates) at the gateway level.
-  2. Add security headers such as HTTP Strict Transport Security (HSTS), Content Security Policy (CSP), X-Frame-Options (anti-clickjacking), and X-Content-Type-Options.
+### Topic: Transport Layer Security & Hardening Headers
+For production deployment, transport encryption must be enforced by routing all traffic over SSL/TLS (HTTPS). In addition, you should configure the gateway to inject security headers in all client responses, including Content Security Policy (CSP), HTTP Strict Transport Security (HSTS), X-Frame-Options (to block clickjacking), and X-Content-Type-Options.
