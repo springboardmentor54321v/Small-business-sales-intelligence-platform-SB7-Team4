@@ -1,41 +1,41 @@
 # Security & API Gateway Layer
 
-This subproject implements the secure API Gateway and Authentication/Authorization (RBAC) middleware for the MarketMind AI platform. Below is a brief, topic-wise summary of the implementation and future roadmap.
+In this part of the project, I built the secure API Gateway and Authentication/Authorization (RBAC) middleware for the MarketMind AI platform. Below is a detailed, topic-by-topic explanation of what I built for Milestone 1, followed by my future development roadmap.
 
 ---
 
-## 1. Milestone 1 Progress & Architecture
+## 1. What I Built for Milestone 1
 
 ### Asynchronous Gateway Proxy & Routing Engine
-The FastAPI gateway routes client traffic on Port 5000 to backend services on Ports 8000 and 5002 using an async HTTP client. It injects verified `x-user-id` and `x-user-role` headers into proxied requests to provide database transactions with user context.
+I set up the central API Gateway using **FastAPI** to route all client requests on Port 5000 downstream to our database backend (Port 8000) and the forecasting service (Port 5002) using `httpx`. When proxying, the gateway intercepts the call, decodes the user's details, and injects verified `x-user-id` and `x-user-role` headers so downstream routes can match transactions to the creator.
 
 ### Cryptographic Password Hashing
-Secures user registration by hashing plaintext passwords with the Bcrypt algorithm using a work factor of 10. Only the secure hash is stored, preventing plaintext credential leaks.
+To secure credentials, I implemented password hashing inside `/auth/register` using the `bcrypt` library with 10 salt rounds. Plaintext passwords are never stored in memory or logs; the gateway only verifies hashed passwords during authentication.
 
 ### Double-Token Session & Refresh Lifecycle
-Issues a 15-minute Access Token for authentication and a 7-day Refresh Token for rotation on `/auth/refresh`. The `/auth/logout` endpoint instantly clears active refresh tokens from user memory to invalidate the session.
+I implemented stateless JWT sessions that issue a short-lived Access Token (15-minute expiration) and a long-lived Refresh Token (7-day expiration) on login. I also added a `/auth/refresh` rotation route to generate new access tokens and a `/auth/logout` route that immediately invalidates all of a user's active refresh tokens.
 
 ### Role-Based Access Control Middleware
-Enforces route access via the `check_role(allowed_roles)` dependency function. It intercepts calls, decodes JWT role claims, and blocks unauthorized roles with `403 Forbidden` and unauthenticated calls with `401 Unauthorized`.
+I designed the role permission matrix and wrote a custom `check_role(allowed_roles)` middleware to enforce access controls. The gateway intercepts calls, decodes the JWT role claim, and immediately rejects unauthorized calls with an HTTP `403 Forbidden` error (or HTTP `401 Unauthorized` if the token is missing/expired).
 
 ### Payload Validation & Input Guarding
-Intercepts and validates requests at the Gateway layer: Pydantic (`InventoryUpdateSchema`) blocks malformed updates (HTTP 422), and MIME-type parsing restricts file uploads to CSV format (HTTP 400).
+I configured input validation filters at the gateway level using Pydantic schemas (like `InventoryUpdateSchema`) to check JSON payloads for `/api/inventory/update`, rejecting malformed requests with `422 Unprocessable Entity`. I also configured `/api/sales/upload` to parse file content-types and block non-CSV uploads with a `400 Bad Request`.
 
 ### API Throttling & Persistent Auditing
-Limits requests dynamically using IP-based tracking middleware (10 requests/min for auth; 100 requests/min for general routes). Throttled requests receive an HTTP 429 status code, and all critical actions are logged in `audit.log`.
+I implemented an IP-based rate-limiting middleware (throttling logins at 10 requests/minute and general APIs at 100 requests/minute) returning an HTTP `429 Too Many Requests` response. I also configured the logging module to write persistent log entries for logins, role blocks, and throttling alerts directly into a local `audit.log` file.
 
 ---
 
-## 2. Future Roadmap
+## 2. My Future Roadmap
 
 ### Distributed Caching (Redis)
-Migrating in-memory session lists and rate-limit tracking to a Redis store to allow scaling multiple gateway nodes horizontally behind a load balancer.
+I plan to migrate the in-memory rate-limiter lists and active refresh token storage into a centralized Redis database. This will make the gateway completely stateless and allow us to scale it horizontally behind a load balancer.
 
 ### Gateway HMAC Request Signatures
-Signing proxy requests with a shared secret key, allowing backend endpoints to verify that incoming traffic passed through the Gateway.
+I plan to sign forwarded proxy requests with a secret key using HMAC. Downstream backend services will verify this signature, guaranteeing that no one can bypass the gateway and interact with database routes directly.
 
 ### Identity Provider Integration
-Integrating OIDC protocols (like Auth0 or Keycloak) to offload credential storage, multi-factor logins, and password resets.
+I want to connect the gateway with open-standard Identity Providers (like Auth0 or Keycloak) to offload user storage, email verifications, and multi-factor authentication (MFA) setups.
 
-### Transport Hardening & SSL
-Enforcing HTTPS and configuring response headers (like CSP, HSTS, and XSS protection) to secure browser clients.
+### Transport Hardening & SSL/TLS
+I will enforce HTTPS protocols across the gateway and inject standard security headers (including HSTS, CSP, and XSS protection) to secure client browsers and prevent scripting attacks.
