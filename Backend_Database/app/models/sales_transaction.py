@@ -26,20 +26,20 @@ class SalesTransaction(Base):
     transaction_date = Column(Date, nullable=False)
 
     customer_id = Column(
-        Integer,
-        ForeignKey("customers.id"),
+        String(50),
+        ForeignKey("customers.customer_id"),
         nullable=False
     )
 
     product_id = Column(
-        Integer,
-        ForeignKey("products.id"),
+        String(50),
+        ForeignKey("products.product_id"),
         nullable=False
     )
 
     store_id = Column(
-        Integer,
-        ForeignKey("stores.id"),
+        String(50),
+        ForeignKey("stores.store_id"),
         nullable=False
     )
 
