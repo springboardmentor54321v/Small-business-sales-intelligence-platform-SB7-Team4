@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketMind AI - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Gradients -->
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <!-- Login Portal -->
+    <div id="login-container" class="glass-card auth-card">
+        <div class="auth-header">
+            <h1 class="brand-title">MarketMind AI</h1>
+            <p class="brand-subtitle">Retail Intelligence Platform</p>
+        </div>
+        
+        <div class="tabs">
+            <button id="tab-login" class="tab-btn active" onclick="switchAuthTab('login')">Sign In</button>
+            <button id="tab-register" class="tab-btn" onclick="switchAuthTab('register')">Sign Up</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+            <div class="input-group">
+                <label for="login-email">Email Address</label>
+                <input type="email" id="login-email" required placeholder="name@marketmind.com">
+            </div>
+            <div class="input-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
+            <div class="input-group">
+                <label for="reg-name">Full Name</label>
+                <input type="text" id="reg-name" placeholder="John Doe">
+            </div>
+            <div class="input-group">
+                <label for="reg-email">Email Address</label>
+                <input type="email" id="reg-email" placeholder="name@marketmind.com">
+            </div>
+            <div class="input-group">
+                <label for="reg-password">Password</label>
+                <input type="password" id="reg-password" placeholder="Min. 8 characters">
+            </div>
+            <div class="input-group">
+                <label for="reg-role">Organizational Role</label>
+                <select id="reg-role">
+                    <option value="Business Owner">Business Owner</option>
+                    <option value="Store Manager">Store Manager</option>
+                    <option value="Sales Executive">Sales Executive</option>
+                    <option value="System Administrator">System Administrator</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Account</button>
+        </form>
+
+        <div id="auth-status" class="status-msg"></div>
+    </div>
+
+    <!-- Main Dashboard Application -->
+    <div id="app-container" class="dashboard-layout hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar glass-card">
+            <div class="sidebar-header">
+                <h2 class="brand-title">MarketMind AI</h2>
+                <div class="user-badge">
+                    <span id="user-role-lbl" class="role-tag">Business Owner</span>
+                    <span id="user-name-lbl" class="user-name">Loading...</span>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" onclick="switchView('overview')">
+                    <span class="icon">📊</span> Overview
+                </a>
+                <a href="#" id="menu-upload" class="nav-item" onclick="switchView('upload')">
+                    <span class="icon">📥</span> Data Ingestion
+                </a>
+                <a href="#" id="menu-inventory" class="nav-item" onclick="switchView('inventory')">
+                    <span class="icon">📦</span> Inventory Control
+                </a>
+                <a href="#" id="menu-forecast" class="nav-item" onclick="switchView('forecast')">
+                    <span class="icon">🔮</span> AI Forecasting
+                </a>
+                <a href="#" id="menu-audit" class="nav-item" onclick="switchView('audit')">
+                    <span class="icon">📜</span> System Audit Logs
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button onclick="handleLogout()" class="btn btn-secondary btn-logout">Sign Out</button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header glass-card">
+                <h1 id="view-title">Overview</h1>
+                <div class="gateway-status">
+                    <span class="pulse-indicator"></span> Gateway Status: <strong class="text-green">Secure</strong>
+                </div>
+            </header>
+
+            <!-- Status Alert Center -->
+            <div id="alert-banner" class="alert-banner hidden"></div>
+
+            <!-- View 1: Overview Panel -->
+            <section id="view-overview" class="dashboard-view">
+                <div class="stats-grid">
+                    <div class="stat-card glass-card">
+                        <h3>Gross Revenue</h3>
+                        <div class="value">$124,580.20</div>
+                        <span class="trend green">▲ +12.3% this month</span>
+                    </div>
+                    <div class="stat-card glass-card">
+                        <h3>Active Products</h3>
+                        <div class="value">1,420 items</div>
+                        <span class="trend gray">Stable catalog size</span>
+                    </div>
+                    <div class="stat-card glass-card">
+                        <h3>Upload Volume</h3>
+                        <div class="value">42.8k sales records</div>
+                        <span class="trend green">▲ +4.8% sync load</span>
+                    </div>
+                </div>
+
+                <!-- Charts Display -->
+                <div class="layout-grid">
+                    <div class="glass-card chart-card">
+                        <h3>Sales Performance Trend</h3>
+                        <div class="bar-chart">
+                            <div class="bar-container"><div class="bar" style="height: 45%;"></div><span>Mon</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 60%;"></div><span>Tue</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 80%;"></div><span>Wed</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 55%;"></div><span>Thu</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 90%;"></div><span>Fri</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 75%;"></div><span>Sat</span></div>
+                            <div class="bar-container"><div class="bar" style="height: 35%;"></div><span>Sun</span></div>
+                        </div>
+                    </div>
+                    <div class="glass-card chart-card">
+                        <h3>API Gateway Verification Activity</h3>
+                        <div class="logs-console">
+                            <div class="console-line info">[API Gateway] 200 GET /api/sales/dashboard-metrics - Authorized</div>
+                            <div class="console-line info">[API Gateway] 200 POST /auth/refresh - Rotating strategy keys</div>
+                            <div class="console-line alert">[Security Filter] 403 GET /api/audit-logs - Rejected (Forbidden Role: Sales Executive)</div>
+                            <div class="console-line info">[API Gateway] 200 GET /api/inventory - Mapping context header x-user-id: 2</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View 2: Sales Upload Panel -->
+            <section id="view-upload" class="dashboard-view hidden">
+                <div class="glass-card upload-wrapper">
+                    <h3>CSV Dataset Ingestion</h3>
+                    <p class="description">Upload retail transactions CSV sheet below. Files are checked for schema integrity and validated at the Gateway layer before routing.</p>
+                    
+                    <div class="drop-zone" id="drop-zone" onclick="triggerFileInput()">
+                        <div class="drop-icon">📁</div>
+                        <p class="drop-text">Drag and drop sales CSV file here, or click to browse</p>
+                        <input type="file" id="sales-file-input" class="hidden" accept=".csv" onchange="handleFileSelected(event)">
+                    </div>
+
+                    <div id="file-info" class="file-info hidden">
+                        <span class="file-icon">📄</span>
+                        <div class="file-details">
+                            <span id="file-name-lbl" class="file-name">sales_data.csv</span>
+                            <span id="file-size-lbl" class="file-size">14 KB</span>
+                        </div>
+                        <button class="btn btn-primary" onclick="uploadSelectedFile()">Upload Ingestion</button>
+                    </div>
+
+                    <div id="upload-status" class="status-box hidden"></div>
+                </div>
+            </section>
+
+            <!-- View 3: Inventory Control Panel -->
+            <section id="view-inventory" class="dashboard-view hidden">
+                <div class="glass-card">
+                    <h3>Manage Stock Levels</h3>
+                    <p class="description">Submit updates for active products. Modifying stock parameters requires Manager or Owner privileges and validates payload formatting at the gateway.</p>
+                    
+                    <form id="inventory-form" class="inline-form" onsubmit="handleInventoryUpdate(event)">
+                        <div class="input-group">
+                            <label for="inv-product-id">Product ID (Integer)</label>
+                            <input type="number" id="inv-product-id" required placeholder="e.g. 101">
+                        </div>
+                        <div class="input-group">
+                            <label for="inv-stock-qty">Stock Quantity</label>
+                            <input type="number" id="inv-stock-qty" required placeholder="e.g. 150">
+                        </div>
+                        <div class="input-group">
+                            <label for="inv-threshold">Low Stock Threshold</label>
+                            <input type="number" id="inv-threshold" value="10" placeholder="e.g. 10">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Inventory</button>
+                    </form>
+
+                    <div id="inventory-status" class="status-box hidden"></div>
+                </div>
+            </section>
+
+            <!-- View 4: AI Forecasting Panel -->
+            <section id="view-forecast" class="dashboard-view hidden">
+                <div class="glass-card">
+                    <h3>Predictive Sales Intelligence</h3>
+                    <p class="description">Queries the machine learning module via Gateway proxy `/api/forecast/sample` to predict sales volumes using baseline models.</p>
+                    
+                    <button class="btn btn-primary" onclick="queryForecasting()">Fetch AI Predictions</button>
+                    
+                    <div id="forecast-loader" class="loader hidden">Retrieving forecast projections...</div>
+                    <div id="forecast-results" class="forecast-results hidden">
+                        <table class="forecast-table">
+                            <thead>
+                                <tr>
+                                    <th>Target Date</th>
+                                    <th>Predicted Gross Sales</th>
+                                </tr>
+                            </thead>
+                            <tbody id="forecast-table-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View 5: System Audit Logs Panel -->
+            <section id="view-audit" class="dashboard-view hidden">
+                <div class="glass-card">
+                    <h3>Security Logs Audits</h3>
+                    <p class="description">Exposed strictly to the System Administrator role. Tracks registration parameters, authorization overrides, and blocked rate-limit attempts.</p>
+                    
+                    <button class="btn btn-primary" onclick="queryAuditLogs()">Retrieve Logs</button>
+                    
+                    <div id="audit-results" class="console-box hidden">
+                        <pre id="audit-log-content">Loading gateway records...</pre>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
