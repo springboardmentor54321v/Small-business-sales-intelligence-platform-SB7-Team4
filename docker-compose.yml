@@ -60,7 +60,7 @@ services:
       dockerfile: DevOps_Integration/frontend.Dockerfile
     container_name: marketmind_frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - gateway
 
