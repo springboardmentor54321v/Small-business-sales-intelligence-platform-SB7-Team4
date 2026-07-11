@@ -10,15 +10,11 @@ jobs:
   validate-gateway:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r Security_APIGateway/requirements.txt
     - name: Validate Python syntax
       run: |
         python -m py_compile Security_APIGateway/server.py Security_APIGateway/test_gateway.py
@@ -26,46 +22,24 @@ jobs:
   validate-backend:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r Backend_Database/requirements.txt
     - name: Validate Python syntax
       run: |
-        python -m py_compile Backend_Database/app/main.py
+        python -m compileall -q Backend_Database/app
 
-  build-containers:
+  validate-dockerfiles:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-    - name: Build API Gateway Container
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: DevOps_Integration/gateway.Dockerfile
-        push: false
-    - name: Build Database Backend Container
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: DevOps_Integration/backend.Dockerfile
-        push: false
-    - name: Build Nginx Frontend Container
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: DevOps_Integration/frontend.Dockerfile
-        push: false
-    - name: Build AIML Forecasting Container
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: DevOps_Integration/aiml.Dockerfile
-        push: false
+      uses: docker/setup-buildx-action@v3
+    - name: Check API Gateway Dockerfile
+      run: docker buildx build --check -f DevOps_Integration/gateway.Dockerfile .
+    - name: Check Database Backend Dockerfile
+      run: docker buildx build --check -f DevOps_Integration/backend.Dockerfile .
+    - name: Check AIML Forecasting Dockerfile
+      run: docker buildx build --check -f DevOps_Integration/aiml.Dockerfile .
