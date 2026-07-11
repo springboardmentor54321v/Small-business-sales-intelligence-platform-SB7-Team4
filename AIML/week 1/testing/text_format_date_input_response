@@ -1,0 +1,122 @@
+[
+  {
+    "Order Date": "1970-01-02",
+    "Predicted Sales": 21085.75
+  },
+  {
+    "Order Date": "1970-01-03",
+    "Predicted Sales": 9212.01
+  },
+  {
+    "Order Date": "1970-01-04",
+    "Predicted Sales": 2666.98
+  },
+  {
+    "Order Date": "1970-01-05",
+    "Predicted Sales": 13841.0
+  },
+  {
+    "Order Date": "1970-01-06",
+    "Predicted Sales": 16175.05
+  },
+  {
+    "Order Date": "1970-01-07",
+    "Predicted Sales": 12001.6
+  },
+  {
+    "Order Date": "1970-01-08",
+    "Predicted Sales": 15304.52
+  },
+  {
+    "Order Date": "1970-01-09",
+    "Predicted Sales": 13937.55
+  },
+  {
+    "Order Date": "1970-01-10",
+    "Predicted Sales": 10354.9
+  },
+  {
+    "Order Date": "1970-01-11",
+    "Predicted Sales": 2313.31
+  },
+  {
+    "Order Date": "1970-01-12",
+    "Predicted Sales": 11939.67
+  },
+  {
+    "Order Date": "1970-01-13",
+    "Predicted Sales": 14053.51
+  },
+  {
+    "Order Date": "1970-01-14",
+    "Predicted Sales": 11021.86
+  },
+  {
+    "Order Date": "1970-01-15",
+    "Predicted Sales": 12079.99
+  },
+  {
+    "Order Date": "1970-01-16",
+    "Predicted Sales": 9408.15
+  },
+  {
+    "Order Date": "1970-01-17",
+    "Predicted Sales": 6725.95
+  },
+  {
+    "Order Date": "1970-01-18",
+    "Predicted Sales": 1393.82
+  },
+  {
+    "Order Date": "1970-01-19",
+    "Predicted Sales": 11507.15
+  },
+  {
+    "Order Date": "1970-01-20",
+    "Predicted Sales": 9927.76
+  },
+  {
+    "Order Date": "1970-01-21",
+    "Predicted Sales": 8091.71
+  },
+  {
+    "Order Date": "1970-01-22",
+    "Predicted Sales": 7303.78
+  },
+  {
+    "Order Date": "1970-01-23",
+    "Predicted Sales": 8141.24
+  },
+  {
+    "Order Date": "1970-01-24",
+    "Predicted Sales": 4413.59
+  },
+  {
+    "Order Date": "1970-01-25",
+    "Predicted Sales": 2553.68
+  },
+  {
+    "Order Date": "1970-01-26",
+    "Predicted Sales": 9077.93
+  },
+  {
+    "Order Date": "1970-01-27",
+    "Predicted Sales": 6977.34
+  },
+  {
+    "Order Date": "1970-01-28",
+    "Predicted Sales": 7061.49
+  },
+  {
+    "Order Date": "1970-01-29",
+    "Predicted Sales": 6319.44
+  },
+  {
+    "Order Date": "1970-01-30",
+    "Predicted Sales": 9160.92
+  },
+  {
+    "Order Date": "1970-01-31",
+    "Predicted Sales": 4853.48
+  }
+]

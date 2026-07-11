@@ -1,0 +1,4 @@
+{
+  "error": "Insufficient historical data.",
+  "message": "At least 30 days of historical sales data are required to generate a 30-day forecast."
+}
