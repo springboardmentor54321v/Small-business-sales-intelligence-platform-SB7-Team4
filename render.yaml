@@ -1,0 +1,39 @@
+services:
+  # Database Service
+  - type: database
+    name: marketmind-db
+    databaseName: marketmind_db
+    user: postgres
+
+  # FastAPI Backend Service
+  - type: web
+    name: marketmind-backend
+    env: python
+    buildCommand: pip install -r Backend_Database/requirements.txt
+    startCommand: uvicorn Backend_Database.app.main:app --host 0.0.0.0 --port 8000
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: marketmind-db
+          property: connectionString
+
+  # API Gateway Proxy Service
+  - type: web
+    name: marketmind-gateway
+    env: python
+    buildCommand: pip install -r Security_APIGateway/requirements.txt
+    startCommand: uvicorn Security_APIGateway.server:app --host 0.0.0.0 --port 5000
+    envVars:
+      - key: BACKEND_URL
+        value: https://marketmind-backend.onrender.com
+      - key: AI_URL
+        value: https://marketmind-aiml.onrender.com
+      - key: JWT_SECRET
+        generateValue: true
+
+  # AI/ML Forecasting Stub Service
+  - type: web
+    name: marketmind-aiml
+    env: python
+    buildCommand: pip install -r AIML/week\ 1/stub_service/requirements.txt
+    startCommand: python AIML/week\ 1/stub_service/app.py

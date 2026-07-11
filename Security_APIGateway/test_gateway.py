@@ -10,7 +10,7 @@ from fastapi import FastAPI, Header
 # Spin up a mock backend on Port 8000 to test reverse proxy routing
 mock_backend = FastAPI()
 
-@mock_backend.get("/api/inventory")
+@mock_backend.get("/inventory/")
 def mock_inventory(x_user_id: str = Header(None), x_user_role: str = Header(None)):
     return {
         "message": "Mock Inventory forward success",
@@ -18,10 +18,11 @@ def mock_inventory(x_user_id: str = Header(None), x_user_role: str = Header(None
         "injected_user_role": x_user_role
     }
 
-@mock_backend.post("/api/inventory/update")
-def mock_inventory_update(payload: dict, x_user_id: str = Header(None), x_user_role: str = Header(None)):
+@mock_backend.put("/inventory/{product_id}")
+def mock_inventory_update(product_id: str, payload: dict, x_user_id: str = Header(None), x_user_role: str = Header(None)):
     return {
         "message": "Mock Inventory update forward success",
+        "product_id": product_id,
         "payload": payload,
         "injected_user_id": x_user_id,
         "injected_user_role": x_user_role

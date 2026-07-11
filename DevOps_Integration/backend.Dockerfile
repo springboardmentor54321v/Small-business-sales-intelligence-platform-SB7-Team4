@@ -8,9 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
+# Copy requirements and install (stripping hard version locks for Python 3.11 compatibility)
 COPY Backend_Database/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -c "import re; open('requirements.txt', 'w').write(re.sub(r'==.*', '', open('requirements.txt').read()))" && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY Backend_Database/ .

@@ -40,8 +40,11 @@ services:
       BACKEND_URL: http://backend:8000
       AI_URL: http://aiml:5000
       JWT_SECRET: your_super_secret_jwt_key_12345
+      AUDIT_LOG_FILE: /app/logs/audit.log
     ports:
       - "5000:5000"
+    volumes:
+      - ./logs:/app/logs
     depends_on:
       - backend
       - aiml

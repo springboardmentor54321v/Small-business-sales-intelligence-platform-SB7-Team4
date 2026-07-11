@@ -1,0 +1,106 @@
+================================================================================
+MARKETMIND AI - MILESTONE 1 DEVOPS & SYSTEM INTEGRATION REPORT
+================================================================================
+
+This report presents a comprehensive overview of the containerization, orchestration,
+environment settings, and continuous integration workflows established to unify the
+MarketMind AI microservices.
+
+All configuration files and Docker blueprints are contained within the
+DevOps_Integration folder to respect repository boundaries.
+
+--------------------------------------------------------------------------------
+1. MICROSERVICE CONTAINERIZATION
+--------------------------------------------------------------------------------
+
+Custom Docker blueprints package each layer of the platform:
+
+* API Gateway (gateway.Dockerfile)
+  Standardizes the FastAPI security proxy, rate limiter, and JWT decoder on
+  Python 3.11-slim.
+
+* Database Backend (backend.Dockerfile)
+  Compiles database drivers and hosts the database FastAPI backend on
+  Python 3.11-slim.
+
+* AI/ML Forecasting (aiml.Dockerfile)
+  Containerizes the LightGBM models and Flask stub service.
+
+* Nginx Frontend (frontend.Dockerfile)
+  Employs a Node.js builder stage to compile web static assets and deploys
+  them to Nginx.
+
+NOTE: Build Fix implemented on aiml.Dockerfile
+The copy pathway for the AI forecasting stub contained spaces ("AIML/week 1/stub_service/").
+We resolved the build-breaking argument parsing error by wrapping the path in 
+double quotes inside JSON array notation:
+COPY ["AIML/week 1/stub_service/", "./"]
+
+--------------------------------------------------------------------------------
+2. CONTAINER ORCHESTRATION & NETWORK TOPOLOGY
+--------------------------------------------------------------------------------
+
+The root docker-compose.yml handles multi-container coordination:
+
+* Database Readiness check
+  A PostgreSQL health check prevents the backend service from booting up until 
+  postgres is fully ready for connection.
+
+* Secure Virtual Network
+  Services share an isolated bridge network, routing internal requests using 
+  service names as DNS addresses (e.g. http://backend:8000).
+
+* Database Persistence
+  Volume mounting binds the PostgreSQL storage to ensure database records 
+  survive container updates or re-builds.
+
+--------------------------------------------------------------------------------
+3. PERSISTENT & CENTRALIZED LOGS
+--------------------------------------------------------------------------------
+
+* Persistent Mount
+  The gateway maps "./logs:/app/logs" as a container volume and overrides the 
+  audit logging path with the variable:
+  AUDIT_LOG_FILE=/app/logs/audit.log
+
+* Result
+  Log events (logins, logouts, rate limits, alerts) are persistently saved to 
+  the host under "./logs/audit.log".
+
+--------------------------------------------------------------------------------
+4. CONFIGURATION TEMPLATES & STAGING
+--------------------------------------------------------------------------------
+
+* Env Blueprints
+  Centralized templates (.env.example and Security_APIGateway/.env.example) 
+  help engineers run environments locally with standard variables.
+
+* Render Cloud Integration
+  The render.yaml spec file defines Infrastructure-as-Code for hosting the 
+  PostgreSQL instances, API gateway, backend, and AI stubs on Render staging.
+
+--------------------------------------------------------------------------------
+5. HOW TO RUN THE ENVIRONMENT
+--------------------------------------------------------------------------------
+
+Prerequisites:
+Make sure Docker Desktop is running on your machine.
+
+Execution Commands:
+Run these commands from the workspace root:
+
+  # 1. Compile all microservice containers
+  docker compose build
+
+  # 2. Run in detached (background) mode
+  docker compose up -d
+
+  # 3. Shutdown the network and cleanup
+  docker compose down
+
+Local Services & Ports Routing:
+- Frontend UI             : http://localhost:3000 -> Nginx static server
+- API Gateway             : http://localhost:5000 -> FastAPI secure proxy
+- Backend API             : http://localhost:8000 -> FastAPI database layer
+- AI/ML API               : http://localhost:5002 -> Flask ML forecasting stub
+- PostgreSQL Database     : localhost:5432        -> SQL database engine

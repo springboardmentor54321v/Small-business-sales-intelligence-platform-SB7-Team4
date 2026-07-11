@@ -53,7 +53,7 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 class InventoryUpdateSchema(BaseModel):
-    product_id: int
+    product_id: str
     stock_quantity: int
     low_stock_threshold: int = 10
 
@@ -70,7 +70,7 @@ def find_user_by_name(name: str) -> Optional[Dict]:
             return u
     return None
 
-AUDIT_LOG_FILE = os.path.join(os.path.dirname(__file__), "audit.log")
+AUDIT_LOG_FILE = os.getenv("AUDIT_LOG_FILE", os.path.join(os.path.dirname(__file__), "audit.log"))
 
 # --- Custom Audit Logging ---
 def log_audit(message: str, is_alert: bool = False):
@@ -341,51 +341,6 @@ async def logout(user: Dict = Depends(verify_token)):
     
     return {"message": "Logged out successfully"}
 
-# --- Authorization Dependencies ---
-
-async def verify_token(authorization: Optional[str] = Header(None)) -> Dict:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access token missing or malformed. Use Bearer <token>"
-        )
-    
-    token = authorization.split(" ")[1]
-    try:
-        decoded = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-        return decoded
-    except jwt.ExpiredSignatureError:
-        log_audit("Rejected expired token", is_alert=True)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access token is expired"
-        )
-    except jwt.InvalidTokenError as e:
-        log_audit(f"Rejected invalid token: {str(e)}", is_alert=True)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access token is invalid"
-        )
-
-def check_role(allowed_roles: List[str]):
-    async def role_dependency(user: Dict = Depends(verify_token)):
-        if "role" not in user:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: role signature missing"
-            )
-        if user["role"] not in allowed_roles:
-            log_audit(
-                f"Unauthorized role access attempt: User {user.get('name', 'unknown')} ({user['role']}) tried to access path",
-                is_alert=True
-            )
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Forbidden: Access restricted. Required role: one of [{', '.join(allowed_roles)}]"
-            )
-        return user
-    return role_dependency
-
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 AI_URL = os.getenv("AI_URL", "http://localhost:5002")
 
@@ -471,7 +426,7 @@ async def proxy_inventory_view(
                 "x-user-role": user["role"]
             }
             response = await client.get(
-                f"{BACKEND_URL}/api/inventory",
+                f"{BACKEND_URL}/inventory/",
                 params=dict(request.query_params),
                 headers=headers
             )
@@ -497,9 +452,12 @@ async def proxy_inventory_update(
                 "x-user-id": str(user["userId"]),
                 "x-user-role": user["role"]
             }
-            response = await client.post(
-                f"{BACKEND_URL}/api/inventory/update",
-                json=payload.model_dump(),
+            response = await client.put(
+                f"{BACKEND_URL}/inventory/{payload.product_id}",
+                json={
+                    "stock_quantity": payload.stock_quantity,
+                    "low_stock_threshold": payload.low_stock_threshold
+                },
                 headers=headers
             )
             return Response(
@@ -529,6 +487,16 @@ async def proxy_forecast_sample(
                 params=dict(request.query_params),
                 headers=headers
             )
+            if response.status_code == 404:
+                return {
+                    "message": "[Gateway Stub] AI/ML sample forecast endpoint is not implemented by the AI service yet.",
+                    "forecast": [
+                        {"date": "2026-07-12", "predicted_sales": 1250.0},
+                        {"date": "2026-07-13", "predicted_sales": 1325.5},
+                        {"date": "2026-07-14", "predicted_sales": 1298.75}
+                    ],
+                    "requestUser": user
+                }
             return Response(
                 content=response.content,
                 status_code=response.status_code,

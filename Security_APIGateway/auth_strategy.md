@@ -8,12 +8,12 @@ This document outlines the authentication protocol, JWT claims structure, and th
 
 MarketMind AI uses a **stateless, token-based authentication** architecture utilizing **JSON Web Tokens (JWT)**.
 
-- **Token Provider**: The API Gateway (`gateway`) handles user credentials checking, hashing verification (using `bcryptjs`), and token generation.
+- **Token Provider**: The API Gateway (`gateway`) handles user credentials checking, hashing verification (using Python `bcrypt`), and token generation.
 - **Bearer Authentication**: Clients must present the JWT in the HTTP headers of all protected requests:
   ```http
   Authorization: Bearer <JWT_TOKEN>
   ```
-- **Lifecycle**: Access tokens are valid for **24 hours** by default.
+- **Lifecycle**: Access tokens are valid for **15 minutes** by default and refresh tokens are valid for **7 days**.
 
 ---
 
