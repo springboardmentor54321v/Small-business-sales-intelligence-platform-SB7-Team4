@@ -1,76 +1,36 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
 
 
-def sales_trend_chart():
+def show_cards(metrics):
 
-    data = pd.DataFrame({
-        "Day": [
-            "Mon",
-            "Tue",
-            "Wed",
-            "Thu",
-            "Fri",
-            "Sat",
-            "Sun"
-        ],
-        "Sales": [
-            12000,
-            18000,
-            15000,
-            22000,
-            28000,
-            35000,
-            30000
-        ]
-    })
+    col1, col2, col3, col4, col5 = st.columns(5)
 
-    fig = px.line(
-        data,
-        x="Day",
-        y="Sales",
-        markers=True,
-        title="📈 Daily Sales Trend"
-    )
+    with col1:
+        st.metric(
+            label="💰 Total Revenue",
+            value=f"₹{metrics['Revenue']:,.2f}"
+        )
 
-    fig.update_layout(
-        height=400,
-        template="plotly_white"
-    )
+    with col2:
+        st.metric(
+            label="🛒 Total Orders",
+            value=metrics["Orders"]
+        )
 
-    st.plotly_chart(fig, use_container_width=True)
+    with col3:
+        st.metric(
+            label="📦 Products Sold",
+            value=metrics["Products Sold"]
+        )
 
+    with col4:
+        st.metric(
+            label="🏬 Inventory Count",
+            value=metrics["Inventory"]
+        )
 
-def top_products_chart():
-
-    data = pd.DataFrame({
-        "Product": [
-            "Laptop",
-            "Mouse",
-            "Keyboard",
-            "Monitor",
-            "Printer"
-        ],
-        "Sales": [
-            320,
-            280,
-            240,
-            180,
-            120
-        ]
-    })
-
-    fig = px.bar(
-        data,
-        x="Product",
-        y="Sales",
-        title="🏆 Top Products"
-    )
-
-    fig.update_layout(
-        height=400,
-        template="plotly_white"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
+    with col5:
+        st.metric(
+            label="⚠ Low Stock",
+            value=metrics["Low Stock"]
+        )
