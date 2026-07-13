@@ -2,21 +2,23 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install build dependencies for postgres and scientific libraries
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install (stripping hard version locks for Python 3.11 compatibility)
-COPY Backend_Database/requirements.txt .
-RUN python -c "import re; open('requirements.txt', 'w').write(re.sub(r'==.*', '', open('requirements.txt').read()))" && \
+# Copy requirements
+COPY requirements.txt .
+
+# Install dependencies
+RUN python -c "import re; open('requirements.txt','w').write(re.sub(r'==.*','',open('requirements.txt').read()))" && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
-COPY Backend_Database/ .
+# Copy project
+COPY . .
 
-# Expose backend API port
+# Expose FastAPI port
 EXPOSE 8000
 
 ENV PYTHONUNBUFFERED=1
