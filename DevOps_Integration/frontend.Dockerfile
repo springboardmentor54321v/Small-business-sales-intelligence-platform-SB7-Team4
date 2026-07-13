@@ -1,23 +1,20 @@
-# Step 1: Build Vite React project
-FROM node:18-alpine AS build
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy package configurations and install dependencies
-COPY frontend/package*.json ./
-RUN npm install
+# Install build dependencies for scientific libraries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy frontend source files and compile
+# Install Streamlit and required libraries
+RUN pip install --no-cache-dir streamlit pandas requests
+
+# Copy frontend source files
 COPY frontend/ .
-RUN npm run build
 
-# Step 2: Serve compiled assets using Nginx
-FROM nginx:alpine
+# Expose Streamlit default port
+EXPOSE 8501
 
-# Copy compiled static assets from build stage
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Expose standard web traffic port
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# Run streamlit
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]

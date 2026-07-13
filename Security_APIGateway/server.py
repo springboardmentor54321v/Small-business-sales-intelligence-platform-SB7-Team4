@@ -541,6 +541,44 @@ async def proxy_audit_logs(
 async def test_rate_limit_endpoint(user: Dict = Depends(verify_token)):
     return {"message": "Rate limit check passed."}
 
+@app.get("/sales/")
+async def proxy_sales_root(request: Request):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                f"{BACKEND_URL}/sales/",
+                params=dict(request.query_params)
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to backend: {str(e)}"}
+            )
+
+@app.get("/inventory/")
+async def proxy_inventory_root(request: Request):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                f"{BACKEND_URL}/inventory/",
+                params=dict(request.query_params)
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to backend: {str(e)}"}
+            )
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=5000, log_level="info")
