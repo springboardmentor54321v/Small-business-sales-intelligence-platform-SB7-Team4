@@ -9,7 +9,7 @@ from views.reports import reports_page
 from views.invoice import invoice_page
 from views.sales_upload import sales_upload_page
 from views.admin import admin_page
-
+from views.settings import settings_page
 st.set_page_config(
     page_title="MarketMind AI",
     page_icon="📊",
@@ -30,31 +30,48 @@ if "role" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = ""
 
-# ---------------- Routing ---------------- #
+# ---------------- Authentication ---------------- #
 
-if st.session_state.page == "Home":
-    home_page()
+# Until the user logs in, only Home and Login pages are accessible.
+if not st.session_state.logged_in:
 
-elif st.session_state.page == "Login":
-    login_page()
+    if st.session_state.page == "Home":
+        home_page()
 
-elif st.session_state.page == "Dashboard":
-    dashboard_page()
+    elif st.session_state.page == "Login":
+        login_page()
 
-elif st.session_state.page == "Inventory":
-    inventory_page()
+    else:
+        st.session_state.page = "Login"
+        login_page()
 
-elif st.session_state.page == "Customers":
-    customers_page()
+# ---------------- Application ---------------- #
 
-elif st.session_state.page == "Reports":
-    reports_page()
+else:
 
-elif st.session_state.page == "Invoice":
-    invoice_page()
+    if st.session_state.page == "Dashboard":
+        dashboard_page()
 
-elif st.session_state.page == "Sales Upload":
-    sales_upload_page()
+    elif st.session_state.page == "Inventory":
+        inventory_page()
 
-elif st.session_state.page == "Admin":
-    admin_page()
+    elif st.session_state.page == "Customers":
+        customers_page()
+
+    elif st.session_state.page == "Reports":
+        reports_page()
+
+    elif st.session_state.page == "Invoice":
+        invoice_page()
+
+    elif st.session_state.page == "Sales Upload":
+        sales_upload_page()
+
+    elif st.session_state.page == "Admin":
+        admin_page()
+        
+    elif st.session_state.page == "Settings":
+        settings_page()
+
+    else:
+        dashboard_page()
