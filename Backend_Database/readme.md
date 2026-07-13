@@ -1,257 +1,149 @@
-# MarketMind AI Backend
+# 📊 MarketMind AI – Backend
 
-## Project Overview
+MarketMind AI is a Small Business Sales Intelligence Platform developed as part of the **Infosys Springboard Virtual Internship 7.0**.
 
-MarketMind AI is an AI-powered retail analytics platform developed as part of the Infosys Springboard Virtual Internship.
-
-The backend is built using **FastAPI**, **PostgreSQL**, and **SQLAlchemy ORM**. It provides REST APIs for uploading retail sales datasets, validating CSV files, storing data into a relational database, and supporting future AI-based sales analytics.
+This backend is built using **FastAPI**, **PostgreSQL**, and **SQLAlchemy**, providing ETL processing, inventory management, sales transaction management, and REST APIs.
 
 ---
 
-# Tech Stack
+# 🚀 Features
+
+## ✅ ETL Pipeline
+
+- Extract data from CSV files
+- Data transformation and validation
+- Column mapping
+- Duplicate detection
+- Missing value handling
+- Automatic generation of:
+  - Transaction IDs
+  - Store IDs
+  - Inventory table
+  - Created By User IDs
+- Load validated data into PostgreSQL
+
+---
+
+## ✅ Database
+
+PostgreSQL relational database with the following tables:
+
+- Roles
+- Users
+- Customers
+- Stores
+- Products
+- Inventory
+- Sales Transactions
+
+---
+
+## ✅ REST APIs
+
+### Sales Upload
+
+- Upload CSV
+- Validate CSV schema
+- Validate required columns
+
+---
+
+### Inventory CRUD
+
+- Get All Inventory
+- Get Inventory by Product ID
+- Add Inventory
+- Update Inventory
+- Delete Inventory
+
+---
+
+### Sales Transaction CRUD
+
+- Get All Sales
+- Get Sale by Transaction ID
+- Create Sale
+- Update Sale
+- Delete Sale
+
+---
+
+## ✅ Business Logic
+
+- Automatic inventory stock decrement after every successful sale
+- Inventory validation before sale creation
+- Prevents sale if stock is insufficient
+
+---
+
+# 🛠 Tech Stack
 
 | Technology | Purpose |
 |------------|---------|
-| Python 3.14 | Backend Development |
-| FastAPI | REST API Framework |
-| PostgreSQL | Relational Database |
-| SQLAlchemy ORM | Database ORM |
-| Alembic | Database Migration |
-| Pandas | CSV Processing |
+| FastAPI | Backend Framework |
+| PostgreSQL | Database |
+| SQLAlchemy | ORM |
+| Pandas | ETL Processing |
+| Pydantic | Request Validation |
 | Uvicorn | ASGI Server |
-| python-dotenv | Environment Variable Management |
-| python-multipart | File Upload Support |
+| Python | Programming Language |
 
 ---
 
-# Project Structure
+# 📁 Project Structure
 
 ```
 marketmind-backend/
+
 │
-├── alembic/
-│
-├── app/
-│   ├── api/
-│   │   └── routes/
+├── app
+│   ├── api
+│   │   └── routes
+│   │       ├── inventory.py
 │   │       ├── sales.py
+│   │       ├── sales_transaction.py
 │   │       └── test_db.py
 │   │
-│   ├── core/
+│   ├── core
 │   │   ├── config.py
 │   │   └── database.py
 │   │
-│   ├── models/
-│   │   ├── role.py
-│   │   ├── user.py
-│   │   ├── customer.py
-│   │   ├── product.py
-│   │   ├── inventory.py
-│   │   ├── store.py
-│   │   ├── sales_transaction.py
-│   │   └── __init__.py
+│   ├── etl
+│   │   ├── transform.py
+│   │   ├── load_data.py
+│   │   ├── logs
+│   │   ├── input
+│   │   └── output
 │   │
-│   ├── repositories/
+│   ├── models
 │   │
-│   ├── services/
+│   ├── repositories
+│   │   └── sales_transaction_repository.py
 │   │
-│   ├── schemas/
-│   │   ├── schema.sql
-│   │   ├── seed_data.py
-│   │   └── marketmind_sales_dataset.csv
-│   │
-│   ├── uploads/
+│   ├── schemas
 │   │
 │   └── main.py
 │
 ├── requirements.txt
 ├── README.md
-└── .env
+└── .env.example
 ```
 
 ---
 
-# Features Implemented
+# ⚙️ Installation
 
-## Day 1
+Clone the repository
 
-### Project Initialization
-
-- FastAPI project setup
-- Virtual environment creation
-- Dependency installation
-- PostgreSQL integration
-- Environment configuration using `.env`
-- SQLAlchemy engine configuration
-- Database session management
-
----
-
-## Day 2
-
-### Database Design
-
-Implemented complete relational database schema using SQLAlchemy ORM.
-
-### Tables Created
-
-- Roles
-- Users
-- Customers
-- Products
-- Inventory
-- Stores
-- Sales Transactions
-
-### Relationships Implemented
-
-- Role → Users
-- Customer → Sales Transactions
-- Product → Inventory
-- Product → Sales Transactions
-- Store → Sales Transactions
-- User → Sales Transactions
-
-### Database Connectivity
-
-- SQLAlchemy Engine configured
-- SessionLocal configured
-- PostgreSQL connection verified
-- ORM queries tested successfully
-
----
-
-## Day 3
-
-### CSV Upload API
-
-Implemented REST endpoint
-
-```
-POST /api/sales/upload
+```bash
+git clone <repository-url>
 ```
 
----
+Move into the project
 
-### File Upload
-
-Implemented file upload using
-
-- UploadFile
-- File
-- python-multipart
-
-Supports only
-
+```bash
+cd marketmind-backend
 ```
-CSV files
-```
-
----
-
-### CSV Schema Validation
-
-Validated uploaded CSV against required columns.
-
-Required columns
-
-- invoice_id
-- customer_id
-- product_id
-- quantity
-- total_amount
-- transaction_date
-
-If validation fails
-
-- Returns HTTP 400
-- Displays missing column names
-
-If validation succeeds
-
-Returns
-
-- filename
-- total rows
-- total columns
-- detected column names
-
----
-
-### Error Handling
-
-Implemented
-
-- Invalid file type detection
-- Missing column validation
-- HTTPException responses
-
----
-
-# API Endpoints
-
-## Test Database Connection
-
-```
-GET /test-db
-```
-
-Purpose
-
-- Verify PostgreSQL connectivity
-- Verify SQLAlchemy ORM connectivity
-- Count records from SalesTransaction table
-
----
-
-## Upload Sales CSV
-
-```
-POST /api/sales/upload
-```
-
-Purpose
-
-- Upload CSV dataset
-- Validate schema
-- Return dataset metadata
-
----
-
-# Current Status
-
-Completed
-
-- FastAPI setup
-- PostgreSQL integration
-- SQLAlchemy ORM
-- Database Models
-- Relationships
-- Database Testing
-- CSV Upload API
-- CSV Schema Validation
-
----
-
-# Upcoming Development
-
-The following features are planned in the next development phase:
-
-- Data Cleaning Pipeline
-- Duplicate Removal
-- Missing Value Handling
-- Data Validation
-- ETL Pipeline
-- Bulk Database Loading
-- Repository Layer
-- Service Layer
-- Analytics APIs
-- Dashboard APIs
-- AI Prediction Integration
-
----
-
-# Installation
 
 Create virtual environment
 
@@ -275,25 +167,27 @@ pip install -r requirements.txt
 
 ---
 
-# Configure Environment
+# ⚙️ Environment Variables
 
-Create `.env`
+Create a `.env` file
 
-```
-DATABASE_URL=postgresql://username:password@localhost:5432/marketmind_ai
+Example
+
+```env
+DATABASE_URL=postgresql://postgres:password@localhost:5432/marketmind_ai
 ```
 
 ---
 
-# Run Application
+# ▶ Run the Application
 
 ```bash
-python -m uvicorn app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 ---
 
-# API Documentation
+# 📄 API Documentation
 
 Swagger UI
 
@@ -309,34 +203,76 @@ http://127.0.0.1:8000/redoc
 
 ---
 
-# Database
-
-Database
+# 🗄 ETL Workflow
 
 ```
-PostgreSQL
-```
-
-ORM
-
-```
-SQLAlchemy
-```
-
-Migration Tool
-
-```
-Alembic
+Raw CSV Dataset
+        │
+        ▼
+Extract
+        │
+        ▼
+Transform
+        │
+        ▼
+Validation
+        │
+        ▼
+Generate IDs
+        │
+        ▼
+Load into PostgreSQL
 ```
 
 ---
 
-# Author
+# 🔄 Sales Workflow
 
-**Palak Ganwani**
+```
+Create Sale
+      │
+      ▼
+Check Inventory
+      │
+      ▼
+Enough Stock?
+      │
+ ┌────┴────┐
+ │         │
+Yes        No
+ │         │
+ ▼         ▼
+Reduce     Return Error
+Stock
+ │
+ ▼
+Save Sale
+```
 
-Backend Development Team
+---
 
-Infosys Springboard Virtual Internship 7.0
+# ✅ Completed Modules
 
-MarketMind AI Project
+- Database Schema
+- SQLAlchemy Models
+- CSV Upload API
+- ETL Pipeline
+- Inventory CRUD
+- Sales Transaction CRUD
+- Automatic Stock Management
+
+---
+
+
+# 👨‍💻 Developed For
+
+**Infosys Springboard Virtual Internship 7.0**
+
+Project:
+**MarketMind AI – Small Business Sales Intelligence Platform**
+
+Backend Stack:
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- Python
