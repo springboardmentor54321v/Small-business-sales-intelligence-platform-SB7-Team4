@@ -65,3 +65,37 @@ When a client sends a request to a protected endpoint:
    - `x-user-id`: The verified `userId` (downstream services use this to populate `created_by_user_id` on transaction updates)
    - `x-user-role`: The verified `role`
 5. **Denial**: If unauthorized, the gateway returns a `401 Unauthorized` or `403 Forbidden` response and records the rejection in the audit logs.
+
+---
+
+## 5. Milestone 2 Access Rules (Day 1 Work)
+
+The planning phase of Milestone 2 expands the Role-Based Access Control (RBAC) coverage to secure the newly introduced Invoices and AI-Powered Forecasting/Analytics endpoints. Below are the access rule definitions defined in plain, layman-friendly terms:
+
+* **Invoices Management**:
+  * **Create Invoice**: Allows recording a new sale. Permitted to **Sales Executives**, **Store Managers**, and **Business Owners** (since any of these roles can handle a transaction at the counter).
+  * **View/List Invoices**: Allows viewing and searching invoices by customer name, status, or invoice number. Permitted to **Sales Executives**, **Store Managers**, and **Business Owners** to track outstanding payments and client history.
+  * **Update Payment Status**: Allows marking an invoice as "Paid" or "Partially Paid". Restrictive administrative access is granted only to **Store Managers** and **Business Owners** to prevent unauthorized financial edits at the counter.
+  * **Revenue & Outstanding Summary**: Provides a high-level summary of total revenue, outstanding collection amounts, and daily collections. Restrictive access is granted to **Store Managers** and **Business Owners**.
+* **AI Analytics Reports**:
+  * **Customer Segmentation (Customer Insights)**: Clusters customers into Loyal, Occasional, or High-Value groups. Permitted only to the **Business Owner** for high-level marketing strategy.
+  * **Churn Risk Check**: Identifies customer accounts showing signs of inactivity or risk of churn. Permitted to **Store Managers** and **Business Owners** to execute retention programs.
+  * **Product Recommendations**: Analyzes products frequently bought together to assist with cross-selling. Open to **Sales Executives**, **Store Managers**, and **Business Owners** to facilitate active recommendations at the point of sale.
+  * **Anomaly Detection (Alerts)**: Identifies outlier sales transactions or anomalous stock changes. Restrictive access is granted to **Store Managers** and **Business Owners** to alert management to suspicious store activities.
+
+---
+
+## 6. Milestone 2 Permission Matrix (Day 2 Work)
+
+This table represents the comprehensive role-permission mapping matrix for the new Milestone 2 endpoints. System Administrators remain restricted from accessing direct business financial records or sales predictions to respect administrative separation of duties.
+
+| Feature / Action | Proposed Gateway Route | Business Owner | Store Manager | Sales Executive | System Administrator |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Create Invoice** | `POST /api/invoices` | ✅ | ✅ | ✅ | ❌ |
+| **View/List Invoices** | `GET /api/invoices` | ✅ | ✅ | ✅ | ❌ |
+| **Update Payment Status** | `PUT /api/invoices/{id}/status` | ✅ | ✅ | ❌ | ❌ |
+| **Revenue Summary API** | `GET /api/invoices/revenue-summary` | ✅ | ✅ | ❌ | ❌ |
+| **Customer Segmentation** | `GET /api/ai/segmentation` | ✅ | ❌ | ❌ | ❌ |
+| **Churn Risk Flagging** | `GET /api/ai/churn` | ✅ | ✅ | ❌ | ❌ |
+| **Product Recommendation** | `GET /api/ai/recommendation` | ✅ | ✅ | ✅ | ❌ |
+| **Anomaly Detection** | `GET /api/ai/anomaly` | ✅ | ✅ | ❌ | ❌ |
