@@ -407,14 +407,26 @@ def run_tests():
             print("Test 19: Creating Invoice as Sales Executive...")
             invoice_payload = {
                 "invoice_number": "INV-M2-01",
-                "customer_name": "Bob Customer",
-                "items": [
-                    {"product_id": "Prod-101", "quantity": 2, "unit_price": 50.0}
-                ],
-                "tax": 10.0,
-                "discount": 5.0,
+                "customer_id": 1,
+                "store_id": 1,
+                "subtotal": 100.0,
+                "discount_amount": 5.0,
+                "tax_amount": 10.0,
                 "total_amount": 105.0,
-                "payment_status": "Unpaid"
+                "payment_status": "Unpaid",
+                "invoice_status": "Active",
+                "notes": "Test invoice",
+                "items": [
+                    {
+                        "product_id": 1,
+                        "quantity": 2,
+                        "unit_price": 50.0,
+                        "discount": 2.5,
+                        "tax": 5.0,
+                        "line_total": 102.5,
+                        "category_snapshot": "Electronics"
+                    }
+                ]
             }
             create_inv_res = client.post(
                 f"{base_url}/api/invoices",
@@ -434,8 +446,9 @@ def run_tests():
             print("Test 20: Rejections on malformed/negative invoice data...")
             
             # Case A: Negative unit price
-            bad_payload_1 = dict(invoice_payload)
-            bad_payload_1["items"] = [{"product_id": "Prod-101", "quantity": 2, "unit_price": -5.0}]
+            import copy
+            bad_payload_1 = copy.deepcopy(invoice_payload)
+            bad_payload_1["items"][0]["unit_price"] = -5.0
             res_bad_1 = client.post(
                 f"{base_url}/api/invoices",
                 json=bad_payload_1,

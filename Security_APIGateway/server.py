@@ -58,18 +58,28 @@ class InventoryUpdateSchema(BaseModel):
     low_stock_threshold: int = 10
 
 class InvoiceItemSchema(BaseModel):
-    product_id: str = Field(..., min_length=1)
+    product_id: int = Field(..., gt=0)
     quantity: int = Field(..., gt=0)
     unit_price: float = Field(..., ge=0.0)
+    discount: float = Field(default=0.0, ge=0.0)
+    tax: float = Field(default=0.0, ge=0.0)
+    line_total: float = Field(..., ge=0.0)
+    category_snapshot: Optional[str] = None
 
 class InvoiceCreateSchema(BaseModel):
     invoice_number: str = Field(..., min_length=1)
-    customer_name: str = Field(..., min_length=1)
-    items: List[InvoiceItemSchema]
-    tax: float = Field(..., ge=0.0)
-    discount: float = Field(..., ge=0.0)
+    customer_id: int = Field(..., gt=0)
+    store_id: int = Field(..., gt=0)
+    invoice_date: Optional[str] = None
+    due_date: Optional[str] = None
+    subtotal: float = Field(..., ge=0.0)
+    discount_amount: float = Field(default=0.0, ge=0.0)
+    tax_amount: float = Field(default=0.0, ge=0.0)
     total_amount: float = Field(..., ge=0.0)
     payment_status: str = Field(..., min_length=1)
+    invoice_status: Optional[str] = "Active"
+    notes: Optional[str] = None
+    items: List[InvoiceItemSchema]
 
     @field_validator('payment_status')
     @classmethod
@@ -87,6 +97,7 @@ class InvoiceStatusUpdateSchema(BaseModel):
         if v not in ["Paid", "Unpaid", "Partially Paid"]:
             raise ValueError("payment_status must be 'Paid', 'Unpaid', or 'Partially Paid'")
         return v
+
 
 
 # Helper functions
