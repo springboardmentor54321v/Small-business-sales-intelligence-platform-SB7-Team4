@@ -36,6 +36,51 @@ def mock_sales_upload(x_user_id: str = Header(None), x_user_role: str = Header(N
         "injected_user_role": x_user_role
     }
 
+@mock_backend.post("/api/invoices")
+def mock_create_invoice(payload: dict, x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock Create Invoice forward success",
+        "invoice_number": payload.get("invoice_number"),
+        "customer_name": payload.get("customer_name"),
+        "total_amount": payload.get("total_amount"),
+        "payment_status": payload.get("payment_status"),
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
+
+@mock_backend.get("/api/invoices")
+def mock_list_invoices(x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock List Invoices forward success",
+        "invoices": [
+            {"id": 1, "invoice_number": "INV-001", "customer_name": "John Doe", "total_amount": 150.0, "payment_status": "Paid"}
+        ],
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
+
+@mock_backend.put("/api/invoices/{id}/status")
+def mock_update_invoice_status(id: int, payload: dict, x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock Update Invoice Status forward success",
+        "invoice_id": id,
+        "payment_status": payload.get("payment_status"),
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
+
+@mock_backend.get("/api/invoices/revenue-summary")
+def mock_revenue_summary(x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock Revenue Summary forward success",
+        "total_revenue": 1000.0,
+        "total_outstanding": 500.0,
+        "daily_collections": 500.0,
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
+
+
 def run_mock_backend():
     uvicorn.run(mock_backend, host="127.0.0.1", port=8000, log_level="warning")
 
@@ -357,9 +402,117 @@ def run_tests():
             print("Log file verified successfully. Last 5 entries:")
             print("\n".join(logs.splitlines()[-5:]))
 
+            # Test 19: Create Invoice (Sales Executive - Permitted)
+            print("\n-------------------------------------------")
+            print("Test 19: Creating Invoice as Sales Executive...")
+            invoice_payload = {
+                "invoice_number": "INV-M2-01",
+                "customer_name": "Bob Customer",
+                "items": [
+                    {"product_id": "Prod-101", "quantity": 2, "unit_price": 50.0}
+                ],
+                "tax": 10.0,
+                "discount": 5.0,
+                "total_amount": 105.0,
+                "payment_status": "Unpaid"
+            }
+            create_inv_res = client.post(
+                f"{base_url}/api/invoices",
+                json=invoice_payload,
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Status: {create_inv_res.status_code} (Expected: 200)")
+            inv_data = create_inv_res.json()
+            print(f"Response: {inv_data}")
+            assert create_inv_res.status_code == 200
+            assert "success" in inv_data.get("message").lower()
+            assert inv_data.get("invoice_number") == "INV-M2-01"
+
+
+            # Test 20: Create Invoice Schema Validation Failure (Should fail with 422)
+            print("\n-------------------------------------------")
+            print("Test 20: Rejections on malformed/negative invoice data...")
+            
+            # Case A: Negative unit price
+            bad_payload_1 = dict(invoice_payload)
+            bad_payload_1["items"] = [{"product_id": "Prod-101", "quantity": 2, "unit_price": -5.0}]
+            res_bad_1 = client.post(
+                f"{base_url}/api/invoices",
+                json=bad_payload_1,
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Case A (Negative unit_price) Status: {res_bad_1.status_code} (Expected: 422)")
+            assert res_bad_1.status_code == 422
+
+            # Case B: Invalid payment status value
+            bad_payload_2 = dict(invoice_payload)
+            bad_payload_2["payment_status"] = "SuperPaid"
+            res_bad_2 = client.post(
+                f"{base_url}/api/invoices",
+                json=bad_payload_2,
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Case B (Invalid payment_status) Status: {res_bad_2.status_code} (Expected: 422)")
+            assert res_bad_2.status_code == 422
+
+            # Test 21: Update Invoice Payment Status RBAC (Store Manager vs Sales Executive)
+            print("\n-------------------------------------------")
+            print("Test 21: Update Invoice Payment Status RBAC check...")
+            
+            # Sales Executive (bob_sales) should be blocked (403 Forbidden)
+            status_payload = {"payment_status": "Paid"}
+            update_status_sales_res = client.put(
+                f"{base_url}/api/invoices/1/status",
+                json=status_payload,
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Sales Executive (Bob) Status: {update_status_sales_res.status_code} (Expected: 403)")
+            assert update_status_sales_res.status_code == 403
+
+            # Business Owner (Alice) should be allowed (200 OK)
+            update_status_owner_res = client.put(
+                f"{base_url}/api/invoices/1/status",
+                json=status_payload,
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Business Owner (Alice) Status: {update_status_owner_res.status_code} (Expected: 200)")
+            assert update_status_owner_res.status_code == 200
+
+            # Test 22: AI Analytics Endpoints RBAC (Business Owner vs Store Manager / Sales Executive)
+            print("\n-------------------------------------------")
+            print("Test 22: AI Customer Segmentation Endpoint access check...")
+            
+            # Sales Executive (Bob) is blocked (403)
+            segment_sales_res = client.get(
+                f"{base_url}/api/ai/segmentation",
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Sales Executive Status: {segment_sales_res.status_code} (Expected: 403)")
+            assert segment_sales_res.status_code == 403
+
+            # Business Owner (Alice) is permitted (200)
+            segment_owner_res = client.get(
+                f"{base_url}/api/ai/segmentation",
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Business Owner Status: {segment_owner_res.status_code} (Expected: 200)")
+            assert segment_owner_res.status_code == 200
+            assert "segments" in segment_owner_res.json()
+
+            # Test 23: Verification of audit logging for invoice and AI reports
+            print("\n-------------------------------------------")
+            print("Test 23: Verifying audit logging records new actions...")
+            with open(log_path, "r", encoding="utf-8") as f:
+                logs_after = f.read()
+            assert "attempted to create invoice" in logs_after
+            assert "requested AI Customer Segmentation report" in logs_after
+            assert "updated invoice ID 1 status" in logs_after
+            print("Audit log contains new activity records!")
+
             print("\n===========================================")
-            print("All 18 API Gateway integration tests passed successfully!")
+            print("All 23 API Gateway integration tests passed successfully!")
             print("===========================================")
+
 
     except Exception as e:
         print(f"Test Suite failed: {e}")

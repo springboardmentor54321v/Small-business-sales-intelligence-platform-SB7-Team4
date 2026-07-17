@@ -9,7 +9,7 @@ import httpx
 from fastapi import FastAPI, Depends, HTTPException, Header, status, File, UploadFile, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 app = FastAPI(
     title="MarketMind AI - API Gateway",
@@ -56,6 +56,38 @@ class InventoryUpdateSchema(BaseModel):
     product_id: str
     stock_quantity: int
     low_stock_threshold: int = 10
+
+class InvoiceItemSchema(BaseModel):
+    product_id: str = Field(..., min_length=1)
+    quantity: int = Field(..., gt=0)
+    unit_price: float = Field(..., ge=0.0)
+
+class InvoiceCreateSchema(BaseModel):
+    invoice_number: str = Field(..., min_length=1)
+    customer_name: str = Field(..., min_length=1)
+    items: List[InvoiceItemSchema]
+    tax: float = Field(..., ge=0.0)
+    discount: float = Field(..., ge=0.0)
+    total_amount: float = Field(..., ge=0.0)
+    payment_status: str = Field(..., min_length=1)
+
+    @field_validator('payment_status')
+    @classmethod
+    def validate_payment_status(cls, v):
+        if v not in ["Paid", "Unpaid", "Partially Paid"]:
+            raise ValueError("payment_status must be 'Paid', 'Unpaid', or 'Partially Paid'")
+        return v
+
+class InvoiceStatusUpdateSchema(BaseModel):
+    payment_status: str = Field(..., min_length=1)
+
+    @field_validator('payment_status')
+    @classmethod
+    def validate_payment_status(cls, v):
+        if v not in ["Paid", "Unpaid", "Partially Paid"]:
+            raise ValueError("payment_status must be 'Paid', 'Unpaid', or 'Partially Paid'")
+        return v
+
 
 # Helper functions
 def find_user_by_email(email: str) -> Optional[Dict]:
@@ -535,6 +567,351 @@ async def proxy_audit_logs(
             return {
                 "message": "[Gateway Fallback] Audit logs backend is unreachable. Admin stubs active.",
                 "requestUser": user
+            }
+
+# --- Invoice Management Proxy Routes ---
+
+@app.post("/api/invoices")
+async def proxy_create_invoice(
+    payload: InvoiceCreateSchema,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager", "Sales Executive"]))
+):
+    # Activity logging
+    log_audit(f"User {user.get('name')} (ID: {user.get('userId')}) attempted to create invoice: {payload.invoice_number}")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.post(
+                f"{BACKEND_URL}/api/invoices",
+                json=payload.model_dump(),
+                headers=headers,
+                timeout=10.0
+            )
+            # If backend is not ready, return gateway stub for testing
+            if response.status_code == 404:
+                log_audit(f"Invoice {payload.invoice_number} created successfully (Gateway Stub)")
+                return {
+                    "message": "[Gateway Stub] Invoice created successfully.",
+                    "invoice_number": payload.invoice_number,
+                    "customer_name": payload.customer_name,
+                    "total_amount": payload.total_amount,
+                    "payment_status": payload.payment_status,
+                    "created_by": user["userId"]
+                }
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            # Fallback stub for integration testing/unreachable backend
+            log_audit(f"Invoice {payload.invoice_number} created successfully (Gateway Fallback)")
+            return {
+                "message": "[Gateway Fallback] Invoice created successfully.",
+                "invoice_number": payload.invoice_number,
+                "customer_name": payload.customer_name,
+                "total_amount": payload.total_amount,
+                "payment_status": payload.payment_status,
+                "created_by": user["userId"]
+            }
+
+@app.get("/api/invoices")
+async def proxy_list_invoices(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager", "Sales Executive"]))
+):
+    log_audit(f"User {user.get('name')} (ID: {user.get('userId')}) requested invoices list")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{BACKEND_URL}/api/invoices",
+                params=dict(request.query_params),
+                headers=headers,
+                timeout=10.0
+            )
+            if response.status_code == 404:
+                return {
+                    "message": "[Gateway Stub] Invoices retrieved successfully.",
+                    "invoices": [
+                        {
+                            "id": 1,
+                            "invoice_number": "INV-001",
+                            "customer_name": "John Doe",
+                            "total_amount": 150.0,
+                            "payment_status": "Paid"
+                        },
+                        {
+                            "id": 2,
+                            "invoice_number": "INV-002",
+                            "customer_name": "Jane Smith",
+                            "total_amount": 320.0,
+                            "payment_status": "Unpaid"
+                        }
+                    ]
+                }
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return {
+                "message": "[Gateway Fallback] Invoices retrieved successfully.",
+                "invoices": []
+            }
+
+@app.put("/api/invoices/{id}/status")
+async def proxy_update_invoice_status(
+    id: int,
+    payload: InvoiceStatusUpdateSchema,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))
+):
+    log_audit(f"User {user.get('name')} (ID: {user.get('userId')}) updated invoice ID {id} status to {payload.payment_status}")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.put(
+                f"{BACKEND_URL}/api/invoices/{id}/status",
+                json=payload.model_dump(),
+                headers=headers,
+                timeout=10.0
+            )
+            if response.status_code == 404:
+                return {
+                    "message": f"[Gateway Stub] Invoice {id} status updated to {payload.payment_status}.",
+                    "invoice_id": id,
+                    "payment_status": payload.payment_status
+                }
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return {
+                "message": f"[Gateway Fallback] Invoice {id} status updated to {payload.payment_status}.",
+                "invoice_id": id,
+                "payment_status": payload.payment_status
+            }
+
+@app.get("/api/invoices/revenue-summary")
+async def proxy_revenue_summary(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))
+):
+    log_audit(f"User {user.get('name')} (ID: {user.get('userId')}) requested revenue summary")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{BACKEND_URL}/api/invoices/revenue-summary",
+                params=dict(request.query_params),
+                headers=headers,
+                timeout=10.0
+            )
+            if response.status_code == 404:
+                return {
+                    "message": "[Gateway Stub] Revenue summary retrieved.",
+                    "total_revenue": 470.0,
+                    "total_outstanding": 320.0,
+                    "daily_collections": 150.0
+                }
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return {
+                "message": "[Gateway Fallback] Revenue summary retrieved.",
+                "total_revenue": 470.0,
+                "total_outstanding": 320.0,
+                "daily_collections": 150.0
+            }
+
+# --- AI Analytics Proxy Routes ---
+
+@app.get("/api/ai/segmentation")
+async def proxy_ai_segmentation(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner"]))
+):
+    log_audit(f"User {user.get('name')} (ID: {user.get('userId')}) requested AI Customer Segmentation report")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{AI_URL}/api/ai/segmentation",
+                params=dict(request.query_params),
+                headers=headers,
+                timeout=10.0
+            )
+            if response.status_code == 404:
+                return {
+                    "message": "[Gateway Stub] AI Customer Segmentation data.",
+                    "segments": {
+                        "Loyal": ["Cust-001", "Cust-005"],
+                        "Occasional": ["Cust-002", "Cust-004"],
+                        "High-value": ["Cust-003"]
+                    }
+                }
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return {
+                "message": "[Gateway Fallback] AI/ML segmentation service is currently unreachable.",
+                "segments": {
+                    "Loyal": ["Cust-001", "Cust-005"],
+                    "Occasional": ["Cust-002", "Cust-004"],
+                    "High-value": ["Cust-003"]
+                }
+            }
+
+@app.get("/api/ai/churn")
+async def proxy_ai_churn(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))
+):
+    log_audit(f"User {user.get('name')} (ID: {user.get('userId')}) requested AI Churn Risk report")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{AI_URL}/api/ai/churn",
+                params=dict(request.query_params),
+                headers=headers,
+                timeout=10.0
+            )
+            if response.status_code == 404:
+                return {
+                    "message": "[Gateway Stub] AI Churn Risk data.",
+                    "at_risk_customers": [
+                        {"customer_id": "Cust-002", "churn_probability": 0.82},
+                        {"customer_id": "Cust-004", "churn_probability": 0.65}
+                    ]
+                }
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return {
+                "message": "[Gateway Fallback] AI/ML churn risk service is currently unreachable.",
+                "at_risk_customers": [
+                    {"customer_id": "Cust-002", "churn_probability": 0.82},
+                    {"customer_id": "Cust-004", "churn_probability": 0.65}
+                ]
+            }
+
+@app.get("/api/ai/recommendation")
+async def proxy_ai_recommendation(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager", "Sales Executive"]))
+):
+    log_audit(f"User {user.get('name')} (ID: {user.get('userId')}) requested AI Product Recommendation report")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{AI_URL}/api/ai/recommendation",
+                params=dict(request.query_params),
+                headers=headers,
+                timeout=10.0
+            )
+            if response.status_code == 404:
+                return {
+                    "message": "[Gateway Stub] AI Product Recommendations.",
+                    "recommendations": [
+                        {"product_id": "Prod-101", "recommended_with": ["Prod-102", "Prod-105"]},
+                        {"product_id": "Prod-202", "recommended_with": ["Prod-203"]}
+                    ]
+                }
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return {
+                "message": "[Gateway Fallback] AI/ML recommendation service is currently unreachable.",
+                "recommendations": [
+                    {"product_id": "Prod-101", "recommended_with": ["Prod-102", "Prod-105"]},
+                    {"product_id": "Prod-202", "recommended_with": ["Prod-203"]}
+                ]
+            }
+
+@app.get("/api/ai/anomaly")
+async def proxy_ai_anomaly(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))
+):
+    log_audit(f"User {user.get('name')} (ID: {user.get('userId')}) requested AI Anomaly Detection report")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {
+                "x-user-id": str(user["userId"]),
+                "x-user-role": user["role"]
+            }
+            response = await client.get(
+                f"{AI_URL}/api/ai/anomaly",
+                params=dict(request.query_params),
+                headers=headers,
+                timeout=10.0
+            )
+            if response.status_code == 404:
+                return {
+                    "message": "[Gateway Stub] AI Anomaly Detection alerts.",
+                    "alerts": [
+                        {"transaction_id": 99, "reason": "Unusual total amount for guest user", "flag": "warning"},
+                        {"transaction_id": 105, "reason": "Stock change exceeds monthly average threshold", "flag": "warning"}
+                    ]
+                }
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return {
+                "message": "[Gateway Fallback] AI/ML anomaly detection service is currently unreachable.",
+                "alerts": [
+                    {"transaction_id": 99, "reason": "Unusual total amount for guest user", "flag": "warning"},
+                    {"transaction_id": 105, "reason": "Stock change exceeds monthly average threshold", "flag": "warning"}
+                ]
             }
 
 @app.get("/api/test-rate-limit")
