@@ -51,9 +51,7 @@ def settings_page():
         if len(new_username) < 6:
             st.error("Username must contain at least 6 characters.")
 
-        elif new_username.lower() in [
-            user.lower() for user in existing_users
-        ]:
+        elif new_username.lower() in [user.lower() for user in existing_users]:
             st.error("❌ Username already exists.")
 
         else:
@@ -64,10 +62,8 @@ def settings_page():
         if len(new_username) < 6:
             st.error("Username must contain at least 6 characters.")
 
-        elif new_username.lower() in [
-            user.lower() for user in existing_users
-        ]:
-            st.error("Username already exists.")
+        elif new_username.lower() in [user.lower() for user in existing_users]:
+            st.error("❌ Username already exists.")
 
         else:
             st.session_state.username = new_username
@@ -96,16 +92,15 @@ def settings_page():
         type="default" if show else "password"
     )
 
-    st.caption(
-        "Password must contain at least 6 characters."
-    )
+    st.caption("Password must contain at least 6 characters.")
 
     if st.button("Change Password"):
 
-        if len(new_password) < 6:
-            st.error(
-                "Password must contain at least 6 characters."
-            )
+        if current_password.strip() == "":
+            st.error("Please enter your current password.")
+
+        elif len(new_password) < 6:
+            st.error("Password must contain at least 6 characters.")
 
         elif new_password != confirm_password:
             st.error("Passwords do not match.")
@@ -115,34 +110,9 @@ def settings_page():
 
     st.markdown("---")
 
-    # ---------------- Theme ---------------- #
-
-    st.subheader("🎨 Appearance")
-
-    theme = st.radio(
-        "Choose Theme",
-        [
-            "🌞 Light Mode",
-            "🌙 Dark Mode"
-        ]
-    )
-
-    if st.button("Apply Theme"):
-
-        st.session_state.theme = theme
-
-        st.success(
-            f"{theme} selected."
-        )
-
-    st.markdown("---")
-
     # ---------------- Logout ---------------- #
 
-    if st.button(
-        "🚪 Logout",
-        use_container_width=True
-    ):
+    if st.button("🚪 Logout", use_container_width=True):
 
         st.session_state.logged_in = False
         st.session_state.username = ""
