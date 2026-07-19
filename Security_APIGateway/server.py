@@ -65,6 +65,8 @@ class InvoiceItemSchema(BaseModel):
     tax: float = Field(default=0.0, ge=0.0)
     line_total: float = Field(..., ge=0.0)
     category_snapshot: Optional[str] = None
+    product_name_snapshot: Optional[str] = None
+
 
 class InvoiceCreateSchema(BaseModel):
     invoice_number: str = Field(..., min_length=1)

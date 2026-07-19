@@ -424,9 +424,11 @@ def run_tests():
                         "discount": 2.5,
                         "tax": 5.0,
                         "line_total": 102.5,
-                        "category_snapshot": "Electronics"
+                        "category_snapshot": "Electronics",
+                        "product_name_snapshot": "Wireless Headphones"
                     }
                 ]
+
             }
             create_inv_res = client.post(
                 f"{base_url}/api/invoices",
