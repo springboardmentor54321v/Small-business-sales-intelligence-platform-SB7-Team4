@@ -43,3 +43,6 @@ jobs:
       run: docker buildx build --check -f DevOps_Integration/backend.Dockerfile .
     - name: Check AIML Forecasting Dockerfile
       run: docker buildx build --check -f DevOps_Integration/aiml.Dockerfile .
+    - name: Check Streamlit Frontend Dockerfile
+      run: docker buildx build --check -f DevOps_Integration/frontend.Dockerfile .
+

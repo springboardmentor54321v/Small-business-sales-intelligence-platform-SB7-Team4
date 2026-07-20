@@ -37,3 +37,14 @@ services:
     env: python
     buildCommand: pip install -r AIML/week\ 1/stub_service/requirements.txt
     startCommand: python AIML/week\ 1/stub_service/app.py
+
+  # Streamlit Frontend Web Service
+  - type: web
+    name: marketmind-frontend
+    env: python
+    buildCommand: pip install -r frontend/requirements.txt
+    startCommand: streamlit run frontend/app.py --server.port 3000 --server.address 0.0.0.0
+    envVars:
+      - key: BACKEND_URL
+        value: https://marketmind-gateway.onrender.com
+
