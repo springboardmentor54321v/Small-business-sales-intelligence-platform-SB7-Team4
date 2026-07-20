@@ -3,8 +3,6 @@ import streamlit as st
 
 def show_sidebar():
 
-   
-
     role = st.session_state.get("role", "")
     username = st.session_state.get("username", "User")
 
@@ -27,7 +25,7 @@ def show_sidebar():
         menu = [
             "Dashboard",
             "Inventory",
-            "Customers",
+            "Customer Insights",
             "Invoice",
             "Sales Upload",
             "Reports",
@@ -64,7 +62,7 @@ def show_sidebar():
         menu = [
             "Dashboard",
             "Inventory",
-            "Customers",
+            "Customer Insights",
             "Invoice",
             "Sales Upload",
             "Reports",
@@ -78,7 +76,7 @@ def show_sidebar():
 
         menu = ["Dashboard"]
 
-   
+    # ---------------- Navigation ---------------- #
 
     if st.session_state.page not in menu:
         st.session_state.page = menu[0]
@@ -95,6 +93,8 @@ def show_sidebar():
 
     st.sidebar.markdown("---")
 
+    # ---------------- Role Badge ---------------- #
+
     if role == "Owner":
         st.sidebar.success("👑 Logged in as Owner")
 
@@ -109,7 +109,9 @@ def show_sidebar():
 
     st.sidebar.markdown("---")
 
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
+    # ---------------- Logout ---------------- #
+
+    if st.sidebar.button("🚪 Logout", width="stretch"):
 
         st.session_state.logged_in = False
         st.session_state.username = ""
