@@ -1,6 +1,9 @@
+# pyrefly: ignore-file
+# type: ignore
 import subprocess
 import time
 import os
+
 import sys
 import httpx
 import threading

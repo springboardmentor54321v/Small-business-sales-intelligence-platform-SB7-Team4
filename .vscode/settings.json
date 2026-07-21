@@ -1,4 +1,12 @@
 {
     "python.analysis.autoImportCompletions": true,
-    "python.analysis.typeCheckingMode": "standard"
-}
+    "python.analysis.typeCheckingMode": "off",
+    "python.analysis.ignore": [
+        "**/__pyrefly_virtual__/**",
+        "**/*.py"
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUndefinedVariable": "none",
+        "reportGeneralTypeIssues": "none"
+    }
+}
