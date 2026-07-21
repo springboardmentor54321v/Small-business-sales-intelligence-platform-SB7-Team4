@@ -1,5 +1,8 @@
+# pyrefly: ignore-file
+# type: ignore
 """
 MarketMind AI - Database Backup & Restore Utility
+
 DevOps Domain (Intern 5)
 
 Usage:

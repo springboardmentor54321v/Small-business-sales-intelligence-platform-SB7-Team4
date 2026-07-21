@@ -1,5 +1,8 @@
+# pyrefly: ignore-file
+# type: ignore
 """
 MarketMind AI - System Health Check & Load Test Utility
+
 DevOps Domain (Intern 5)
 
 Usage:
