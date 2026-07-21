@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "timestamp": "2026-07-21T20:04:08.101189",
+    "system": "MarketMind AI Sales Intelligence Platform",
+    "version": "Milestone 2"
+  },
+  "tables": {
+    "users": [
+      {
+        "id": 1,
+        "name": "alice_owner",
+        "email": "alice@marketmind.com",
+        "role": "Business Owner"
+      },
+      {
+        "id": 2,
+        "name": "bob_sales",
+        "email": "bob@marketmind.com",
+        "role": "Sales Executive"
+      }
+    ],
+    "invoices": [
+      {
+        "id": 1,
+        "invoice_number": "INV-M2-01",
+        "total_amount": 105.0,
+        "payment_status": "Unpaid"
+      }
+    ],
+    "inventory": [
+      {
+        "id": 1,
+        "product_name": "Laptop",
+        "stock_quantity": 45,
+        "low_stock_threshold": 10
+      }
+    ]
+  }
+}
