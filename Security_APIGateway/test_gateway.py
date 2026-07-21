@@ -204,7 +204,19 @@ def run_tests():
             assert sales_token is not None
             assert sales_refresh_token is not None
 
+            # Test 4b: Testing login with invalid password (Should fail 401)
+            print("\n-------------------------------------------")
+            print("Test 4b: Testing login with invalid password...")
+            bad_login_res = client.post(
+                f"{base_url}/auth/login",
+                json={"email": "alice@marketmind.com", "password": "wrong_password_123"}
+            )
+            print(f"Status: {bad_login_res.status_code} (Expected: 401)")
+            assert bad_login_res.status_code == 401
+            assert bad_login_res.json().get("detail") == "Invalid credentials"
+
             # Test 5: Access Forecasting as Business Owner (Permitted)
+
             print("\n-------------------------------------------")
             print("Test 5: Accessing /api/forecast/sample as Business Owner (Permitted)...")
             forecast_owner_res = client.get(
@@ -514,19 +526,56 @@ def run_tests():
             assert segment_owner_res.status_code == 200
             assert "segments" in segment_owner_res.json()
 
-            # Test 23: Verification of audit logging for invoice and AI reports
+            # Test 24: AI Churn, Recommendation, and Anomaly RBAC verification
             print("\n-------------------------------------------")
-            print("Test 23: Verifying audit logging records new actions...")
+            print("Test 24: Testing AI Churn, Recommendation, and Anomaly RBAC rules...")
+            
+            # AI Churn Risk (Business Owner & Store Manager permitted, Sales Executive blocked)
+            churn_sales_res = client.get(
+                f"{base_url}/api/ai/churn",
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"AI Churn (Sales Executive) Status: {churn_sales_res.status_code} (Expected: 403)")
+            assert churn_sales_res.status_code == 403
+
+            churn_owner_res = client.get(
+                f"{base_url}/api/ai/churn",
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"AI Churn (Business Owner) Status: {churn_owner_res.status_code} (Expected: 200)")
+            assert churn_owner_res.status_code == 200
+
+            # AI Recommendations (Sales Executive permitted)
+            rec_sales_res = client.get(
+                f"{base_url}/api/ai/recommendation",
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"AI Recommendation (Sales Executive) Status: {rec_sales_res.status_code} (Expected: 200)")
+            assert rec_sales_res.status_code == 200
+
+            # AI Anomaly Detection (Sales Executive blocked)
+            anomaly_sales_res = client.get(
+                f"{base_url}/api/ai/anomaly",
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"AI Anomaly (Sales Executive) Status: {anomaly_sales_res.status_code} (Expected: 403)")
+            assert anomaly_sales_res.status_code == 403
+
+            # Test 25: Verification of audit logging for invoice and AI reports
+            print("\n-------------------------------------------")
+            print("Test 25: Verifying audit logging records all activity...")
             with open(log_path, "r", encoding="utf-8") as f:
                 logs_after = f.read()
             assert "attempted to create invoice" in logs_after
             assert "requested AI Customer Segmentation report" in logs_after
             assert "updated invoice ID 1 status" in logs_after
-            print("Audit log contains new activity records!")
+            print("Audit log contains complete security records!")
 
             print("\n===========================================")
-            print("All 23 API Gateway integration tests passed successfully!")
+            print("All 25 API Gateway integration tests passed successfully!")
             print("===========================================")
+
+
 
 
     except Exception as e:
