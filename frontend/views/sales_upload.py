@@ -5,7 +5,10 @@ import requests
 from components.sidebar import show_sidebar
 
 
-API_URL = "http://localhost:8000/api/sales/upload"
+import os
+BASE_URL = os.environ.get("BACKEND_URL", "http://localhost:5000")
+API_URL = f"{BASE_URL}/api/sales/upload"
+
 
 
 def sales_upload_page():
