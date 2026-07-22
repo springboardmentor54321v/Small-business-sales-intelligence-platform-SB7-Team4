@@ -37,3 +37,9 @@ class User(Base):
         "SalesTransaction",
         back_populates="user"
     )
+
+    # Relationship with Invoice
+    invoices = relationship(
+        "Invoice",
+        back_populates="created_by"
+    )
