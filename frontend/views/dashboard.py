@@ -7,12 +7,11 @@ from components.cards import show_cards
 from components.charts import sales_trend_chart, top_products_chart
 
 # ---------------- API Configuration ---------------- #
-import os
-BASE_URL = os.environ.get("BACKEND_URL", "http://localhost:5000")
+
+BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
 
 SALES_API = f"{BASE_URL}/sales/"
 INVENTORY_API = f"{BASE_URL}/inventory/"
-
 
 
 # ---------------- Dashboard ---------------- #
