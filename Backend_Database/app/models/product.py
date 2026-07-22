@@ -32,4 +32,9 @@ class Product(Base):
         "SalesTransaction",
         back_populates="product"
     )
+
+    invoice_items = relationship(
+        "InvoiceItem",
+        back_populates="product"
+    )
     
