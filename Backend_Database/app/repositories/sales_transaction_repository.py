@@ -9,8 +9,17 @@ from app.models.sales_transaction import SalesTransaction
 # Get All Sales
 # =====================================================
 
-def get_all_sales(db: Session):
-    return db.query(SalesTransaction).all()
+def get_all_sales(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+):
+    return (
+        db.query(SalesTransaction)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 # =====================================================
@@ -163,3 +172,4 @@ def delete_sale(
     return {
         "message": "Sales transaction deleted successfully."
     }
+    
