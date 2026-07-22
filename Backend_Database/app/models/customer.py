@@ -27,3 +27,9 @@ class Customer(Base):
         "SalesTransaction",
         back_populates="customer"
     )
+
+    # Relationship with Invoice
+    invoices = relationship(
+        "Invoice",
+        back_populates="customer"
+    )
