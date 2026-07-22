@@ -32,10 +32,15 @@ router = APIRouter(
     response_model=list[SalesTransactionResponse]
 )
 def get_sales(
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db)
 ):
-
-    return get_all_sales(db)
+    return get_all_sales(
+        db,
+        skip,
+        limit
+    )
 
 
 # ==================================================
