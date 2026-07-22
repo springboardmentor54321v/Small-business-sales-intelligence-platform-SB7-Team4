@@ -21,7 +21,11 @@ class SalesTransaction(Base):
 
     transaction_id = Column(String(30), unique=True, nullable=False)
 
-    invoice_id = Column(String(30), nullable=False)
+    invoice_id = Column(
+        String(30),
+        ForeignKey("invoices.invoice_id"),
+        nullable=False
+    )
 
     transaction_date = Column(Date, nullable=False)
 
@@ -83,3 +87,9 @@ class SalesTransaction(Base):
         "User",
         back_populates="sales_transactions"
     )
+
+    invoice = relationship(
+        "Invoice",
+        back_populates="sales_transactions"
+    )
+    
