@@ -24,3 +24,8 @@ class Store(Base):
         "SalesTransaction",
         back_populates="store"
     )
+
+    invoices = relationship(
+        "Invoice",
+        back_populates="store"
+    )
