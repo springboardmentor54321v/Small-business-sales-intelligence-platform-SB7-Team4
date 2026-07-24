@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 
-BASE_URL = "BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev/docs""
+BASE_URL = "BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev""
 
 
 def get_inventory():

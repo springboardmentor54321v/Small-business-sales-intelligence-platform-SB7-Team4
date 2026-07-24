@@ -8,7 +8,7 @@ from components.charts import sales_trend_chart, top_products_chart
 
 # ---------------- API Configuration ---------------- #
 
-BASE_URL = "BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev/docs""
+BASE_URL = "BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev""
 
 SALES_API = f"{BASE_URL}/sales/"
 INVENTORY_API = f"{BASE_URL}/inventory/"
