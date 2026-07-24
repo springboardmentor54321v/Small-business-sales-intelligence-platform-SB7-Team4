@@ -84,7 +84,7 @@ def predict():
 
     df = df[["Order Date", "Total amount"]]
 
-    df["Order Date"] = pd.to_datetime(df["Order Date"])
+    df["Order Date"] = pd.to_datetime(df["Order Date"], format="%d-%m-%Y")
 
     df = (
         df.groupby("Order Date")["Total amount"]
