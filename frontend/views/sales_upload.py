@@ -6,7 +6,7 @@ from components.sidebar import show_sidebar
 
 # ================= API Configuration ================= #
 
-BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+BASE_URL = "BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev/docs""
 UPLOAD_API = f"{BASE_URL}/api/sales/upload"
 
 
