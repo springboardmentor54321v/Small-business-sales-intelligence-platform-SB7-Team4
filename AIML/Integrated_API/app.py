@@ -81,6 +81,8 @@ def predict():
     file = request.files["file"]
 
     df = pd.read_csv(file)
+    print(df.columns.tolist())
+    print(df.head())
 
     df = df[["Order Date", "Total amount"]]
 
