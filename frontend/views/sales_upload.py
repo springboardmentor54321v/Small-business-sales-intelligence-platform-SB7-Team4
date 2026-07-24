@@ -4,8 +4,10 @@ import requests
 
 from components.sidebar import show_sidebar
 
+# ================= API Configuration ================= #
 
-API_URL = "http://localhost:8000/api/sales/upload"
+BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+UPLOAD_API = f"{BASE_URL}/api/sales/upload"
 
 
 def sales_upload_page():
@@ -13,137 +15,188 @@ def sales_upload_page():
     show_sidebar()
 
     st.title("📤 Sales Upload")
-
-    st.write("Upload Sales Transaction CSV")
+    st.caption("Upload Sales Transactions CSV to the Backend")
 
     st.markdown("---")
 
     uploaded_file = st.file_uploader(
-        "Drag & Drop your CSV file here",
+        "Choose a CSV file",
         type=["csv"]
     )
 
-    if uploaded_file is not None:
+    if uploaded_file is None:
+        st.info("📁 Please upload a CSV file to continue.")
+        return
+
+    # ================= Read CSV ================= #
+
+    try:
+
+        df = pd.read_csv(uploaded_file)
+
+    except Exception as e:
+
+        st.error(f"❌ Unable to read CSV.\n\n{e}")
+        return
+
+    st.success("✅ CSV Loaded Successfully")
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Rows",
+        len(df)
+    )
+
+    col2.metric(
+        "Columns",
+        len(df.columns)
+    )
+
+    col3.metric(
+        "File Size",
+        f"{uploaded_file.size / 1024:.1f} KB"
+    )
+
+    st.markdown("---")
+
+    st.subheader("CSV Preview")
+
+    st.dataframe(
+        df.head(10),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.markdown("---")
+
+    # ================= Validation ================= #
+
+    st.subheader("CSV Validation")
+
+    required_columns = [
+
+        "transaction_id",
+        "invoice_id",
+        "transaction_date",
+        "customer_id",
+        "product_id",
+        "store_id",
+        "quantity",
+        "unit_price",
+        "discount",
+        "total_amount",
+        "payment_method"
+
+    ]
+
+    missing_columns = [
+        col
+        for col in required_columns
+        if col not in df.columns
+    ]
+
+    if missing_columns:
+
+        st.error("❌ Validation Failed")
+
+        st.write("Missing Columns:")
+
+        st.code("\n".join(missing_columns))
+
+        return
+
+    st.success("✅ CSV Validation Successful")
+
+    st.markdown("---")
+
+    # ================= Upload ================= #
+
+    if st.button(
+        "🚀 Upload Sales Data",
+        use_container_width=True
+    ):
 
         try:
 
-            df = pd.read_csv(uploaded_file)
+            uploaded_file.seek(0)
 
-            st.success("✅ File uploaded successfully!")
+            files = {
 
-            st.subheader("CSV Preview")
+                "file": (
 
-            st.dataframe(df.head(10), use_container_width=True)
+                    uploaded_file.name,
 
-            st.markdown("---")
+                    uploaded_file.getvalue(),
 
-            required_columns = [
-                "transaction_id",
-                "invoice_id",
-                "transaction_date",
-                "customer_id",
-                "product_id",
-                "store_id",
-                "quantity",
-                "unit_price",
-                "discount",
-                "total_amount",
-                "payment_method"
-            ]
+                    "text/csv"
 
-            st.subheader("Validation")
+                )
 
-            missing_columns = []
+            }
 
-            for column in required_columns:
+            progress = st.progress(0)
 
-                if column in df.columns:
-                    st.success(f"✔ {column}")
-                else:
-                    st.error(f"❌ Missing: {column}")
-                    missing_columns.append(column)
+            with st.spinner("Uploading sales data..."):
 
-            st.markdown("---")
+                progress.progress(30)
 
-            if len(missing_columns) == 0:
+                response = requests.post(
 
-                st.success("✅ CSV Validation Successful")
+                    UPLOAD_API,
 
-                if st.button("🚀 Upload Sales Data", use_container_width=True):
+                    files=files,
 
-                    try:
+                    timeout=60
 
-                        uploaded_file.seek(0)
+                )
 
-                        files = {
-                            "file": (
-                                uploaded_file.name,
-                                uploaded_file.getvalue(),
-                                "text/csv"
-                            )
-                        }
+                progress.progress(100)
 
-                        with st.spinner("Uploading file to backend..."):
+            if response.ok:
 
-                            response = requests.post(
-                                API_URL,
-                                files=files
-                            )
+                st.success("🎉 Sales Data Uploaded Successfully!")
 
-                        if response.status_code == 200:
+                st.balloons()
 
-                            st.success("✅ Sales Data Uploaded Successfully!")
+                st.subheader("Backend Response")
 
-                            try:
-                                st.subheader("Backend Response")
-                                st.json(response.json())
-                            except Exception:
-                                st.write(response.text)
+                try:
 
-                            st.balloons()
+                    st.json(response.json())
 
-                        elif response.status_code == 400:
+                except Exception:
 
-                            st.error("❌ Invalid Request")
-
-                            try:
-                                st.json(response.json())
-                            except Exception:
-                                st.write(response.text)
-
-                        elif response.status_code == 500:
-
-                            st.error("❌ Internal Server Error")
-
-                            try:
-                                st.json(response.json())
-                            except Exception:
-                                st.write(response.text)
-
-                        else:
-
-                            st.warning(
-                                f"Unexpected Response: {response.status_code}"
-                            )
-
-                            st.write(response.text)
-
-                    except requests.exceptions.ConnectionError:
-
-                        st.error("❌ Cannot connect to backend.")
-
-                        st.info(
-                            "Make sure the backend server is running on http://localhost:8000"
-                        )
-
-                    except Exception as e:
-
-                        st.error(f"Upload Failed: {e}")
+                    st.write(response.text)
 
             else:
 
-                st.warning("Please upload a valid CSV file.")
+                st.error(
+                    f"❌ Upload Failed (HTTP {response.status_code})"
+                )
+
+                try:
+
+                    st.json(response.json())
+
+                except Exception:
+
+                    st.write(response.text)
+
+        except requests.exceptions.ConnectionError:
+
+            st.error("❌ Unable to connect to backend server.")
+
+        except requests.exceptions.Timeout:
+
+            st.error("❌ Upload timed out.")
 
         except Exception as e:
 
-            st.error(f"Error reading CSV: {e}")
+            st.error(f"❌ {e}")
+
+    st.markdown("---")
+
+    st.info(
+        "Supported format: CSV with the required sales transaction columns."
+    )

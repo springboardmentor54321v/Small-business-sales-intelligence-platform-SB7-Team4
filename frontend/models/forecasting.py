@@ -1,27 +1,74 @@
+import requests
 import pandas as pd
 
+BASE_URL = "http://127.0.0.1:5000"
 
-def get_sales_forecast():
-    """
-    Dummy sales forecast data.
-    Replace with ML model/API later.
-    """
 
-    forecast = [
+def get_sales_forecast(uploaded_file):
 
-        {"Month": "Jan", "Predicted Sales": 120000},
-        {"Month": "Feb", "Predicted Sales": 145000},
-        {"Month": "Mar", "Predicted Sales": 162000},
-        {"Month": "Apr", "Predicted Sales": 181000},
-        {"Month": "May", "Predicted Sales": 210000},
-        {"Month": "Jun", "Predicted Sales": 235000},
-        {"Month": "Jul", "Predicted Sales": 260000},
-        {"Month": "Aug", "Predicted Sales": 290000},
-        {"Month": "Sep", "Predicted Sales": 315000},
-        {"Month": "Oct", "Predicted Sales": 340000},
-        {"Month": "Nov", "Predicted Sales": 365000},
-        {"Month": "Dec", "Predicted Sales": 395000}
+    try:
 
-    ]
+        files = {
+            "file": (
+                uploaded_file.name,
+                uploaded_file,
+                "text/csv"
+            )
+        }
 
-    return pd.DataFrame(forecast)
+        response = requests.post(
+            f"{BASE_URL}/predict",
+            files=files,
+            timeout=60
+        )
+
+        # ---------- DEBUG ----------
+        print("\n" + "=" * 60)
+        print("FORECAST API DEBUG")
+        print("=" * 60)
+        print("Status Code:", response.status_code)
+        print("Response Body:")
+        print(response.text)
+        print("=" * 60 + "\n")
+        # ---------------------------
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if isinstance(data, list):
+            df = pd.DataFrame(data)
+            print("Forecast DataFrame Columns:", df.columns.tolist())
+            return df
+
+        if isinstance(data, dict):
+            df = pd.DataFrame([data])
+            print("Forecast DataFrame Columns:", df.columns.tolist())
+            return df
+
+        return pd.DataFrame({
+            "Error": ["No forecast data returned from API."]
+        })
+
+    except requests.exceptions.RequestException as e:
+
+        print("\nREQUEST EXCEPTION")
+        print(e)
+
+        if 'response' in locals():
+            print("Status Code:", response.status_code)
+            print("Response Body:")
+            print(response.text)
+
+        return pd.DataFrame({
+            "Error": [str(e)]
+        })
+
+    except Exception as e:
+
+        print("\nUNEXPECTED ERROR")
+        print(str(e))
+
+        return pd.DataFrame({
+            "Error": [str(e)]
+        })

@@ -4,16 +4,16 @@ import pandas as pd
 BASE_URL = "http://127.0.0.1:5000"
 
 
-def get_anomaly_alerts(order_date="2011-01-04"):
+def get_customer_group(customer_id="AA-10315"):
 
     try:
 
         payload = {
-            "Order Date": order_date.strip()
+            "Customer ID": customer_id
         }
 
         response = requests.post(
-            f"{BASE_URL}/check-anomaly",
+            f"{BASE_URL}/customer-group",
             json=payload,
             timeout=10
         )
@@ -25,22 +25,11 @@ def get_anomaly_alerts(order_date="2011-01-04"):
         if isinstance(data, list):
             return pd.DataFrame(data)
 
-        if isinstance(data, dict):
+        elif isinstance(data, dict):
             return pd.DataFrame([data])
 
         return pd.DataFrame({
-            "Message": ["No anomaly data found."]
-        })
-
-    except requests.exceptions.HTTPError:
-
-        try:
-            error = response.json().get("error", response.text)
-        except Exception:
-            error = response.text
-
-        return pd.DataFrame({
-            "Error": [error]
+            "Message": ["No customer group found."]
         })
 
     except requests.exceptions.RequestException as e:
