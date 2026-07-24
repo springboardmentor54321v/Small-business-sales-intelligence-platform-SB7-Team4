@@ -972,6 +972,84 @@ async def proxy_inventory_root(request: Request):
                 content={"detail": f"Failed to connect to backend: {str(e)}"}
             )
 
+@app.post("/predict")
+async def proxy_ai_predict_raw(request: Request):
+    async with httpx.AsyncClient() as client:
+        try:
+            form = await request.form()
+            files_to_send = {}
+            for key, val in form.items():
+                if isinstance(val, UploadFile):
+                    content = await val.read()
+                    files_to_send[key] = (val.filename, content, val.content_type)
+            
+            response = await client.post(
+                f"{AI_URL}/predict",
+                files=files_to_send,
+                timeout=60.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML forecasting service: {str(e)}"}
+            )
+
+@app.post("/recommend-product")
+async def proxy_ai_recommend_raw(request: Request):
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            # Strip Content-Length header to prevent mismatch issues when body is forwarded
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
+            response = await client.post(
+                f"{AI_URL}/recommend-product",
+                content=body,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML recommendation service: {str(e)}"}
+            )
+
+@app.post("/check-anomaly")
+async def proxy_ai_anomaly_raw(request: Request):
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
+            response = await client.post(
+                f"{AI_URL}/check-anomaly",
+                content=body,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML anomaly detection service: {str(e)}"}
+            )
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=5000, log_level="info")
