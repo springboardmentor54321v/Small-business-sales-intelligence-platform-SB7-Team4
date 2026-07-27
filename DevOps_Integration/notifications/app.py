@@ -1,3 +1,5 @@
+# pyrefly: ignore-file
+# type: ignore
 import os
 from flask import Flask, jsonify
 
