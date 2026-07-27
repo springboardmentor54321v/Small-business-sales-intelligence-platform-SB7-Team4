@@ -391,6 +391,8 @@ async def logout(user: Dict = Depends(verify_token)):
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 AI_URL = os.getenv("AI_URL", "http://localhost:5002")
+NOTIFICATIONS_URL = os.getenv("NOTIFICATIONS_URL", "http://localhost:5003")
+
 
 # --- Proxy Routes with Validation ---
 
@@ -1048,6 +1050,88 @@ async def proxy_ai_anomaly_raw(request: Request):
             return JSONResponse(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 content={"detail": f"Failed to connect to AI/ML anomaly detection service: {str(e)}"}
+            )
+
+@app.get("/api/notifications")
+async def proxy_notifications_view(user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
+    log_audit(f"User {user['name']} requested notifications alert list")
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                f"{NOTIFICATIONS_URL}/notifications",
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"]
+                },
+                timeout=10.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            # Fallback mock notifications if service is offline/not running yet
+            return {
+                "message": "[Gateway Fallback] Notifications service is currently unreachable.",
+                "notifications": [
+                    {"id": 1, "type": "low_stock", "message": "Product 'Mouse' is low on stock (Quantity: 3).", "created_at": "2026-07-27T12:00:00Z"},
+                    {"id": 2, "type": "overdue_invoice", "message": "Invoice INV-M2-01 has passed due date.", "created_at": "2026-07-27T12:05:00Z"}
+                ]
+            }
+
+@app.post("/api/invoices/bulk-update")
+async def proxy_invoices_bulk_update(request: Request, user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
+    log_audit(f"User {user['name']} triggered bulk invoice status updates")
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{BACKEND_URL}/invoices/bulk-update",
+                content=body,
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"],
+                    "content-type": "application/json"
+                },
+                timeout=10.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service for bulk update."}
+            )
+
+@app.post("/api/inventory/bulk-update")
+async def proxy_inventory_bulk_update(request: Request, user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
+    log_audit(f"User {user['name']} triggered bulk inventory stock updates")
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{BACKEND_URL}/inventory/bulk-update",
+                content=body,
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"],
+                    "content-type": "application/json"
+                },
+                timeout=10.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service for bulk update."}
             )
 
 if __name__ == "__main__":
