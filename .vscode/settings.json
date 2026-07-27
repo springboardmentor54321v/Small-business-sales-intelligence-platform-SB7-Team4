@@ -7,6 +7,8 @@
     ],
     "python.analysis.diagnosticSeverityOverrides": {
         "reportUndefinedVariable": "none",
-        "reportGeneralTypeIssues": "none"
+        "reportGeneralTypeIssues": "none",
+        "reportMissingImports": "none",
+        "reportMissingModuleSource": "none"
     }
 }
