@@ -1,4 +1,5 @@
 import os
+
 import joblib
 import pandas as pd
 from flask import Flask, jsonify, request
@@ -10,9 +11,10 @@ model = joblib.load(
     os.path.join(
         os.path.dirname(__file__),
         "..",
-        "week1",
-        "stub_service",
-        "lightgbm_daily_model.pkl",
+        "week3",
+        "forecasting",
+        "catboost",
+        "catboost_daily_model.pkl",
     )
 )
 
@@ -71,45 +73,67 @@ anomaly_df = pd.read_csv(anomaly_csv_path)
 @app.route("/", methods=["GET"])
 def home():
     return jsonify(
-        {"message": "Anomaly Detection API is running.", "endpoint": "/check-anomaly"}
+        {
+            "project": "MarketMind AI APIs",
+            "forecast_api": "/predict",
+            "method": "POST",
+            "upload_file": "daily_sales.csv",
+            "required_columns": ["Order Date", "Total amount"],
+            "forecast": "Next 30 days",
+        }
     )
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
 
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded."}), 400
+
     file = request.files["file"]
+    file.stream.seek(0)  # Reset the file stream position to the beginning
 
-    df = pd.read_csv(file)
-    print(df.columns.tolist())
-    print(df.head())
+    df = pd.read_csv(file.stream)
+    print("Rows in uploaded file:", len(df))
+    print(df.tail(5))
 
-    df = df[["Order Date", "Total amount"]]
+    # Check required columns
+    required_columns = ["Order Date", "Total amount"]
+    for col in required_columns:
+        if col not in df.columns:
+            return jsonify({"error": f"Missing column: {col}"}), 400
 
-    df["Order Date"] = pd.to_datetime(df["Order Date"], format="%d-%m-%Y")
+    df = df[required_columns].copy()
 
-    df = (
-        df.groupby("Order Date")["Total amount"]
-        .sum()
-        .reset_index()
-        .sort_values("Order Date")
-        .reset_index(drop=True)
-    )
+    # Clean column values
+    df["Order Date"] = df["Order Date"].astype(str).str.strip()
+    df["Total amount"] = pd.to_numeric(df["Total amount"], errors="coerce")
 
-    history = df.copy()
+    # Convert dates automatically
+    df["Order Date"] = pd.to_datetime(df["Order Date"], dayfirst=True, errors="coerce")
+
+    # Remove invalid rows instead of stopping the API
+    df = df.dropna(subset=["Order Date", "Total amount"])
+
+    if df.empty:
+        return jsonify({"error": "Uploaded file contains no valid data."}), 400
+
+    history = df.sort_values("Order Date").reset_index(drop=True)
+    print(history.tail(30))
+    print("last date in history:", history["Order Date"].max())
 
     if len(history) < 30:
         return jsonify(
             {
                 "error": "Insufficient historical data.",
-                "message": "At least 30 days of historical sales data are required.",
+                "message": "At least 30 valid days of historical sales data are required.",
             }
         ), 400
 
     predictions = []
 
     for i in range(30):
-        future_date = history["Order Date"].max() + pd.Timedelta(days=1)
+        future_date = history["Order Date"].iloc[-1] + pd.Timedelta(days=1)
 
         row = pd.DataFrame(
             {
@@ -117,7 +141,7 @@ def predict():
                 "month": [future_date.month],
                 "year": [future_date.year],
                 "dayofweek": [future_date.dayofweek],
-                "weekofyear": [int(future_date.isocalendar().week)],
+                "weekofyear": [future_date.isocalendar().week],
                 "quarter": [future_date.quarter],
                 "lag1": [history["Total amount"].iloc[-1]],
                 "lag7": [history["Total amount"].iloc[-7]],
@@ -127,16 +151,23 @@ def predict():
             }
         )
 
-        pred = float(model.predict(row)[0])
-
+        prediction = float(model.predict(row)[0])
+        mae = 1606.96
+        if mae < 1700:
+            confidence = "High"
+        elif mae < 2500:
+            confidence = "Medium"
+        else:
+            confidence = "Low"
         predictions.append(
             {
                 "Order Date": future_date.strftime("%Y-%m-%d"),
-                "Predicted Sales": round(pred, 2),
+                "Predicted Sales": round(prediction, 2),
+                "Confidence": confidence,
             }
         )
 
-        history.loc[len(history)] = [future_date, pred]
+        history.loc[len(history)] = [future_date, prediction]
 
     return jsonify(predictions)
 
