@@ -642,6 +642,34 @@ def run_tests():
             assert "updated invoice ID 1 status" in logs_after
             print("Audit log contains complete security records!")
 
+            # Test 27: Milestone 3 Day 3 - Audit Summary API Validation
+            print("\n-------------------------------------------")
+            print("Test 27: Testing Audit Summary API access & output content...")
+            
+            # Request audit summary as Sales Executive (should be blocked)
+            summary_sales_res = client.get(
+                f"{base_url}/api/admin/audit-summary",
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Audit Summary (Sales Executive) Status: {summary_sales_res.status_code} (Expected: 403)")
+            assert summary_sales_res.status_code == 403
+            
+            # Request audit summary as Business Owner (should succeed)
+            summary_owner_res = client.get(
+                f"{base_url}/api/admin/audit-summary",
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Audit Summary (Business Owner) Status: {summary_owner_res.status_code} (Expected: 200)")
+            assert summary_owner_res.status_code == 200
+            
+            summary_data = summary_owner_res.json()
+            print("Total logs analyzed:", summary_data.get("total_logs"))
+            assert "total_logs" in summary_data
+            assert "user_counts" in summary_data
+            assert "action_counts" in summary_data
+            assert "recent_activities" in summary_data
+            assert summary_data["total_logs"] > 0
+
             print("\n===========================================")
             print("All API Gateway integration tests passed successfully!")
             print("===========================================")

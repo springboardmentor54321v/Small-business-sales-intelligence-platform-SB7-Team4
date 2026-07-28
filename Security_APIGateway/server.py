@@ -3,6 +3,7 @@
 import os
 import datetime
 import time
+import re
 
 from collections import defaultdict
 from typing import List, Dict, Optional
@@ -1133,6 +1134,103 @@ async def proxy_inventory_bulk_update(request: Request, user: Dict = Depends(che
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 content={"detail": "Failed to connect to database backend service for bulk update."}
             )
+
+@app.get("/api/admin/audit-summary")
+async def audit_summary(user: Dict = Depends(check_role(["Business Owner", "Administrator"]))):
+    if not os.path.exists(AUDIT_LOG_FILE):
+        return {
+            "total_logs": 0,
+            "user_counts": {},
+            "action_counts": {},
+            "recent_activities": []
+        }
+        
+    user_counts = defaultdict(int)
+    action_counts = defaultdict(int)
+    recent_activities = []
+    
+    try:
+        with open(AUDIT_LOG_FILE, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            
+        total_logs = len(lines)
+        
+        for line in lines:
+            line_str = line.strip()
+            if not line_str:
+                continue
+                
+            parts = line_str.split(" - ")
+            if len(parts) >= 3:
+                timestamp = parts[0]
+                level = parts[1]
+                message = " - ".join(parts[2:])
+                
+                inferred_user = "system"
+                inferred_action = "other_activity"
+                
+                if "User Logged In:" in message:
+                    user_match = re.search(r"User Logged In:\s*([^\s(]+)", message)
+                    if user_match:
+                        inferred_user = user_match.group(1)
+                    inferred_action = "user_login"
+                elif "User Logged Out:" in message:
+                    user_match = re.search(r"User Logged Out:\s*([^\s(]+)", message)
+                    if user_match:
+                        inferred_user = user_match.group(1)
+                    inferred_action = "user_logout"
+                elif "attempted to create invoice" in message:
+                    user_match = re.search(r"User\s+([^\s]+)\s+attempted", message)
+                    if user_match:
+                        inferred_user = user_match.group(1)
+                    inferred_action = "invoice_create_attempt"
+                elif "requested AI" in message:
+                    user_match = re.search(r"User\s+([^\s]+)\s+requested", message)
+                    if user_match:
+                        inferred_user = user_match.group(1)
+                    inferred_action = "ai_report_request"
+                elif "rate limit exceeded" in message:
+                    inferred_action = "rate_limit_triggered"
+                    ip_match = re.search(r"IP:\s*([^\s]+)", message)
+                    inferred_user = ip_match.group(1) if ip_match else "guest"
+                elif "Rejected non-CSV" in message:
+                    inferred_action = "malformed_upload_rejected"
+                    inferred_user = "guest"
+                elif "updated invoice" in message:
+                    user_match = re.search(r"User\s+([^\s]+)\s+updated", message)
+                    if user_match:
+                        inferred_user = user_match.group(1)
+                    inferred_action = "invoice_update"
+                elif "requested notifications" in message:
+                    user_match = re.search(r"User\s+([^\s]+)\s+requested", message)
+                    if user_match:
+                        inferred_user = user_match.group(1)
+                    inferred_action = "notifications_request"
+                
+                user_counts[inferred_user] += 1
+                action_counts[inferred_action] += 1
+                recent_activities.append({
+                    "timestamp": timestamp,
+                    "level": level,
+                    "user": inferred_user,
+                    "action": inferred_action,
+                    "message": message
+                })
+                
+        recent_activities = recent_activities[-20:]
+        recent_activities.reverse()
+        
+        return {
+            "total_logs": total_logs,
+            "user_counts": dict(user_counts),
+            "action_counts": dict(action_counts),
+            "recent_activities": recent_activities
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reading or parsing audit log: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn
