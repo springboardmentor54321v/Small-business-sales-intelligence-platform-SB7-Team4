@@ -22,9 +22,9 @@ model = joblib.load(
 group_csv_path = os.path.join(
     os.path.dirname(__file__),
     "..",
-    "week2",
+    "week3",
     "customer_grouping",
-    "customer_segments.csv",
+    "customer_segment.csv",
 )
 
 group_df = pd.read_csv(group_csv_path)
