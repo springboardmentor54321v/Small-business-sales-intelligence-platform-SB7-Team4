@@ -39,6 +39,7 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
       AI_URL: http://aiml:5000
+      NOTIFICATIONS_URL: http://notifications:5003
       JWT_SECRET: your_super_secret_jwt_key_12345
       AUDIT_LOG_FILE: /app/logs/audit.log
     ports:
@@ -48,6 +49,7 @@ services:
     depends_on:
       - backend
       - aiml
+      - notifications
 
   aiml:
     build:
@@ -56,6 +58,14 @@ services:
     container_name: marketmind_aiml
     ports:
       - "5002:5000"
+
+  notifications:
+    build:
+      context: .
+      dockerfile: DevOps_Integration/notifications.Dockerfile
+    container_name: marketmind_notifications
+    ports:
+      - "5003:5003"
 
   frontend:
     build:

@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
+
 from components.sidebar import show_sidebar
+from models.inventory import get_inventory
 
 
 def inventory_page():
@@ -8,71 +10,162 @@ def inventory_page():
     show_sidebar()
 
     st.title("📦 Inventory Management")
-    st.caption("Manage and monitor product inventory")
+    st.caption("Manage and Monitor Product Inventory")
 
     st.markdown("---")
+
+    # ================= Load Inventory ================= #
+
+    data = get_inventory()
+
+    if data.empty:
+        st.warning("No inventory data available.")
+        return
+
+    if "Error" in data.columns:
+        st.error(data.iloc[0]["Error"])
+        return
+
+    # ================= Metrics ================= #
+
+    total_products = len(data)
+
+    low_stock = len(
+        data[data["Status"] == "Low Stock"]
+    )
+
+    total_stock = int(
+        data["stock_quantity"].sum()
+    )
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("📦 Total Products", 125)
-    col2.metric("⚠ Low Stock", 12)
-    col3.metric("💰 Inventory Value", "₹8,75,000")
+    col1.metric(
+        "📦 Total Products",
+        total_products
+    )
+
+    col2.metric(
+        "⚠ Low Stock",
+        low_stock
+    )
+
+    col3.metric(
+        "📊 Total Stock",
+        total_stock
+    )
 
     st.markdown("---")
 
-    search = st.text_input("🔍 Search Product")
+    # ================= Search & Filter ================= #
 
-    status = st.selectbox(
-        "Filter Status",
-        ["All", "In Stock", "Low Stock"]
-    )
+    col1, col2 = st.columns(2)
 
-    data = pd.DataFrame({
+    with col1:
+        search = st.text_input("🔍 Search Product ID")
 
-        "Product ID":[
-            "P001","P002","P003","P004","P005",
-            "P006","P007","P008","P009","P010"
-        ],
+    with col2:
+        status = st.selectbox(
+            "Filter Status",
+            ["All", "In Stock", "Low Stock"]
+        )
 
-        "Product":[
-            "Laptop","Mouse","Keyboard","Monitor",
-            "Printer","Speaker","SSD","Router",
-            "Camera","Scanner"
-        ],
-
-        "Category":[
-            "Electronics","Accessories","Accessories",
-            "Electronics","Office","Electronics",
-            "Storage","Networking","Electronics","Office"
-        ],
-
-        "Stock":[
-            50,120,75,10,5,18,40,22,8,15
-        ],
-
-        "Price":[
-            55000,650,1200,12000,9500,
-            3500,4500,2200,38000,9000
-        ]
-    })
-
-    data["Status"] = data["Stock"].apply(
-        lambda x: "Low Stock" if x <= 15 else "In Stock"
-    )
+    filtered_data = data.copy()
 
     if search:
-        data = data[
-            data["Product"].str.contains(search, case=False)
+        filtered_data = filtered_data[
+            filtered_data["product_id"]
+            .astype(str)
+            .str.contains(search, case=False)
         ]
 
     if status != "All":
-        data = data[data["Status"] == status]
+        filtered_data = filtered_data[
+            filtered_data["Status"] == status
+        ]
 
-    st.dataframe(data, use_container_width=True)
+    # ================= Inventory Table ================= #
+
+    st.subheader("📋 Inventory Records")
+
+    def highlight_status(val):
+
+        if val == "Low Stock":
+            return (
+                "background-color:#f8d7da;"
+                "color:red;"
+                "font-weight:bold;"
+            )
+
+        return (
+            "background-color:#d4edda;"
+            "color:green;"
+            "font-weight:bold;"
+        )
+
+    display_columns = [
+        "id",
+        "product_id",
+        "stock_quantity",
+        "low_stock_threshold",
+        "Status"
+    ]
+
+    available_columns = [
+        col for col in display_columns
+        if col in filtered_data.columns
+    ]
+
+    styled_df = (
+        filtered_data[available_columns]
+        .style
+        .map(
+            highlight_status,
+            subset=["Status"]
+        )
+    )
+
+    st.dataframe(
+        styled_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.markdown("---")
+
+    # ================= Inventory Summary ================= #
+
+    st.subheader("📊 Inventory Summary")
+
+    summary = pd.DataFrame({
+        "Metric": [
+            "Total Products",
+            "Total Stock Quantity",
+            "Low Stock Items"
+        ],
+        "Value": [
+            total_products,
+            total_stock,
+            low_stock
+        ]
+    })
+
+    st.dataframe(
+        summary,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.markdown("---")
+
+    # ================= Download ================= #
 
     st.download_button(
         "⬇ Download Inventory CSV",
-        data=data.to_csv(index=False),
+        data=filtered_data.to_csv(index=False),
         file_name="inventory.csv",
-        mime="text/csv"
+        mime="text/csv",
+        use_container_width=True
     )
+
+    st.success("✅ Inventory data loaded successfully from the backend.")

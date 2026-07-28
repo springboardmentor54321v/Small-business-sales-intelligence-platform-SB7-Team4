@@ -83,6 +83,21 @@ def mock_revenue_summary(x_user_id: str = Header(None), x_user_role: str = Heade
         "injected_user_role": x_user_role
     }
 
+@mock_backend.post("/invoices/bulk-update")
+def mock_invoices_bulk_update(payload: dict, x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock Invoices Bulk Update forward success",
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
+
+@mock_backend.post("/inventory/bulk-update")
+def mock_inventory_bulk_update(payload: dict, x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    return {
+        "message": "Mock Inventory Bulk Update forward success",
+        "injected_user_id": x_user_id,
+        "injected_user_role": x_user_role
+    }
 
 def run_mock_backend():
     uvicorn.run(mock_backend, host="127.0.0.1", port=8000, log_level="warning")
@@ -564,6 +579,59 @@ def run_tests():
             print(f"AI Anomaly (Sales Executive) Status: {anomaly_sales_res.status_code} (Expected: 403)")
             assert anomaly_sales_res.status_code == 403
 
+            # Test 26: Milestone 3 Day 2 - Notifications and Bulk Update APIs RBAC Validation
+            print("\n-------------------------------------------")
+            print("Test 26: Testing Notifications & Bulk Update APIs RBAC rules...")
+            
+            # Notifications (Business Owner permitted, Sales Executive blocked)
+            notif_sales_res = client.get(
+                f"{base_url}/api/notifications",
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Notifications (Sales Executive) Status: {notif_sales_res.status_code} (Expected: 403)")
+            assert notif_sales_res.status_code == 403
+            
+            notif_owner_res = client.get(
+                f"{base_url}/api/notifications",
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Notifications (Business Owner) Status: {notif_owner_res.status_code} (Expected: 200)")
+            assert notif_owner_res.status_code == 200
+            
+            # Bulk Invoice Update (Business Owner permitted, Sales Executive blocked)
+            bulk_inv_sales_res = client.post(
+                f"{base_url}/api/invoices/bulk-update",
+                json={"invoice_ids": [1, 2], "status": "Paid"},
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Bulk Invoice Update (Sales Executive) Status: {bulk_inv_sales_res.status_code} (Expected: 403)")
+            assert bulk_inv_sales_res.status_code == 403
+            
+            bulk_inv_owner_res = client.post(
+                f"{base_url}/api/invoices/bulk-update",
+                json={"invoice_ids": [1, 2], "status": "Paid"},
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Bulk Invoice Update (Business Owner) Status: {bulk_inv_owner_res.status_code} (Expected: 200)")
+            assert bulk_inv_owner_res.status_code == 200
+            
+            # Bulk Inventory Update (Business Owner permitted, Sales Executive blocked)
+            bulk_item_sales_res = client.post(
+                f"{base_url}/api/inventory/bulk-update",
+                json={"updates": [{"product_id": 1, "stock_quantity": 20}]},
+                headers={"Authorization": f"Bearer {sales_token}"}
+            )
+            print(f"Bulk Inventory Update (Sales Executive) Status: {bulk_item_sales_res.status_code} (Expected: 403)")
+            assert bulk_item_sales_res.status_code == 403
+            
+            bulk_item_owner_res = client.post(
+                f"{base_url}/api/inventory/bulk-update",
+                json={"updates": [{"product_id": 1, "stock_quantity": 20}]},
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Bulk Inventory Update (Business Owner) Status: {bulk_item_owner_res.status_code} (Expected: 200)")
+            assert bulk_item_owner_res.status_code == 200
+
             # Test 25: Verification of audit logging for invoice and AI reports
             print("\n-------------------------------------------")
             print("Test 25: Verifying audit logging records all activity...")
@@ -575,7 +643,7 @@ def run_tests():
             print("Audit log contains complete security records!")
 
             print("\n===========================================")
-            print("All 25 API Gateway integration tests passed successfully!")
+            print("All API Gateway integration tests passed successfully!")
             print("===========================================")
 
 

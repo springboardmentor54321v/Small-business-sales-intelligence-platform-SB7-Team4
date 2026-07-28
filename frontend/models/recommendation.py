@@ -1,54 +1,55 @@
+import requests
 import pandas as pd
 
+BASE_URL = "http://127.0.0.1:5000"
 
-def get_recommendations():
-    """
-    Sample AI Product Recommendation Model
-    Replace this dummy data with ML predictions later.
-    """
 
-    recommendations = [
+def get_recommendations(product_name="Staples"):
 
-        {
-            "Customer": "Ravi",
-            "Last Purchase": "Laptop",
-            "Recommended Product": "Mouse",
-            "Confidence": 95,
-            "Reason": "Frequently bought together"
-        },
+    try:
 
-        {
-            "Customer": "Priya",
-            "Last Purchase": "Printer",
-            "Recommended Product": "Ink Cartridge",
-            "Confidence": 92,
-            "Reason": "Consumable product"
-        },
-
-        {
-            "Customer": "Rahul",
-            "Last Purchase": "Keyboard",
-            "Recommended Product": "Mouse Pad",
-            "Confidence": 89,
-            "Reason": "Similar customers purchased"
-        },
-
-        {
-            "Customer": "Anita",
-            "Last Purchase": "Monitor",
-            "Recommended Product": "HDMI Cable",
-            "Confidence": 91,
-            "Reason": "Frequently bought together"
-        },
-
-        {
-            "Customer": "Kiran",
-            "Last Purchase": "Laptop",
-            "Recommended Product": "Laptop Bag",
-            "Confidence": 90,
-            "Reason": "Common follow-up purchase"
+        payload = {
+            "Product Name": product_name
         }
 
-    ]
+        response = requests.post(
+            f"{BASE_URL}/recommend-product",
+            json=payload,
+            timeout=10
+        )
 
-    return pd.DataFrame(recommendations)
+        response.raise_for_status()
+
+        data = response.json()
+
+        # If API returns a list
+        if isinstance(data, list):
+            return pd.DataFrame(data)
+
+        # If API returns a dictionary
+        elif isinstance(data, dict):
+
+            if "Recommended Products" in data:
+
+                return pd.DataFrame({
+                    "Recommended Products": data["Recommended Products"]
+                })
+
+            return pd.DataFrame([data])
+
+        # Unknown response
+        return pd.DataFrame({
+            "Message": ["No recommendations found."]
+        })
+
+    except requests.exceptions.RequestException as e:
+
+        return pd.DataFrame({
+            "Error": [f"API Connection Error: {e}"]
+        })
+
+    except Exception as e:
+
+        return pd.DataFrame({
+            "Error": [str(e)]
+        })

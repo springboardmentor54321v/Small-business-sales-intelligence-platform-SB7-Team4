@@ -12,6 +12,7 @@ BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
 
 SALES_API = f"{BASE_URL}/sales/"
 INVENTORY_API = f"{BASE_URL}/inventory/"
+REVENUE_API = f"{BASE_URL}/revenue/summary"
 
 
 # ---------------- Dashboard ---------------- #
@@ -29,8 +30,22 @@ def dashboard_page():
 
         with st.spinner("Loading Dashboard..."):
 
-            sales_response = requests.get(SALES_API, timeout=10)
-            inventory_response = requests.get(INVENTORY_API, timeout=10)
+            sales_response = requests.get(
+                SALES_API,
+                timeout=10
+            )
+
+            inventory_response = requests.get(
+                INVENTORY_API,
+                timeout=10
+            )
+
+            revenue_response = requests.get(
+                REVENUE_API,
+                timeout=10
+            )
+
+        # ---------------- API Validation ---------------- #
 
         if sales_response.status_code != 200:
             st.error(f"❌ Sales API Error ({sales_response.status_code})")
@@ -40,13 +55,20 @@ def dashboard_page():
             st.error(f"❌ Inventory API Error ({inventory_response.status_code})")
             return
 
+        if revenue_response.status_code != 200:
+            st.error(f"❌ Revenue API Error ({revenue_response.status_code})")
+            return
+
+        # ---------------- Convert JSON ---------------- #
+
         sales = sales_response.json()
         inventory = inventory_response.json()
+        revenue = revenue_response.json()
 
         sales_df = pd.DataFrame(sales)
         inventory_df = pd.DataFrame(inventory)
 
-        # ---------------- Empty Data Check ---------------- #
+        # ---------------- Empty Check ---------------- #
 
         if sales_df.empty:
             st.warning("No Sales Data Available")
@@ -56,7 +78,7 @@ def dashboard_page():
             st.warning("No Inventory Data Available")
             return
 
-        # ---------------- Convert Numeric Columns ---------------- #
+        # ---------------- Numeric Conversion ---------------- #
 
         numeric_sales = [
             "quantity",
@@ -66,7 +88,9 @@ def dashboard_page():
         ]
 
         for col in numeric_sales:
+
             if col in sales_df.columns:
+
                 sales_df[col] = pd.to_numeric(
                     sales_df[col],
                     errors="coerce"
@@ -78,7 +102,9 @@ def dashboard_page():
         ]
 
         for col in numeric_inventory:
+
             if col in inventory_df.columns:
+
                 inventory_df[col] = pd.to_numeric(
                     inventory_df[col],
                     errors="coerce"
@@ -93,10 +119,18 @@ def dashboard_page():
                 errors="coerce"
             )
 
-        # ---------------- KPI ---------------- #
+        # ---------------- KPI Values ---------------- #
 
         total_revenue = float(
-            sales_df["total_amount"].sum()
+            revenue.get("total_revenue", 0)
+        )
+
+        total_outstanding = float(
+            revenue.get("total_outstanding", 0)
+        )
+
+        daily_collections = float(
+            revenue.get("daily_collections", 0)
         )
 
         total_orders = len(sales_df)
@@ -115,6 +149,10 @@ def dashboard_page():
         metrics = {
 
             "Revenue": total_revenue,
+
+            "Outstanding": total_outstanding,
+
+            "Today's Collection": daily_collections,
 
             "Orders": total_orders,
 
@@ -142,8 +180,7 @@ def dashboard_page():
             top_products_chart(sales)
 
         st.markdown("---")
-
-        # ---------------- Recent Sales ---------------- #
+                # ---------------- Recent Sales ---------------- #
 
         st.subheader("🧾 Recent Sales")
 
@@ -151,27 +188,35 @@ def dashboard_page():
             "transaction_id",
             "invoice_id",
             "transaction_date",
+            "customer_id",
             "product_id",
             "quantity",
             "total_amount"
         ]
 
         available_columns = [
-            c for c in display_columns
-            if c in sales_df.columns
+            col for col in display_columns
+            if col in sales_df.columns
         ]
 
-        st.dataframe(
-            sales_df.sort_values(
-                by="transaction_date",
-                ascending=False
-            )[available_columns].head(10),
-            use_container_width=True
-        )
+        if available_columns:
+
+            st.dataframe(
+                sales_df.sort_values(
+                    by="transaction_date",
+                    ascending=False
+                )[available_columns].head(10),
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.info("No recent sales data available.")
 
         st.markdown("---")
 
-        # ---------------- Low Stock ---------------- #
+        # ---------------- Low Stock Items ---------------- #
 
         st.subheader("⚠ Low Stock Items")
 
@@ -182,20 +227,49 @@ def dashboard_page():
         else:
 
             display_inventory = [
+                "id",
                 "product_id",
                 "stock_quantity",
                 "low_stock_threshold"
             ]
 
             available_inventory = [
-                c for c in display_inventory
-                if c in low_stock_df.columns
+                col for col in display_inventory
+                if col in low_stock_df.columns
             ]
 
             st.dataframe(
                 low_stock_df[available_inventory],
-                use_container_width=True
+                use_container_width=True,
+                hide_index=True
             )
+
+        st.markdown("---")
+
+        # ---------------- Revenue Summary ---------------- #
+
+        st.subheader("💰 Revenue Summary")
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric(
+            "Total Revenue",
+            f"₹ {total_revenue:,.2f}"
+        )
+
+        c2.metric(
+            "Outstanding",
+            f"₹ {total_outstanding:,.2f}"
+        )
+
+        c3.metric(
+            "Today's Collection",
+            f"₹ {daily_collections:,.2f}"
+        )
+
+        st.markdown("---")
+
+        st.success("✅ Dashboard loaded successfully from backend APIs.")
 
     except requests.exceptions.Timeout:
 

@@ -10,6 +10,7 @@ from views.invoice import invoice_page
 from views.sales_upload import sales_upload_page
 from views.admin import admin_page
 from views.settings import settings_page
+
 st.set_page_config(
     page_title="MarketMind AI",
     page_icon="📊",
@@ -32,7 +33,6 @@ if "username" not in st.session_state:
 
 # ---------------- Authentication ---------------- #
 
-# Until the user logs in, only Home and Login pages are accessible.
 if not st.session_state.logged_in:
 
     if st.session_state.page == "Home":
@@ -55,7 +55,7 @@ else:
     elif st.session_state.page == "Inventory":
         inventory_page()
 
-    elif st.session_state.page == "Customers":
+    elif st.session_state.page == "Customer Insights":
         customers_page()
 
     elif st.session_state.page == "Reports":
@@ -69,7 +69,7 @@ else:
 
     elif st.session_state.page == "Admin":
         admin_page()
-        
+
     elif st.session_state.page == "Settings":
         settings_page()
 

@@ -391,6 +391,8 @@ async def logout(user: Dict = Depends(verify_token)):
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 AI_URL = os.getenv("AI_URL", "http://localhost:5002")
+NOTIFICATIONS_URL = os.getenv("NOTIFICATIONS_URL", "http://localhost:5003")
+
 
 # --- Proxy Routes with Validation ---
 
@@ -970,6 +972,166 @@ async def proxy_inventory_root(request: Request):
             return JSONResponse(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 content={"detail": f"Failed to connect to backend: {str(e)}"}
+            )
+
+@app.post("/predict")
+async def proxy_ai_predict_raw(request: Request):
+    async with httpx.AsyncClient() as client:
+        try:
+            form = await request.form()
+            files_to_send = {}
+            for key, val in form.items():
+                if isinstance(val, UploadFile):
+                    content = await val.read()
+                    files_to_send[key] = (val.filename, content, val.content_type)
+            
+            response = await client.post(
+                f"{AI_URL}/predict",
+                files=files_to_send,
+                timeout=60.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML forecasting service: {str(e)}"}
+            )
+
+@app.post("/recommend-product")
+async def proxy_ai_recommend_raw(request: Request):
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            # Strip Content-Length header to prevent mismatch issues when body is forwarded
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
+            response = await client.post(
+                f"{AI_URL}/recommend-product",
+                content=body,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML recommendation service: {str(e)}"}
+            )
+
+@app.post("/check-anomaly")
+async def proxy_ai_anomaly_raw(request: Request):
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
+            response = await client.post(
+                f"{AI_URL}/check-anomaly",
+                content=body,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML anomaly detection service: {str(e)}"}
+            )
+
+@app.get("/api/notifications")
+async def proxy_notifications_view(user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
+    log_audit(f"User {user['name']} requested notifications alert list")
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                f"{NOTIFICATIONS_URL}/notifications",
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"]
+                },
+                timeout=10.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            # Fallback mock notifications if service is offline/not running yet
+            return {
+                "message": "[Gateway Fallback] Notifications service is currently unreachable.",
+                "notifications": [
+                    {"id": 1, "type": "low_stock", "message": "Product 'Mouse' is low on stock (Quantity: 3).", "created_at": "2026-07-27T12:00:00Z"},
+                    {"id": 2, "type": "overdue_invoice", "message": "Invoice INV-M2-01 has passed due date.", "created_at": "2026-07-27T12:05:00Z"}
+                ]
+            }
+
+@app.post("/api/invoices/bulk-update")
+async def proxy_invoices_bulk_update(request: Request, user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
+    log_audit(f"User {user['name']} triggered bulk invoice status updates")
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{BACKEND_URL}/invoices/bulk-update",
+                content=body,
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"],
+                    "content-type": "application/json"
+                },
+                timeout=10.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service for bulk update."}
+            )
+
+@app.post("/api/inventory/bulk-update")
+async def proxy_inventory_bulk_update(request: Request, user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
+    log_audit(f"User {user['name']} triggered bulk inventory stock updates")
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{BACKEND_URL}/inventory/bulk-update",
+                content=body,
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"],
+                    "content-type": "application/json"
+                },
+                timeout=10.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service for bulk update."}
             )
 
 if __name__ == "__main__":
