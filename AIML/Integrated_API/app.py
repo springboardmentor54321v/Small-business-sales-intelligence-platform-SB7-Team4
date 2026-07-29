@@ -153,12 +153,17 @@ def predict():
 
         prediction = float(model.predict(row)[0])
         mae = 1606.96
-        if mae < 1700:
+        recent_sales = history["Total amount"].tail(30)
+        recent_mean = recent_sales.mean()
+        recent_std = recent_sales.std()
+        difference = abs(prediction - recent_mean)
+        if difference <= recent_std:
             confidence = "High"
-        elif mae < 2500:
+        elif difference <= 2 * recent_std:
             confidence = "Medium"
         else:
             confidence = "Low"
+
         predictions.append(
             {
                 "Order Date": future_date.strftime("%Y-%m-%d"),
