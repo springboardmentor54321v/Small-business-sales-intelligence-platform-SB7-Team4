@@ -1232,6 +1232,146 @@ async def audit_summary(user: Dict = Depends(check_role(["Business Owner", "Admi
             detail=f"Error reading or parsing audit log: {str(e)}"
         )
 
+from fastapi.openapi.utils import get_openapi
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="MarketMind AI - API Gateway & Proxy",
+        version="1.0.0",
+        description="Unified security and routing gateway documenting all internal and proxy operations.",
+        routes=app.routes,
+    )
+    
+    # 1. Document POST /predict
+    if "/predict" in openapi_schema["paths"]:
+        openapi_schema["paths"]["/predict"]["post"] = {
+            "summary": "AI Sales Forecasting",
+            "description": "Upload a transaction dataset (CSV format) to retrieve predicted monthly sales trends.",
+            "requestBody": {
+                "content": {
+                    "multipart/form-data": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "file": {
+                                    "type": "string",
+                                    "format": "binary",
+                                    "description": "CSV transaction details"
+                                }
+                            },
+                            "required": ["file"]
+                        }
+                    }
+                }
+            },
+            "responses": {
+                "200": {
+                    "description": "Successful forecasting response",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "Month": {"type": "string"},
+                                        "Predicted Sales": {"type": "number"}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    # 2. Document POST /recommend-product
+    if "/recommend-product" in openapi_schema["paths"]:
+        openapi_schema["paths"]["/recommend-product"]["post"] = {
+            "summary": "AI Product Recommendation",
+            "description": "Retrieve product recommendations based on co-occurrence in sales data.",
+            "requestBody": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "Product Name": {
+                                    "type": "string",
+                                    "default": "Staples"
+                                }
+                            },
+                            "required": ["Product Name"]
+                        }
+                    }
+                }
+            },
+            "responses": {
+                "200": {
+                    "description": "Recommendations fetched",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "Recommended Products": {
+                                        "type": "array",
+                                        "items": {"type": "string"}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    # 3. Document POST /check-anomaly
+    if "/check-anomaly" in openapi_schema["paths"]:
+        openapi_schema["paths"]["/check-anomaly"]["post"] = {
+            "summary": "AI Anomaly Detection Check",
+            "description": "Verify if transactions on a target date exhibit anomalous values.",
+            "requestBody": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "Order Date": {
+                                    "type": "string",
+                                    "default": "2011-01-04"
+                                }
+                            },
+                            "required": ["Order Date"]
+                        }
+                    }
+                }
+            },
+            "responses": {
+                "200": {
+                    "description": "Anomaly status checked",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "status": {"type": "string"},
+                                    "anomalous": {"type": "boolean"}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=5000, log_level="info")
