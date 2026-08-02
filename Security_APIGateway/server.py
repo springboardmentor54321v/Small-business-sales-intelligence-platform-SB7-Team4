@@ -105,6 +105,32 @@ class InvoiceStatusUpdateSchema(BaseModel):
         return v
 
 
+class BulkInvoiceUpdateSchema(BaseModel):
+    invoice_ids: List[int] = Field(..., min_length=1)
+    status: str = Field(..., min_length=1)
+
+    @field_validator('invoice_ids')
+    @classmethod
+    def validate_invoice_ids(cls, v):
+        for id_val in v:
+            if id_val <= 0:
+                raise ValueError("invoice_ids must contain positive integers only")
+        return v
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        if v not in ["Paid", "Unpaid", "Partially Paid"]:
+            raise ValueError("status must be 'Paid', 'Unpaid', or 'Partially Paid'")
+        return v
+
+class InventoryUpdateItemSchema(BaseModel):
+    product_id: int = Field(..., gt=0)
+    stock_quantity: int = Field(..., ge=0)
+
+class BulkInventoryUpdateSchema(BaseModel):
+    updates: List[InventoryUpdateItemSchema] = Field(..., min_length=1)
+
 
 # Helper functions
 def find_user_by_email(email: str) -> Optional[Dict]:
@@ -1082,14 +1108,13 @@ async def proxy_notifications_view(user: Dict = Depends(check_role(["Business Ow
             }
 
 @app.post("/api/invoices/bulk-update")
-async def proxy_invoices_bulk_update(request: Request, user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
+async def proxy_invoices_bulk_update(payload: BulkInvoiceUpdateSchema, user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
     log_audit(f"User {user['name']} triggered bulk invoice status updates")
-    body = await request.body()
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 f"{BACKEND_URL}/invoices/bulk-update",
-                content=body,
+                json=payload.model_dump(),
                 headers={
                     "x-user-id": str(user["userId"]),
                     "x-user-role": user["role"],
@@ -1109,14 +1134,13 @@ async def proxy_invoices_bulk_update(request: Request, user: Dict = Depends(chec
             )
 
 @app.post("/api/inventory/bulk-update")
-async def proxy_inventory_bulk_update(request: Request, user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
+async def proxy_inventory_bulk_update(payload: BulkInventoryUpdateSchema, user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
     log_audit(f"User {user['name']} triggered bulk inventory stock updates")
-    body = await request.body()
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 f"{BACKEND_URL}/inventory/bulk-update",
-                content=body,
+                json=payload.model_dump(),
                 headers={
                     "x-user-id": str(user["userId"]),
                     "x-user-role": user["role"],

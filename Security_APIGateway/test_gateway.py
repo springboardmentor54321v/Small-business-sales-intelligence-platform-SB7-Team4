@@ -670,6 +670,36 @@ def run_tests():
             assert "recent_activities" in summary_data
             assert summary_data["total_logs"] > 0
 
+            # Test 28: Milestone 3 Day 6 - Tightening validations on bulk-update endpoints
+            print("\n-------------------------------------------")
+            print("Test 28: Testing bulk update validation schema rejections...")
+            
+            # Case A: Invalid bulk invoice payload (negative invoice ID or wrong status name)
+            bad_bulk_inv_res1 = client.post(
+                f"{base_url}/api/invoices/bulk-update",
+                json={"invoice_ids": [-1, 2], "status": "Paid"},
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Bulk Invoice Update (Negative ID) Status: {bad_bulk_inv_res1.status_code} (Expected: 422)")
+            assert bad_bulk_inv_res1.status_code == 422
+
+            bad_bulk_inv_res2 = client.post(
+                f"{base_url}/api/invoices/bulk-update",
+                json={"invoice_ids": [1, 2], "status": "SuperPaid"},
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Bulk Invoice Update (Invalid status name) Status: {bad_bulk_inv_res2.status_code} (Expected: 422)")
+            assert bad_bulk_inv_res2.status_code == 422
+
+            # Case B: Invalid bulk inventory update payload (negative stock quantity)
+            bad_bulk_item_res = client.post(
+                f"{base_url}/api/inventory/bulk-update",
+                json={"updates": [{"product_id": 1, "stock_quantity": -20}]},
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Bulk Inventory Update (Negative quantity) Status: {bad_bulk_item_res.status_code} (Expected: 422)")
+            assert bad_bulk_item_res.status_code == 422
+
             print("\n===========================================")
             print("All API Gateway integration tests passed successfully!")
             print("===========================================")
