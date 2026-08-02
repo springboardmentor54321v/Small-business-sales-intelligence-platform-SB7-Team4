@@ -1160,7 +1160,7 @@ async def proxy_inventory_bulk_update(payload: BulkInventoryUpdateSchema, user: 
             )
 
 @app.get("/api/admin/audit-summary")
-async def audit_summary(user: Dict = Depends(check_role(["Business Owner", "Administrator"]))):
+async def audit_summary(user: Dict = Depends(check_role(["Business Owner", "System Administrator"]))):
     if not os.path.exists(AUDIT_LOG_FILE):
         return {
             "total_logs": 0,
