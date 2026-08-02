@@ -67,10 +67,10 @@ customer_df = pd.read_csv(churn_csv_path)
 # ============================================================
 
 recommendation_csv_path = os.path.join(
-    BASE_DIR,
+    os.path.dirname(__file__),
     "..",
-    "week2",
-    "recommendation_API",
+    "week3",
+    "product_recommendation",
     "product_recommendations.csv",
 )
 
@@ -338,36 +338,23 @@ def recommend_product():
 
     product_name = str(data["Product Name"]).strip().lower()
 
-    recommendations = []
+    recommendations = recommendation_df[
+        recommendation_df["Product Name"].str.lower() == product_name
+    ].sort_values(by="CoOccurrence", ascending=False)
 
-    for _, row in recommendation_df.iterrows():
-        pair = str(row["Product Pair"])
-
-        pair = pair.replace("(", "").replace(")", "").replace("'", "")
-
-        products = [product.strip() for product in pair.split(",")]
-
-        if len(products) != 2:
-            continue
-
-        product1 = products[0].lower()
-        product2 = products[1].lower()
-
-        if product_name == product1:
-            recommendations.append(products[1])
-
-        elif product_name == product2:
-            recommendations.append(products[0])
-
-    recommendations = list(dict.fromkeys(recommendations))
-
-    if not recommendations:
+    if recommendations.empty:
         return jsonify({"error": "Product not found."}), 404
 
     return jsonify(
         {
             "Product Name": data["Product Name"],
-            "Recommendations": recommendations,
+            "Recommendations": [
+                {
+                    "Product": row["Recommended Product"],
+                    "CoOccurrence": row["CoOccurrence"],
+                }
+                for _, row in recommendations.iterrows()
+            ],
         }
     )
 

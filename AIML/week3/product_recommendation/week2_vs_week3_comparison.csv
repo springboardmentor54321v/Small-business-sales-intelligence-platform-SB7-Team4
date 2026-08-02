@@ -1,0 +1,7 @@
+Feature,Week 2,Week 3
+Recommendation Method,Product Pair Frequency,Co-occurrence Frequency
+Ranking,No,Yes
+Purchase Frequency Used,Limited,Yes
+Weak Recommendations,Included,Ranked Lower
+Top Recommendations Returned,All,Top 5
+Recommendation Score,Pair Count,CoOccurrence
