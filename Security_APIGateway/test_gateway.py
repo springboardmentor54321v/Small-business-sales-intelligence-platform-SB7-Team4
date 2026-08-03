@@ -112,9 +112,7 @@ def run_tests():
     
     # 1. Spawn FastAPI server as a child process
     server_process = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "server:app", "--port", "5000"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        [sys.executable, "-m", "uvicorn", "server:app", "--port", "5000"]
     )
 
     # Wait for server to bind and start listening

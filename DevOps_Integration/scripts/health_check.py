@@ -17,7 +17,8 @@ SERVICES = [
     {"name": "API Security Gateway", "url": "http://localhost:5000/docs"},
     {"name": "Database Backend", "url": "http://localhost:8000/docs"},
     {"name": "AI/ML Analytics", "url": "http://localhost:5002/api/forecast/sample"},
-    {"name": "Streamlit Frontend", "url": "http://localhost:8501/"}
+    {"name": "Streamlit Frontend", "url": "http://localhost:8501/"},
+    {"name": "Alerts & Notifications", "url": "http://localhost:5003/"}
 ]
 
 def check_health():
