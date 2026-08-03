@@ -6,8 +6,8 @@ import os
 # Set DATABASE_URL to a dummy sqlite path so SQLAlchemy doesn't raise error
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-# Adjust sys.path to include Backend_Database parent
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "Backend_Database"))
+# Adjust sys.path to include Backend_Database parent directory
+__import__('sys').path.insert(0, __import__('os').path.join(__import__('os').path.dirname(__file__), "..", "..", "Backend_Database"))
 
 def test_backend_orm_metadata():
     """Verify backend model table mapping constraints are correct."""
