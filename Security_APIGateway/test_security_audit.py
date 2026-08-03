@@ -57,6 +57,7 @@ def run_security_audit():
     # Spawn Gateway server on port 5000
     server_process = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "server:app", "--port", "5000"],
+        cwd=os.path.dirname(os.path.abspath(__file__)),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )

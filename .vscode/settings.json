@@ -1,4 +1,8 @@
 {
+    "python.analysis.extraPaths": [
+        "./Backend_Database",
+        "./frontend"
+    ],
     "python.analysis.autoImportCompletions": true,
     "python.analysis.typeCheckingMode": "off",
     "python.analysis.ignore": [
