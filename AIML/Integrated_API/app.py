@@ -84,8 +84,8 @@ recommendation_df = pd.read_csv(recommendation_csv_path)
 anomaly_csv_path = os.path.join(
     BASE_DIR,
     "..",
-    "week2",
-    "anamoly_API",
+    "week3",
+    "anomaly_detection",
     "anomaly_detection_results.csv",
 )
 
