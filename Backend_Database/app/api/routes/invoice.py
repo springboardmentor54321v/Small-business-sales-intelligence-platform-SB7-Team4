@@ -7,6 +7,8 @@ from app.schemas.invoice import (
     InvoiceCreate,
     InvoiceUpdate,
     InvoiceResponse,
+    InvoiceBulkUpdateRequest,
+    InvoiceBulkUpdateResponse,
 )
 
 from app.repositories.invoice_repository import (
@@ -18,6 +20,7 @@ from app.repositories.invoice_repository import (
 
 from app.services.invoice_service import (
     create_invoice_service,
+    bulk_update_invoice_service,
 )
 
 router = APIRouter(
@@ -37,17 +40,49 @@ from fastapi import Query
     response_model=list[InvoiceResponse]
 )
 def get_invoices(
+
+    page: int = Query(1, ge=1),
+
+    page_size: int = Query(10, ge=1, le=100),
+
     payment_status: Optional[str] = Query(None),
+
+    invoice_status: Optional[str] = Query(None),
+
     customer_id: Optional[str] = Query(None),
+
     invoice_number: Optional[str] = Query(None),
+
     db: Session = Depends(get_db)
+
 ):
 
     return get_all_invoices(
-        db,
-        payment_status,
-        customer_id,
-        invoice_number
+    db=db,
+    page=page,
+    page_size=page_size,
+    payment_status=payment_status,
+    invoice_status=invoice_status,
+    customer_id=customer_id,
+    invoice_number=invoice_number,
+)
+
+# =====================================================
+# Bulk Update Invoices
+# =====================================================
+
+@router.put(
+    "/bulk-update",
+    response_model=InvoiceBulkUpdateResponse,
+)
+def bulk_update_invoices_endpoint(
+    request: InvoiceBulkUpdateRequest,
+    db: Session = Depends(get_db),
+):
+
+    return bulk_update_invoice_service(
+        db=db,
+        request=request,
     )
 
 # =====================================================
