@@ -8,32 +8,79 @@ from typing import Optional
 from sqlalchemy import func
 
 def get_all_invoices(
+
     db: Session,
+
+    page: int = 1,
+
+    page_size: int = 10,
+
     payment_status: Optional[str] = None,
+
+    invoice_status: Optional[str] = None,
+
     customer_id: Optional[str] = None,
-    invoice_number: Optional[str] = None
+
+    invoice_number: Optional[str] = None,
+
 ):
 
     query = db.query(Invoice)
 
-    
+    # ==========================
+    # Payment Status
+    # ==========================
 
     if payment_status:
+
         query = query.filter(
-            func.lower(Invoice.payment_status) == payment_status.lower()
+            func.lower(Invoice.payment_status)
+            == payment_status.lower()
         )
+
+    # ==========================
+    # Invoice Status
+    # ==========================
+
+    if invoice_status:
+
+        query = query.filter(
+            func.lower(Invoice.invoice_status)
+            == invoice_status.lower()
+        )
+
+    # ==========================
+    # Customer
+    # ==========================
 
     if customer_id:
+
         query = query.filter(
-            func.lower(Invoice.customer_id) == customer_id.lower()
+            func.lower(Invoice.customer_id)
+            == customer_id.lower()
         )
+
+    # ==========================
+    # Invoice Number Search
+    # ==========================
 
     if invoice_number:
+
         query = query.filter(
-            func.lower(Invoice.invoice_number) == invoice_number.lower()
+            Invoice.invoice_number.ilike(f"%{invoice_number}%")
         )
 
-    return query.all()
+    invoices = (
+
+        query
+        .order_by(Invoice.invoice_date.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+
+    )
+
+    return invoices
 
 def get_invoice_by_invoice_id(
     db: Session,
@@ -123,6 +170,67 @@ def update_invoice(
     db.refresh(invoice)
 
     return invoice
+
+# =====================================================
+# Bulk Update Invoices
+# =====================================================
+
+def bulk_update_invoices(
+    db: Session,
+    invoice_ids: list[str],
+    payment_status: str,
+):
+
+    if not invoice_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No invoice IDs provided."
+        )
+
+    invoices = (
+        db.query(Invoice)
+        .filter(
+            Invoice.invoice_id.in_(invoice_ids)
+        )
+        .all()
+    )
+
+    if len(invoices) != len(invoice_ids):
+
+        found_ids = {
+            invoice.invoice_id
+            for invoice in invoices
+        }
+
+        missing_ids = [
+            invoice_id
+            for invoice_id in invoice_ids
+            if invoice_id not in found_ids
+        ]
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "Invoice(s) not found: "
+                + ", ".join(missing_ids)
+            )
+        )
+
+    for invoice in invoices:
+
+        invoice.payment_status = payment_status
+
+    try:
+        db.commit()
+
+        return {
+            "updated_count": len(invoices),
+            "message": "Invoices updated successfully."
+        }
+    
+    except Exception:
+        db.rollback()
+        raise
 
 def delete_invoice(
     db: Session,
