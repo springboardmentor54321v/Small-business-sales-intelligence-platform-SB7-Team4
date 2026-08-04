@@ -16,5 +16,5 @@ def test_backend_orm_metadata():
     
 def test_backend_endpoints_loading():
     """Verify that backend router definitions load cleanly."""
-    from app.api.routes.test_db import router
+    from app.api.routes.check_db import router
     assert router is not None
