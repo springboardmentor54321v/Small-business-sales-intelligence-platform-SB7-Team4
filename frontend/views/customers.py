@@ -8,7 +8,7 @@ def customers_page():
 
     show_sidebar()
 
-    st.title("📊 Customer Insights")
+    st.title(" Customer Insights")
     st.caption("Customer Segmentation & Business Insights")
 
     st.markdown("---")

@@ -10,13 +10,17 @@ from views.invoice import invoice_page
 from views.sales_upload import sales_upload_page
 from views.admin import admin_page
 from views.settings import settings_page
+from styles.theme import apply_theme
+from views.notifications import notifications_page
+from views.business_overview import business_overview_page
+from views.forecast_vs_actual import forecast_vs_actual_page
 
 st.set_page_config(
     page_title="MarketMind AI",
     page_icon="📊",
     layout="wide"
 )
-
+apply_theme()
 # ---------------- Session ---------------- #
 
 if "page" not in st.session_state:
@@ -72,6 +76,11 @@ else:
 
     elif st.session_state.page == "Settings":
         settings_page()
-
+    elif st.session_state.page == "Notifications":
+        notifications_page()
+    elif st.session_state.page == "Business Overview":
+        business_overview_page()
+    elif st.session_state.page == "Forecast vs Actual":
+        forecast_vs_actual_page()
     else:
         dashboard_page()

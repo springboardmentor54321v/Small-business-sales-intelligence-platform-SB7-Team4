@@ -24,6 +24,9 @@ def show_sidebar():
 
         menu = [
             "Dashboard",
+            "Business Overview",
+            "Forecast vs Actual",
+            "Notifications",
             "Inventory",
             "Customer Insights",
             "Invoice",
@@ -38,6 +41,9 @@ def show_sidebar():
 
         menu = [
             "Dashboard",
+            "Business Overview",
+            "Forecast vs Actual",
+            "Notifications",
             "Inventory",
             "Invoice",
             "Sales Upload",
@@ -50,6 +56,7 @@ def show_sidebar():
 
         menu = [
             "Dashboard",
+            "Notifications",
             "Sales Upload",
             "Invoice",
             "Settings"
@@ -61,6 +68,9 @@ def show_sidebar():
 
         menu = [
             "Dashboard",
+            "Business Overview",
+            "Forecast vs Actual",
+            "Notifications",
             "Inventory",
             "Customer Insights",
             "Invoice",
@@ -111,7 +121,7 @@ def show_sidebar():
 
     # ---------------- Logout ---------------- #
 
-    if st.sidebar.button("🚪 Logout", width="stretch"):
+    if st.sidebar.button("🚪 Logout", use_container_width=True):
 
         st.session_state.logged_in = False
         st.session_state.username = ""

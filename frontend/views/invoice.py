@@ -10,7 +10,6 @@ BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
 
 INVOICE_API = f"{BASE_URL}/invoices/"
 
-
 def invoice_page():
 
     show_sidebar()
