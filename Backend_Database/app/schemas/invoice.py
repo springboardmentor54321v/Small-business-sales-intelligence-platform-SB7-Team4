@@ -56,3 +56,17 @@ class InvoiceResponse(InvoiceBase):
     invoice_status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# =====================================================
+# Bulk Update Schemas
+# =====================================================
+
+class InvoiceBulkUpdateRequest(BaseModel):
+    invoice_ids: list[str]
+    payment_status: str
+
+
+class InvoiceBulkUpdateResponse(BaseModel):
+    updated_count: int
+    message: str
