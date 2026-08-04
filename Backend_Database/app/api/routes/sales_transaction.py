@@ -17,6 +17,10 @@ from app.repositories.sales_transaction_repository import (
     delete_sale,
 )
 
+from typing import Optional
+from fastapi import Query
+from datetime import date
+
 router = APIRouter(
     prefix="/sales",
     tags=["Sales Transactions"]
@@ -32,14 +36,28 @@ router = APIRouter(
     response_model=list[SalesTransactionResponse]
 )
 def get_sales(
-    skip: int = 0,
-    limit: int = 100,
+
+    page: int = Query(1, ge=1),
+
+    page_size: int = Query(10, ge=1, le=100),
+
+    start_date: Optional[date] = Query(None),
+
+    end_date: Optional[date] = Query(None),
+
+    search: Optional[str] = Query(None),
+
     db: Session = Depends(get_db)
+
 ):
+
     return get_all_sales(
-        db,
-        skip,
-        limit
+        db=db,
+        page=page,
+        page_size=page_size,
+        start_date=start_date,
+        end_date=end_date,
+        search=search,
     )
 
 
