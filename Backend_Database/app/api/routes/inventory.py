@@ -1,12 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    status,
+)
+
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+
 from app.models.inventory import Inventory
+from app.models.product import Product
+
 from app.schemas.inventory import (
     InventoryCreate,
     InventoryUpdate,
     InventoryResponse,
+    InventoryBulkUpdateRequest,
+    InventoryBulkUpdateResponse,
 )
 
 router = APIRouter(
@@ -23,12 +36,122 @@ router = APIRouter(
     "/",
     response_model=list[InventoryResponse]
 )
-def get_inventory(db: Session = Depends(get_db)):
+def get_inventory(
 
-    inventory = db.query(Inventory).all()
+    page: int = Query(1, ge=1),
+
+    page_size: int = Query(10, ge=1, le=100),
+
+    category: str | None = Query(None),
+
+    search: str | None = Query(None),
+
+    db: Session = Depends(get_db),
+
+):
+
+    query = (
+        db.query(Inventory)
+        .join(Product)
+    )
+
+    # ==========================
+    # Category Filter
+    # ==========================
+
+    if category:
+
+        query = query.filter(
+            Product.category.ilike(f"%{category}%")
+        )
+
+    # ==========================
+    # Search
+    # ==========================
+
+    if search:
+
+        query = query.filter(
+
+            or_(
+
+                Product.product_id.ilike(f"%{search}%"),
+
+                Product.product_name.ilike(f"%{search}%"),
+
+            )
+
+        )
+
+        query = query.order_by(Inventory.id)
+
+    inventory = (
+        query
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return inventory
 
+
+
+# ==================================================
+# Bulk Update Inventory
+# ==================================================
+
+@router.put(
+    "/bulk-update",
+    response_model=InventoryBulkUpdateResponse,
+)
+def bulk_update_inventory(
+    request: InventoryBulkUpdateRequest,
+    db: Session = Depends(get_db),
+):
+
+    if not request.updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No inventory updates provided."
+        )
+
+    updated_count = 0
+
+    for item in request.updates:
+
+        inventory = (
+            db.query(Inventory)
+            .filter(
+                Inventory.product_id == item.product_id
+            )
+            .first()
+        )
+
+        if inventory is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=(
+                    f"Product {item.product_id} not found."
+                )
+            )
+
+        inventory.stock_quantity = item.stock_quantity
+
+        updated_count += 1
+
+    try:
+    # validation and update logic
+
+        db.commit()
+
+        return InventoryBulkUpdateResponse(
+            updated_count=updated_count,
+            message="Inventory updated successfully."
+    )
+
+    except Exception:
+        db.rollback()
+        raise
 
 # ==================================================
 # Get Inventory By Product ID
