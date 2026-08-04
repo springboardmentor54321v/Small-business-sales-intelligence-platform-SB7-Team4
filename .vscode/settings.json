@@ -24,5 +24,12 @@
         "**/.github/workflows/*.yaml": "yaml",
         "**/workflows/*.yml": "yaml"
     },
-    "yaml.validate": false
+    "yaml.validate": false,
+    "yaml.schemas": {
+        "https://json.schemastore.org/empty.json": [
+            "**/.github/workflows/*.yml",
+            "**/.github/workflows/*.yaml",
+            "**/workflows/*.yml"
+        ]
+    }
 }
