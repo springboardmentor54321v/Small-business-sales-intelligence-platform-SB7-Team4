@@ -15,6 +15,8 @@ from app.api.routes.revenue import (
     router as revenue_router
 )
 
+from app.api.routes.notification import router as notification_router
+
 app = FastAPI(
     title="MarketMind AI Backend"
 )
@@ -41,3 +43,4 @@ app.include_router(sales_transaction_router)
 app.include_router(invoice_router)
 app.include_router(payment_router)
 app.include_router(revenue_router)
+app.include_router(notification_router)
