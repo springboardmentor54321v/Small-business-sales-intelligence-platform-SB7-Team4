@@ -7,8 +7,8 @@ from app.core.database import SessionLocal
 router = APIRouter()
 
 
-@router.get("/test-db")
-def test_database():
+@router.get("/check-db")
+def check_database():
 
     db = SessionLocal()
 
