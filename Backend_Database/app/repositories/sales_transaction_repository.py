@@ -4,22 +4,98 @@ from sqlalchemy.orm import Session
 from app.models.inventory import Inventory
 from app.models.sales_transaction import SalesTransaction
 
+from typing import Optional
+from datetime import date
+
+from sqlalchemy import or_
+
+
 
 # =====================================================
 # Get All Sales
 # =====================================================
 
 def get_all_sales(
+
     db: Session,
-    skip: int = 0,
-    limit: int = 100
+
+    page: int = 1,
+
+    page_size: int = 10,
+
+    start_date: Optional[date] = None,
+
+    end_date: Optional[date] = None,
+
+    search: Optional[str] = None,
+
 ):
-    return (
-        db.query(SalesTransaction)
-        .offset(skip)
-        .limit(limit)
+
+    query = db.query(SalesTransaction)
+
+    # ==========================
+    # Date Range Filter
+    # ==========================
+
+    if start_date:
+
+        query = query.filter(
+            SalesTransaction.transaction_date >= start_date
+        )
+
+    if end_date:
+
+        query = query.filter(
+            SalesTransaction.transaction_date <= end_date
+        )
+
+    # ==========================
+    # Search
+    # ==========================
+
+    if search:
+
+        query = query.filter(
+
+            or_(
+
+                SalesTransaction.transaction_id.ilike(
+                    f"%{search}%"
+                ),
+
+                SalesTransaction.invoice_id.ilike(
+                    f"%{search}%"
+                ),
+
+                SalesTransaction.customer_id.ilike(
+                    f"%{search}%"
+                ),
+
+                SalesTransaction.product_id.ilike(
+                    f"%{search}%"
+                ),
+
+            )
+
+        )
+
+    sales = (
+
+        query
+
+        .order_by(
+            SalesTransaction.transaction_date.desc()
+        )
+
+        .offset((page - 1) * page_size)
+
+        .limit(page_size)
+
         .all()
+
     )
+
+    return sales
 
 
 # =====================================================
@@ -172,4 +248,3 @@ def delete_sale(
     return {
         "message": "Sales transaction deleted successfully."
     }
-    
