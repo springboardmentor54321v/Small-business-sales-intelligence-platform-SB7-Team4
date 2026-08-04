@@ -18,6 +18,10 @@ from app.repositories.invoice_item_repository import (
     add_invoice_item
 )
 
+from app.repositories.invoice_repository import (
+    bulk_update_invoices,
+)
+
 def validate_customer(
     db: Session,
     customer_id: str
@@ -232,3 +236,26 @@ def create_invoice_service(
 
     db.commit()
     return invoice_record
+
+# =====================================================
+# Bulk Update Invoice Service
+# =====================================================
+
+from app.schemas.invoice import (
+    InvoiceBulkUpdateRequest,
+    InvoiceBulkUpdateResponse,
+)
+
+
+def bulk_update_invoice_service(
+    db: Session,
+    request: InvoiceBulkUpdateRequest,
+) -> InvoiceBulkUpdateResponse:
+
+    result = bulk_update_invoices(
+        db=db,
+        invoice_ids=request.invoice_ids,
+        payment_status=request.payment_status,
+    )
+
+    return InvoiceBulkUpdateResponse(**result)
