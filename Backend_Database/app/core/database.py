@@ -4,7 +4,10 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.config import DATABASE_URL
 
 # create database engine 
-engine = create_engine(DATABASE_URL)
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL)
 
 # create database session
 SessionLocal = sessionmaker(
