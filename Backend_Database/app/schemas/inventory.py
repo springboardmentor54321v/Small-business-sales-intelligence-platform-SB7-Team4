@@ -20,3 +20,20 @@ class InventoryResponse(InventoryBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+# =====================================================
+# Bulk Update Schemas
+# =====================================================
+
+class InventoryBulkUpdateItem(BaseModel):
+    product_id: str
+    stock_quantity: int
+
+
+class InventoryBulkUpdateRequest(BaseModel):
+    updates: list[InventoryBulkUpdateItem]
+
+
+class InventoryBulkUpdateResponse(BaseModel):
+    updated_count: int
+    message: str
