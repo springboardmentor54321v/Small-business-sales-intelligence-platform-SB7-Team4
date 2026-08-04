@@ -13,5 +13,16 @@
         "reportUndefinedVariable": "none",
         "reportGeneralTypeIssues": "none"
     },
-    "python-envs.defaultEnvManager": "ms-python.python:system"
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "yaml.disableSchemaDetection": [
+        "**/.github/workflows/*.yaml",
+        "**/.github/workflows/*.yml",
+        "**/workflows/*.yml"
+    ],
+    "files.associations": {
+        "**/.github/workflows/*.yml": "yaml",
+        "**/.github/workflows/*.yaml": "yaml",
+        "**/workflows/*.yml": "yaml"
+    },
+    "yaml.validate": false
 }

@@ -1,48 +1,55 @@
+# yaml-language-server: $schema=none
 name: MarketMind AI - CI Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   validate-gateway:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Validate Python syntax
-      run: |
-        python -m py_compile Security_APIGateway/server.py Security_APIGateway/test_gateway.py
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Validate Python syntax
+        run: |
+          python -m py_compile Security_APIGateway/server.py Security_APIGateway/test_gateway.py
 
   validate-backend:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Validate Python syntax
-      run: |
-        python -m compileall -q Backend_Database/app
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Validate Python syntax
+        run: |
+          python -m compileall -q Backend_Database/app
 
   validate-dockerfiles:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Check API Gateway Dockerfile
-      run: docker buildx build --check -f DevOps_Integration/gateway.Dockerfile .
-    - name: Check Database Backend Dockerfile
-      run: docker buildx build --check -f DevOps_Integration/backend.Dockerfile .
-    - name: Check AIML Forecasting Dockerfile
-      run: docker buildx build --check -f DevOps_Integration/aiml.Dockerfile .
-    - name: Check Streamlit Frontend Dockerfile
-      run: docker buildx build --check -f DevOps_Integration/frontend.Dockerfile .
-
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Check API Gateway Dockerfile
+        run: docker buildx build --check -f DevOps_Integration/gateway.Dockerfile .
+      - name: Check Database Backend Dockerfile
+        run: docker buildx build --check -f DevOps_Integration/backend.Dockerfile .
+      - name: Check AIML Forecasting Dockerfile
+        run: docker buildx build --check -f DevOps_Integration/aiml.Dockerfile .
+      - name: Check Streamlit Frontend Dockerfile
+        run: docker buildx build --check -f DevOps_Integration/frontend.Dockerfile .
+      - name: Check Notifications Dockerfile
+        run: docker buildx build --check -f DevOps_Integration/notifications.Dockerfile .
