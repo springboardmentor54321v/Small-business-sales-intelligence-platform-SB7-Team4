@@ -37,6 +37,10 @@ jobs:
         run: |
           pytest DevOps_Integration/tests/test_backend_ci.py
 
+      - name: Run Core Backend Database Tests
+        run: |
+          PYTHONPATH=Backend_Database pytest Backend_Database/tests/
+
       - name: Run Frontend Tests
         run: |
           pytest DevOps_Integration/tests/test_frontend_ci.py
