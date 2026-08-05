@@ -1,0 +1,37 @@
+# Security & API Gateway Layer — Milestone 3 Completion
+
+This document lists the checkpoints completed for the **Security & API Gateway Developer (Intern 2)** role as specified in the Milestone 3 Software Requirements Specification, including how each checkpoint was approached and implemented.
+
+---
+
+### Daily Checkpoints & Work Done
+
+#### Day 1: Review Milestones 1 & 2 APIs & Identification of Gaps
+* **Approach & Work Done**: Performed a thorough audit of all existing API routes. Created a comprehensive endpoint access matrix and inventory to verify where permission controls and validation schemas were missing.
+
+#### Day 2: Close RBAC Gaps & Secure New APIs
+* **Approach & Work Done**: Applied Role-Based Access Control (RBAC) validations to the new Notifications and Bulk-Update API endpoints in the main gateway routing engine (`server.py`). Configured permissions so that only the `Business Owner` role can access notifications and bulk updates, while blocking unauthorized roles like `Sales Executive` or `System Administrator`.
+
+#### Day 3: Build Security Audit Report API
+* **Approach & Work Done**: Implemented a security audit report route (`/api/admin/audit-summary`) within the gateway. This endpoint parses the persistent `audit.log` file, dynamically aggregates audit trails (successful/failed logins, auth rate-limiting breaches, client requests), and outputs totals grouped by user and action. Access is strictly restricted to the `System Administrator` role.
+
+#### Day 4: Improve API Documentation
+* **Approach & Work Done**: Updated the OpenAPI API documentation for all routes across Milestones 1, 2, and 3, ensuring parameters, authorization requirements, headers, and response statuses are documented clearly.
+
+#### Day 5: Write Automated Security Integration Tests
+* **Approach & Work Done**: Developed an automated security scanner test suite (`test_security_audit.py`). The script tests 55 check validations by simulating multiple user profiles (Business Owner, Sales Executive, Administrator, Invalid Token, and Anonymous requests) against key endpoints to verify that the security filters block unauthorized requests.
+
+#### Day 6: Review Validation and Rate-Limiting Rules
+* **Approach & Work Done**: Reviewed and tightened Pydantic body validation schemas to strictly check and reject malformed inputs (e.g. negative quantities/invoice prices, invalid status options). Verified IP rate-limiting rules block abusive requests after thresholds (10 requests/minute for authentication routes, 100 requests/minute for general API routes).
+
+#### Day 7: Test Security Setup in Docker-Compose
+* **Approach & Work Done**: Successfully ran the gateway security test suites inside the local containerized environment, validating that the routing rules work correctly over the container networks.
+
+#### Day 8: Joint Integration Testing
+* **Approach & Work Done**: Collaborated with the Backend and Frontend roles to debug route connections. Ensured user context headers (`x-user-id` and `x-user-role`) are injected cleanly into forwarded backend requests.
+
+#### Day 9: Bug Fixing & Regression Checks
+* **Approach & Work Done**: Resolved issues during end-to-end local platform test runs and verified that older features from Milestones 1 and 2 operate without security regressions.
+
+#### Day 10: Security Guide and Milestone 4 Deployment Checklist
+* **Approach & Work Done**: Finalized and updated the Security & Access Guide to include all Milestone 3 features. Drafted a security checklist for Milestone 4's deployment phase outlining private network isolation requirements.
