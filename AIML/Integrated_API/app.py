@@ -56,7 +56,7 @@ churn_csv_path = os.path.join(
     "..",
     "week3",
     "churn_prediction",
-    "customer_churn_milestone3.csv",
+    "churn_customers.csv",
 )
 
 customer_df = pd.read_csv(churn_csv_path)
@@ -315,7 +315,12 @@ def churn_risk():
     return jsonify(
         {
             "Customer ID": customer_id,
-            "Risk": customer_record["Risk"],
+            "Risk": str(customer_record["Risk"]),
+            "Risk Score": round(float(customer_record["PredictedChurnProb"]), 4),
+            "Total Orders": int(customer_record["PurchaseFrequency"]),
+            "Total Revenue": round(float(customer_record["TotalSpending"]), 2),
+            "Last Purchase Date": str(customer_record["LastPurchaseDate"]),
+            "Days Since Last Purchase": int(customer_record["DaysSinceLastPurchase"]),
         }
     )
 

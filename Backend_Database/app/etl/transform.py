@@ -246,7 +246,6 @@ stores_df[
     index=False
 )
 
-print("Stores table saved successfully.")
 logger.info(f"Stores table generated successfully. Total stores: {len(stores_df)}")
 
 # ===================================================
@@ -399,8 +398,6 @@ products_df.to_csv(
     index=False
 )
 
-print("Products table saved successfully.")
-
 logger.info(
     f"Products table generated successfully. Total unique products: {len(products_df)}"
 )
@@ -474,9 +471,6 @@ print(f"Sales Transactions Created : {len(sales_transactions_df)}")
 logger.info(
     f"Sales Transactions table generated successfully. Total records: {len(sales_transactions_df)}"
 )
-
-print("\nValidated dataset saved successfully.")
-print(f"Location : {OUTPUT_FILE}")
 
 print("\nETL Step Completed Successfully!")
 logger.info("ETL Pipeline Completed Successfully.")

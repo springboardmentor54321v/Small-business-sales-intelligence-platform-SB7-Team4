@@ -7,7 +7,10 @@ app = Flask(__name__)
 
 # Load churn data
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-csv_path = os.path.join(BASE_DIR, "..", "churn_risk", "customer_churn.csv")
+csv_path = os.path.join(BASE_DIR, "..", "..", "week3", "churn_prediction", "churn_customers.csv")
+if not os.path.exists(csv_path):
+    csv_path = os.path.join(BASE_DIR, "..", "churn_risk", "customer_churn.csv")
+
 customer_df = pd.read_csv(csv_path)
 
 
@@ -29,14 +32,26 @@ def churn_risk():
     if "Customer ID" not in data:
         return jsonify({"error": "Customer ID is required."}), 400
 
-    customer_id = data["Customer ID"]
+    customer_id = str(data["Customer ID"]).strip()
 
-    customer = customer_df[customer_df["Customer ID"] == customer_id]
+    customer = customer_df[customer_df["Customer ID"].astype(str).str.strip() == customer_id]
 
     if customer.empty:
         return jsonify({"error": "Customer ID not found."}), 404
 
-    return jsonify({"Customer ID": customer_id, "Risk": customer.iloc[0]["Risk"]})
+    customer_record = customer.iloc[0]
+
+    return jsonify(
+        {
+            "Customer ID": customer_id,
+            "Risk": str(customer_record["Risk"]),
+            "Risk Score": round(float(customer_record.get("PredictedChurnProb", 0.0)), 4),
+            "Total Orders": int(customer_record.get("PurchaseFrequency", 0)),
+            "Total Revenue": round(float(customer_record.get("TotalSpending", 0.0)), 2),
+            "Last Purchase Date": str(customer_record.get("LastPurchaseDate", "")),
+            "Days Since Last Purchase": int(customer_record.get("DaysSinceLastPurchase", 0)),
+        }
+    )
 
 
 if __name__ == "__main__":

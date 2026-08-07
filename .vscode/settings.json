@@ -1,4 +1,5 @@
 {
+    "python.defaultInterpreterPath": "C:\\Python314\\python.exe",
     "python.analysis.extraPaths": [
         "${workspaceFolder}/Backend_Database",
         "${workspaceFolder}/frontend"
@@ -6,8 +7,7 @@
     "python.analysis.autoImportCompletions": true,
     "python.analysis.typeCheckingMode": "off",
     "python.analysis.ignore": [
-        "**/__pyrefly_virtual__/**",
-        "**/*.py"
+        "**/__pyrefly_virtual__/**"
     ],
     "python.analysis.diagnosticSeverityOverrides": {
         "reportUndefinedVariable": "none",
