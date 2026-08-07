@@ -1,0 +1,10 @@
+Metric,Week 2 (Rule Baseline),Random Forest Churn (ML Model - Out-of-Sample Test Set)
+Accuracy,0.5298,0.9182
+Precision,0.6141,0.8649
+Recall,0.4834,0.8
+F1 Score,0.5409,0.8312
+False Positives,137.0,5.0
+False Positive Rate,0.4077,0.042
+False Negatives,233.0,8.0
+True Positives,218.0,32.0
+True Negatives,199.0,114.0
