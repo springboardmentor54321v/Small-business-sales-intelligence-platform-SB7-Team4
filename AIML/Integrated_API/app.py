@@ -398,6 +398,168 @@ def check_anomaly():
     )
 
 
+@app.route("/forecast-backtest", methods=["POST"])
+def forecast_backtest():
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded."}), 400
+
+    file = request.files["file"]
+
+    file.stream.seek(0)
+
+    df = pd.read_csv(file.stream)
+
+    required_columns = [
+        "Order Date",
+        "Total amount",
+    ]
+
+    for col in required_columns:
+        if col not in df.columns:
+            return jsonify({"error": f"Missing column: {col}"}), 400
+
+    df = df[required_columns].copy()
+
+    df["Order Date"] = pd.to_datetime(df["Order Date"], dayfirst=True, errors="coerce")
+
+    df["Total amount"] = pd.to_numeric(df["Total amount"], errors="coerce")
+
+    df = df.dropna(subset=["Order Date", "Total amount"])
+
+    if df.empty:
+        return jsonify({"error": "Uploaded file contains no valid data."}), 400
+
+    # Aggregate transactions into daily sales
+    daily_sales = (
+        df.groupby("Order Date")["Total amount"]
+        .sum()
+        .reset_index()
+        .sort_values("Order Date")
+        .reset_index(drop=True)
+    )
+
+    if len(daily_sales) < 60:
+        return jsonify(
+            {
+                "error": "Insufficient historical data.",
+                "message": "At least 60 daily observations are required.",
+            }
+        ), 400
+
+    # --------------------------------------------------------
+    # Historical test period
+    # Last 30 available dates are used for backtesting
+    # --------------------------------------------------------
+
+    test_size = 30
+
+    train_data = daily_sales.iloc[:-test_size].copy()
+
+    test_data = daily_sales.iloc[-test_size:].copy()
+
+    history = train_data.copy()
+
+    predictions = []
+
+    # --------------------------------------------------------
+    # Generate historical predictions
+    # --------------------------------------------------------
+
+    for _, actual_row in test_data.iterrows():
+        prediction_date = actual_row["Order Date"]
+
+        row = pd.DataFrame(
+            {
+                "day": [prediction_date.day],
+                "month": [prediction_date.month],
+                "year": [prediction_date.year],
+                "dayofweek": [prediction_date.dayofweek],
+                "weekofyear": [prediction_date.isocalendar().week],
+                "quarter": [prediction_date.quarter],
+                "lag1": [history["Total amount"].iloc[-1]],
+                "lag7": [history["Total amount"].iloc[-7]],
+                "lag30": [history["Total amount"].iloc[-30]],
+                "rolling7": [history["Total amount"].tail(7).mean()],
+                "rolling30": [history["Total amount"].tail(30).mean()],
+            }
+        )
+
+        prediction = float(model.predict(row)[0])
+
+        predictions.append(
+            {
+                "Order Date": prediction_date.strftime("%Y-%m-%d"),
+                "Actual Sales": round(float(actual_row["Total amount"]), 2),
+                "Predicted Sales": round(prediction, 2),
+            }
+        )
+
+        # ----------------------------------------------------
+        # IMPORTANT:
+        # For historical backtesting, use the ACTUAL value
+        # to move the history forward.
+        # ----------------------------------------------------
+
+        history.loc[len(history)] = [prediction_date, actual_row["Total amount"]]
+
+        # ========================================================
+    # BACKTEST EVALUATION
+    # ========================================================
+
+    # ========================================================
+    # BACKTEST EVALUATION
+    # ========================================================
+
+    actual_values = [item["Actual Sales"] for item in predictions]
+
+    predicted_values = [item["Predicted Sales"] for item in predictions]
+
+    # MAE
+    mae = sum(
+        abs(actual - predicted)
+        for actual, predicted in zip(actual_values, predicted_values)
+    ) / len(actual_values)
+
+    # RMSE
+    rmse = (
+        sum(
+            (actual - predicted) ** 2
+            for actual, predicted in zip(actual_values, predicted_values)
+        )
+        / len(actual_values)
+    ) ** 0.5
+
+    # MAPE
+    percentage_errors = [
+        abs((actual - predicted) / actual) * 100
+        for actual, predicted in zip(actual_values, predicted_values)
+        if actual != 0
+    ]
+
+    mape = sum(percentage_errors) / len(percentage_errors) if percentage_errors else 0
+
+    # ========================================================
+    # RETURN BACKTEST RESULTS
+    # ========================================================
+
+    return jsonify(
+        {
+            "Backtest Period": {
+                "Start": test_data["Order Date"].min().strftime("%Y-%m-%d"),
+                "End": test_data["Order Date"].max().strftime("%Y-%m-%d"),
+            },
+            "Number of Days": len(predictions),
+            "Evaluation Metrics": {
+                "MAE": round(mae, 2),
+                "RMSE": round(rmse, 2),
+                "MAPE": round(mape, 2),
+            },
+            "Results": predictions,
+        }
+    )
+
+
 # ============================================================
 # RUN APPLICATION
 # ============================================================
