@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.models.inventory import Inventory
 from app.models.sales_transaction import SalesTransaction
+from app.models.product import Product
 
 from typing import Optional
 from datetime import date
@@ -31,7 +32,10 @@ def get_all_sales(
 
 ):
 
-    query = db.query(SalesTransaction)
+    query = (
+        db.query(SalesTransaction)
+        .join(Product)
+    )
 
     # ==========================
     # Date Range Filter
@@ -94,6 +98,10 @@ def get_all_sales(
         .all()
 
     )
+
+    for sale in sales:
+        sale.product_name = sale.product.product_name
+        sale.category = sale.product.category
 
     return sales
 
