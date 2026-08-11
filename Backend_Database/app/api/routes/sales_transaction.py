@@ -39,7 +39,7 @@ def get_sales(
 
     page: int = Query(1, ge=1),
 
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=2000),
 
     start_date: Optional[date] = Query(None),
 
