@@ -33,5 +33,7 @@ class SalesTransactionUpdate(BaseModel):
 
 class SalesTransactionResponse(SalesTransactionBase):
     id: int
+    product_name: str
+    category: str
 
     model_config = ConfigDict(from_attributes=True)
