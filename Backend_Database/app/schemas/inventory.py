@@ -18,6 +18,8 @@ class InventoryUpdate(BaseModel):
 
 class InventoryResponse(InventoryBase):
     id: int
+    product_name: str
+    category: str
 
     model_config = ConfigDict(from_attributes=True)
 
