@@ -4,13 +4,16 @@ import requests
 
 from components.sidebar import show_sidebar
 from components.cards import show_cards
-from components.charts import sales_trend_chart, top_products_chart
+from components.charts import (
+    sales_trend_chart,
+    top_products_chart
+)
 
 # ---------------- API Configuration ---------------- #
 
 BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
 
-SALES_API = f"{BASE_URL}/sales/"
+SALES_API = f"{BASE_URL}/sales?page=1&page_size=100"
 INVENTORY_API = f"{BASE_URL}/inventory/"
 REVENUE_API = f"{BASE_URL}/revenue/summary"
 
@@ -21,7 +24,7 @@ def dashboard_page():
 
     show_sidebar()
 
-    st.title("📊 MarketMind AI Dashboard")
+    st.title("MarketMind AI Dashboard")
     st.caption("Small Business Sales Intelligence Platform")
 
     st.markdown("---")
@@ -45,21 +48,9 @@ def dashboard_page():
                 timeout=10
             )
 
-        # ---------------- API Validation ---------------- #
-
-        if sales_response.status_code != 200:
-            st.error(f"❌ Sales API Error ({sales_response.status_code})")
-            return
-
-        if inventory_response.status_code != 200:
-            st.error(f"❌ Inventory API Error ({inventory_response.status_code})")
-            return
-
-        if revenue_response.status_code != 200:
-            st.error(f"❌ Revenue API Error ({revenue_response.status_code})")
-            return
-
-        # ---------------- Convert JSON ---------------- #
+        sales_response.raise_for_status()
+        inventory_response.raise_for_status()
+        revenue_response.raise_for_status()
 
         sales = sales_response.json()
         inventory = inventory_response.json()
@@ -67,8 +58,6 @@ def dashboard_page():
 
         sales_df = pd.DataFrame(sales)
         inventory_df = pd.DataFrame(inventory)
-
-        # ---------------- Empty Check ---------------- #
 
         if sales_df.empty:
             st.warning("No Sales Data Available")
@@ -119,32 +108,49 @@ def dashboard_page():
                 errors="coerce"
             )
 
-        # ---------------- KPI Values ---------------- #
+            sales_df = sales_df.sort_values(
+                by="transaction_date",
+                ascending=False
+            )
+                # ---------------- KPI Values ---------------- #
 
         total_revenue = float(
-            revenue.get("total_revenue", 0)
+            revenue.get("total_revenue") or 0
         )
 
         total_outstanding = float(
-            revenue.get("total_outstanding", 0)
+            revenue.get("total_outstanding") or 0
         )
 
         daily_collections = float(
-            revenue.get("daily_collections", 0)
+            revenue.get("daily_collections") or 0
         )
 
         total_orders = len(sales_df)
 
-        total_products_sold = int(
-            sales_df["quantity"].sum()
-        )
+        if "quantity" in sales_df.columns:
+            total_products_sold = int(
+                sales_df["quantity"].sum()
+            )
+        else:
+            total_products_sold = 0
 
         inventory_count = len(inventory_df)
 
-        low_stock_df = inventory_df[
-            inventory_df["stock_quantity"]
-            <= inventory_df["low_stock_threshold"]
-        ]
+        if (
+            "stock_quantity" in inventory_df.columns
+            and
+            "low_stock_threshold" in inventory_df.columns
+        ):
+
+            low_stock_df = inventory_df[
+                inventory_df["stock_quantity"]
+                <= inventory_df["low_stock_threshold"]
+            ]
+
+        else:
+
+            low_stock_df = pd.DataFrame()
 
         metrics = {
 
@@ -161,6 +167,7 @@ def dashboard_page():
             "Inventory": inventory_count,
 
             "Low Stock": len(low_stock_df)
+
         }
 
         # ---------------- KPI Cards ---------------- #
@@ -174,15 +181,17 @@ def dashboard_page():
         col1, col2 = st.columns(2)
 
         with col1:
-            sales_trend_chart(sales)
+
+            sales_trend_chart(sales_df)
 
         with col2:
-            top_products_chart(sales)
 
-        st.markdown("---")
+            top_products_chart(sales_df)
+
+        st.markdown("---")  
                 # ---------------- Recent Sales ---------------- #
 
-        st.subheader("🧾 Recent Sales")
+        st.subheader("Recent Sales")
 
         display_columns = [
             "transaction_id",
@@ -202,11 +211,8 @@ def dashboard_page():
         if available_columns:
 
             st.dataframe(
-                sales_df.sort_values(
-                    by="transaction_date",
-                    ascending=False
-                )[available_columns].head(10),
-                use_container_width=True,
+                sales_df[available_columns].head(10),
+                width="stretch",
                 hide_index=True
             )
 
@@ -218,11 +224,11 @@ def dashboard_page():
 
         # ---------------- Low Stock Items ---------------- #
 
-        st.subheader("⚠ Low Stock Items")
+        st.subheader("Low Stock Items")
 
         if low_stock_df.empty:
 
-            st.success("✅ No Low Stock Items")
+            st.success("No Low Stock Items")
 
         else:
 
@@ -238,17 +244,23 @@ def dashboard_page():
                 if col in low_stock_df.columns
             ]
 
-            st.dataframe(
-                low_stock_df[available_inventory],
-                use_container_width=True,
-                hide_index=True
-            )
+            if available_inventory:
+
+                st.dataframe(
+                    low_stock_df[available_inventory],
+                    width="stretch",
+                    hide_index=True
+                )
+
+            else:
+
+                st.info("Inventory columns not available.")
 
         st.markdown("---")
 
         # ---------------- Revenue Summary ---------------- #
 
-        st.subheader("💰 Revenue Summary")
+        st.subheader("Revenue Summary")
 
         c1, c2, c3 = st.columns(3)
 
@@ -267,18 +279,22 @@ def dashboard_page():
             f"₹ {daily_collections:,.2f}"
         )
 
-        st.markdown("---")
+        
 
-        st.success("✅ Dashboard loaded successfully from backend APIs.")
+       
 
     except requests.exceptions.Timeout:
 
-        st.error("❌ Backend request timed out.")
+        st.error("Backend request timed out.")
 
     except requests.exceptions.ConnectionError:
 
-        st.error("❌ Unable to connect to backend.")
+        st.error("Unable to connect to backend.")
+
+    except requests.exceptions.HTTPError as e:
+
+        st.error(f"API Error: {e}")
 
     except Exception as e:
 
-        st.error(f"❌ Unexpected Error: {e}")
+        st.error(f"Unexpected Error: {e}")

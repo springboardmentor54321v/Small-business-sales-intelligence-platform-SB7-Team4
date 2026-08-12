@@ -9,7 +9,7 @@ def inventory_page():
 
     show_sidebar()
 
-    st.title("📦 Inventory Management")
+    st.title("Inventory Management")
     st.caption("Manage and Monitor Product Inventory")
 
     st.markdown("---")
@@ -41,7 +41,7 @@ def inventory_page():
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "📦 Total Products",
+        "Total Products",
         total_products
     )
 
@@ -51,7 +51,7 @@ def inventory_page():
     )
 
     col3.metric(
-        "📊 Total Stock",
+        "Total Stock",
         total_stock
     )
 
@@ -62,7 +62,7 @@ def inventory_page():
     col1, col2 = st.columns(2)
 
     with col1:
-        search = st.text_input("🔍 Search Product ID")
+        search = st.text_input("Search Product ID")
 
     with col2:
         status = st.selectbox(
@@ -86,7 +86,7 @@ def inventory_page():
 
     # ================= Inventory Table ================= #
 
-    st.subheader("📋 Inventory Records")
+    st.subheader("Inventory Records")
 
     def highlight_status(val):
 
@@ -135,7 +135,7 @@ def inventory_page():
 
     # ================= Inventory Summary ================= #
 
-    st.subheader("📊 Inventory Summary")
+    st.subheader("Inventory Summary")
 
     summary = pd.DataFrame({
         "Metric": [
@@ -167,5 +167,3 @@ def inventory_page():
         mime="text/csv",
         use_container_width=True
     )
-
-    st.success("✅ Inventory data loaded successfully from the backend.")

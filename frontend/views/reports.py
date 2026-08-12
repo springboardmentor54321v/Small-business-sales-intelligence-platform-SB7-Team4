@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import plotly.express as px
 
 from components.sidebar import show_sidebar
@@ -11,202 +12,715 @@ from models.churn import get_churn_risk
 
 def reports_page():
 
+    # ============================================================
+    # SIDEBAR
+    # ============================================================
+
     show_sidebar()
 
-    st.title("📈 AI Reports & Analytics")
+    # ============================================================
+    # HEADER
+    # ============================================================
+
+    st.title("AI Reports & Analytics")
+
     st.caption(
-        "AI-powered Forecasting, Recommendations, Anomaly Detection, Customer Segmentation & Churn Prediction"
+        "AI-powered Forecasting, Recommendations, Anomaly Detection, "
+        "Customer Segmentation & Churn Prediction"
     )
 
     st.markdown("---")
 
-    # ================= User Inputs =================
+    # ============================================================
+    # USER INPUTS
+    # ============================================================
 
     col1, col2 = st.columns(2)
 
     with col1:
+
         product_name = st.text_input(
-            "🛒 Product Name",
-            value="Staples"
+            "Product Name",
+            placeholder="Enter exact product name",
+            key="report_product"
         )
 
     with col2:
+
         order_date = st.text_input(
-            "📅 Order Date",
-            value="2011-01-04"
+            "Order Date",
+            value="2011-01-04",
+            key="report_order_date"
         )
 
     customer_id = st.text_input(
-        "👤 Customer ID",
-        value="AA-10315"
+        "Customer ID",
+        value="AA-10315",
+        key="report_customer"
     )
 
-    # ================= Upload Forecast CSV =================
+    # ============================================================
+    # FORECAST CSV
+    # ============================================================
 
-    st.subheader("📂 Upload Sales CSV for Forecast")
+    st.subheader("Sales Forecast")
 
     uploaded_file = st.file_uploader(
         "Upload Sales CSV",
-        type=["csv"]
+        type=["csv"],
+        key="report_sales_file"
     )
 
-    if uploaded_file is not None:
-        forecast_df = get_sales_forecast(uploaded_file)
-    else:
-        forecast_df = None
+    # ============================================================
+    # GENERATE BUTTON
+    # ============================================================
 
-    # ================= Load Other AI Models =================
+    st.markdown("")
 
-    recommendation_df = get_recommendations(product_name)
-    anomaly_df = get_anomaly_alerts(order_date)
-    customer_group_df = get_customer_group(customer_id)
-    churn_df = get_churn_risk(customer_id)
+    generate = st.button(
+        "Generate Reports",
+        width="stretch",
+        type="primary"
+    )
 
-    # ================= Dashboard Metrics =================
+    # ============================================================
+    # CALL BACKEND ONLY AFTER BUTTON CLICK
+    # ============================================================
+
+    if generate:
+
+        # --------------------------------------------
+        # Validate inputs
+        # --------------------------------------------
+
+        if not product_name.strip():
+
+            st.warning(
+                "Please enter a Product Name."
+            )
+
+            return
+
+        if not customer_id.strip():
+
+            st.warning(
+                "Please enter a Customer ID."
+            )
+
+            return
+
+        if not order_date.strip():
+
+            st.warning(
+                "Please enter an Order Date."
+            )
+
+            return
+
+        # --------------------------------------------
+        # Backend calls
+        # --------------------------------------------
+
+        with st.spinner(
+            "Generating AI reports..."
+        ):
+
+            # ========================================
+            # FORECAST
+            # ========================================
+
+            if uploaded_file is not None:
+
+                forecast_df = get_sales_forecast(
+                    uploaded_file
+                )
+
+            else:
+
+                forecast_df = pd.DataFrame()
+
+            # ========================================
+            # RECOMMENDATIONS
+            # ========================================
+
+            recommendation_df = get_recommendations(
+                product_name.strip()
+            )
+
+            # ========================================
+            # ANOMALY
+            # ========================================
+
+            anomaly_df = get_anomaly_alerts(
+                order_date.strip()
+            )
+
+            # ========================================
+            # CUSTOMER SEGMENTATION
+            # ========================================
+
+            customer_group_df = get_customer_group(
+                customer_id.strip()
+            )
+
+            # ========================================
+            # CHURN
+            # ========================================
+
+            churn_df = get_churn_risk(
+                customer_id.strip()
+            )
+
+        # --------------------------------------------
+        # Save results in session state
+        # --------------------------------------------
+
+        st.session_state["reports_generated"] = True
+
+        st.session_state["forecast_df"] = forecast_df
+
+        st.session_state[
+            "recommendation_df"
+        ] = recommendation_df
+
+        st.session_state[
+            "anomaly_df"
+        ] = anomaly_df
+
+        st.session_state[
+            "customer_group_df"
+        ] = customer_group_df
+
+        st.session_state[
+            "churn_df"
+        ] = churn_df
+
+        st.success(
+            "AI reports generated successfully."
+        )
+
+    # ============================================================
+    # LOAD RESULTS FROM SESSION
+    # ============================================================
+
+    forecast_df = st.session_state.get(
+        "forecast_df",
+        pd.DataFrame()
+    )
+
+    recommendation_df = st.session_state.get(
+        "recommendation_df",
+        pd.DataFrame()
+    )
+
+    anomaly_df = st.session_state.get(
+        "anomaly_df",
+        pd.DataFrame()
+    )
+
+    customer_group_df = st.session_state.get(
+        "customer_group_df",
+        pd.DataFrame()
+    )
+
+    churn_df = st.session_state.get(
+        "churn_df",
+        pd.DataFrame()
+    )
+
+    reports_generated = st.session_state.get(
+        "reports_generated",
+        False
+    )
+
+    # ============================================================
+    # STOP HERE IF NO REPORTS GENERATED
+    # ============================================================
+
+    if not reports_generated:
+
+        st.info(
+            "Enter the required details and click "
+            "**Generate Reports**."
+        )
+
+        return
+
+    # ============================================================
+    # DASHBOARD METRICS
+    # ============================================================
 
     st.markdown("---")
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
+    # Forecast count
     c1.metric(
-        "📈 Forecast",
-        len(forecast_df) if forecast_df is not None else 0
-    )
-    c2.metric(
-        "🤖 Recommendations",
-        len(recommendation_df)
-    )
-    c3.metric(
-        "🚨 Alerts",
-        len(anomaly_df)
-    )
-    c4.metric(
-        "👥 Segments",
-        len(customer_group_df)
-    )
-    c5.metric(
-        "📉 Churn",
-        len(churn_df)
+        "Forecast",
+        len(forecast_df)
     )
 
-    st.markdown("---")
+    # Recommendation count
+    if (
+        not recommendation_df.empty
+        and "Error" not in recommendation_df.columns
+    ):
 
-    # ================= Sales Forecast =================
-
-    st.subheader("📈 Sales Forecast")
-
-    if forecast_df is not None and not forecast_df.empty:
-
-        fig = px.line(
-            forecast_df,
-            x="Order Date",
-            y="Predicted Sales",
-            markers=True,
-            title="30-Day Sales Forecast"
-        )
-
-        fig.update_layout(
-            template="plotly_white",
-            xaxis_title="Date",
-            yaxis_title="Predicted Sales"
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
+        recommendation_count = len(
+            recommendation_df
         )
 
     else:
-        st.info("Please upload a sales CSV to generate the forecast.")
 
-    st.markdown("---")
+        recommendation_count = 0
 
-    # ================= Recommendations =================
-
-    st.subheader("🤖 Product Recommendations")
-
-    st.dataframe(
-        recommendation_df,
-        use_container_width=True,
-        hide_index=True
+    c2.metric(
+        "Recommendations",
+        recommendation_count
     )
 
-    st.markdown("---")
+    # Anomaly count
+    if (
+        not anomaly_df.empty
+        and "Error" not in anomaly_df.columns
+    ):
 
-    # ================= Anomaly Detection =================
+        alert_count = len(
+            anomaly_df
+        )
 
-    st.subheader("🚨 Anomaly Detection")
+    else:
 
-    st.dataframe(
-        anomaly_df,
-        use_container_width=True,
-        hide_index=True
+        alert_count = 0
+
+    c3.metric(
+        "Alerts",
+        alert_count
     )
 
-    st.markdown("---")
+    # Customer segment
+    if (
+        not customer_group_df.empty
+        and "Error" not in customer_group_df.columns
+    ):
 
-    # ================= Customer Segmentation =================
+        segment_count = len(
+            customer_group_df
+        )
 
-    st.subheader("👥 Customer Segmentation")
+    else:
 
-    st.dataframe(
-        customer_group_df,
-        use_container_width=True,
-        hide_index=True
+        segment_count = 0
+
+    c4.metric(
+        "Segments",
+        segment_count
     )
 
-    st.markdown("---")
+    # Churn
+    if (
+        not churn_df.empty
+        and "Error" not in churn_df.columns
+    ):
 
-    # ================= Churn Prediction =================
+        churn_count = len(
+            churn_df
+        )
 
-    st.subheader("📉 Customer Churn Prediction")
+    else:
 
-    st.dataframe(
-        churn_df,
-        use_container_width=True,
-        hide_index=True
+        churn_count = 0
+
+    c5.metric(
+        "📉 Churn",
+        churn_count
     )
 
+    # ============================================================
+    # SALES FORECAST
+    # ============================================================
+
     st.markdown("---")
 
-    # ================= Downloads =================
+    st.subheader("📈 Sales Forecast")
 
-    st.subheader("⬇ Export Reports")
+    if forecast_df.empty:
+
+        st.info(
+            "No forecast data available. "
+            "Upload a valid sales CSV."
+        )
+
+    elif "Error" in forecast_df.columns:
+
+        st.error(
+            forecast_df.iloc[0]["Error"]
+        )
+
+    else:
+
+        # --------------------------------------------
+        # Date conversion
+        # --------------------------------------------
+
+        if "Order Date" in forecast_df.columns:
+
+            forecast_df["Order Date"] = pd.to_datetime(
+                forecast_df["Order Date"],
+                errors="coerce"
+            )
+
+            forecast_df = forecast_df.sort_values(
+                "Order Date"
+            )
+
+        # --------------------------------------------
+        # Forecast calculations
+        # --------------------------------------------
+
+        if "Predicted Sales" in forecast_df.columns:
+
+            total_forecast = forecast_df[
+                "Predicted Sales"
+            ].sum()
+
+            average_forecast = forecast_df[
+                "Predicted Sales"
+            ].mean()
+
+            highest_forecast = forecast_df[
+                "Predicted Sales"
+            ].max()
+
+            f1, f2, f3 = st.columns(3)
+
+            f1.metric(
+                "Total Forecast",
+                f"₹ {total_forecast:,.2f}"
+            )
+
+            f2.metric(
+                "Average Daily Sales",
+                f"₹ {average_forecast:,.2f}"
+            )
+
+            f3.metric(
+                "Highest Forecast",
+                f"₹ {highest_forecast:,.2f}"
+            )
+
+            # ----------------------------------------
+            # Forecast chart
+            # ----------------------------------------
+
+            fig = px.line(
+                forecast_df,
+                x="Order Date",
+                y="Predicted Sales",
+                markers=True,
+                title="30-Day Sales Forecast"
+            )
+
+            fig.update_layout(
+                height=420,
+                margin=dict(
+                    l=20,
+                    r=20,
+                    t=60,
+                    b=20
+                ),
+                xaxis_title="Date",
+                yaxis_title="Predicted Sales (₹)"
+            )
+
+            st.plotly_chart(
+                fig,
+                width="stretch"
+            )
+
+        else:
+
+            st.warning(
+                "Predicted Sales column was not returned."
+            )
+
+    # ============================================================
+    # PRODUCT RECOMMENDATIONS
+    # ============================================================
+
+    st.markdown("---")
+
+    st.subheader("Product Recommendations")
+
+    if recommendation_df.empty:
+
+        st.info(
+            "No recommendations returned by the backend."
+        )
+
+    elif "Error" in recommendation_df.columns:
+
+        st.error(
+            recommendation_df.iloc[0]["Error"]
+        )
+
+    else:
+
+        st.caption(
+            f"Recommendations generated by the backend "
+            f"for **{product_name}**."
+        )
+
+        # IMPORTANT:
+        # Do NOT insert Rank here.
+        #
+        # get_recommendations() already creates Rank.
+        #
+        # This fixes:
+        # ValueError: cannot insert Rank, already exists
+
+        st.dataframe(
+            recommendation_df,
+            width="stretch",
+            hide_index=True
+        )
+
+    # ============================================================
+    # ANOMALY DETECTION
+    # ============================================================
+
+    st.markdown("---")
+
+    st.subheader("Anomaly Detection")
+
+    if anomaly_df.empty:
+
+        st.info(
+            "No anomaly result returned by the backend."
+        )
+
+    elif "Error" in anomaly_df.columns:
+
+        st.error(
+            anomaly_df.iloc[0]["Error"]
+        )
+
+    else:
+
+        anomaly_display = anomaly_df.copy()
+
+        # --------------------------------------------
+        # Convert backend Anomaly value to display
+        # --------------------------------------------
+
+        if "Anomaly" in anomaly_display.columns:
+
+            def format_anomaly(value):
+
+                if isinstance(value, bool):
+
+                    is_anomaly = value
+
+                else:
+
+                    is_anomaly = (
+                        str(value).strip().lower()
+                        in ["true", "1", "yes"]
+                    )
+
+                if is_anomaly:
+
+                    return "🚨 Anomaly"
+
+                return "✅ Normal"
+
+            anomaly_display["Anomaly"] = (
+                anomaly_display["Anomaly"]
+                .apply(format_anomaly)
+            )
+
+        # --------------------------------------------
+        # Format date
+        # --------------------------------------------
+
+        if "Order Date" in anomaly_display.columns:
+
+            try:
+
+                anomaly_display["Order Date"] = (
+                    pd.to_datetime(
+                        anomaly_display["Order Date"],
+                        errors="coerce"
+                    )
+                    .dt.strftime("%d-%b-%Y")
+                )
+
+            except Exception:
+
+                pass
+
+
+        styled_anomaly = anomaly_display.style.set_properties(
+            subset=["Total Sales"],
+            **{"text-align": "center"}
+        )
+
+        st.dataframe(
+            styled_anomaly,
+            width="stretch",
+            hide_index=True
+        )
+
+    # ============================================================
+    # CUSTOMER SEGMENTATION
+    # ============================================================
+
+    st.markdown("---")
+
+    st.subheader(" Customer Segmentation")
+
+    if customer_group_df.empty:
+
+        st.info(
+            "No customer segmentation result "
+            "returned by the backend."
+        )
+
+    elif "Error" in customer_group_df.columns:
+
+        st.error(
+            customer_group_df.iloc[0]["Error"]
+        )
+
+    else:
+
+        st.caption(
+            f"Customer segmentation returned by the backend "
+            f"for **{customer_id}**."
+        )
+
+        st.dataframe(
+            customer_group_df,
+            width="stretch",
+            hide_index=True
+        )
+
+    # ============================================================
+    # CUSTOMER CHURN
+    # ============================================================
+
+    st.markdown("---")
+
+    st.subheader(" Customer Churn Prediction")
+
+    if churn_df.empty:
+
+        st.info(
+            "No churn prediction returned by the backend."
+        )
+
+    elif "Error" in churn_df.columns:
+
+        st.error(
+            churn_df.iloc[0]["Error"]
+        )
+
+    else:
+
+        st.caption(
+            f"Churn prediction returned by the backend "
+            f"for **{customer_id}**."
+        )
+
+        st.dataframe(
+            churn_df,
+            width="stretch",
+            hide_index=True
+        )
+
+    # ============================================================
+    # EXPORT REPORTS
+    # ============================================================
+
+    st.markdown("---")
+
+    st.subheader("Export Reports")
 
     col1, col2, col3 = st.columns(3)
 
+    # --------------------------------------------
+    # Forecast CSV
+    # --------------------------------------------
+
     with col1:
-        if forecast_df is not None:
+
+        if (
+            not forecast_df.empty
+            and "Error" not in forecast_df.columns
+        ):
+
             st.download_button(
-                "Forecast CSV",
-                forecast_df.to_csv(index=False),
-                "forecast.csv",
-                "text/csv",
-                use_container_width=True
+                label=" Forecast CSV",
+                data=forecast_df.to_csv(
+                    index=False
+                ),
+                file_name="forecast.csv",
+                mime="text/csv",
+                width="stretch"
             )
 
+    # --------------------------------------------
+    # Recommendations CSV
+    # --------------------------------------------
+
     with col2:
-        st.download_button(
-            "Recommendations CSV",
-            recommendation_df.to_csv(index=False),
-            "recommendations.csv",
-            "text/csv",
-            use_container_width=True
-        )
+
+        if (
+            not recommendation_df.empty
+            and "Error" not in recommendation_df.columns
+        ):
+
+            st.download_button(
+                label=" Recommendations CSV",
+                data=recommendation_df.to_csv(
+                    index=False
+                ),
+                file_name="recommendations.csv",
+                mime="text/csv",
+                width="stretch"
+            )
+
+    # --------------------------------------------
+    # Anomaly CSV
+    # --------------------------------------------
 
     with col3:
-        st.download_button(
-            "Alerts CSV",
-            anomaly_df.to_csv(index=False),
-            "alerts.csv",
-            "text/csv",
-            use_container_width=True
-        )
 
-    st.markdown("---")
+        if (
+            not anomaly_df.empty
+            and "Error" not in anomaly_df.columns
+        ):
 
-    st.success("✅ AI Reports loaded successfully.")
+            st.download_button(
+                label=" Alerts CSV",
+                data=anomaly_df.to_csv(
+                    index=False
+                ),
+                file_name="alerts.csv",
+                mime="text/csv",
+                width="stretch"
+            )
 
+    
+
+    st.caption(
+        "MarketMind AI • AI Reports & Analytics • Version 1.0"
+    )
+
+
+# ================================================================
+# RUN PAGE
+# ================================================================
 
 if __name__ == "__main__":
     reports_page()

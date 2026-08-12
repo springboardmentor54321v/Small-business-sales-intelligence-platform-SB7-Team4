@@ -4,48 +4,52 @@ import pandas as pd
 BASE_URL = "http://127.0.0.1:5000"
 
 
-def get_recommendations(product_name="Staples"):
+def get_recommendations(product_name):
+
+    if not product_name or not product_name.strip():
+        return pd.DataFrame(
+            columns=["Rank", "Product", "CoOccurrence"]
+        )
 
     try:
-
-        payload = {
-            "Product Name": product_name
-        }
-
         response = requests.post(
             f"{BASE_URL}/recommend-product",
-            json=payload,
+            json={
+                "Product Name": product_name.strip()
+            },
             timeout=10
         )
+
+        if response.status_code == 404:
+            data = response.json()
+
+            return pd.DataFrame({
+                "Error": [
+                    data.get("error", "Product not found.")
+                ]
+            })
 
         response.raise_for_status()
 
         data = response.json()
 
-        # If API returns a list
-        if isinstance(data, list):
-            return pd.DataFrame(data)
+        recommendations = data.get("Recommendations", [])
 
-        # If API returns a dictionary
-        elif isinstance(data, dict):
+        rows = []
 
-            if "Recommended Products" in data:
+        for rank, item in enumerate(recommendations, start=1):
+            rows.append({
+                "Rank": rank,
+                "Product": item.get("Product", ""),
+                "CoOccurrence": item.get("CoOccurrence", 0)
+            })
 
-                return pd.DataFrame({
-                    "Recommended Products": data["Recommended Products"]
-                })
-
-            return pd.DataFrame([data])
-
-        # Unknown response
-        return pd.DataFrame({
-            "Message": ["No recommendations found."]
-        })
+        return pd.DataFrame(rows)
 
     except requests.exceptions.RequestException as e:
 
         return pd.DataFrame({
-            "Error": [f"API Connection Error: {e}"]
+            "Error": [f"API Error: {e}"]
         })
 
     except Exception as e:

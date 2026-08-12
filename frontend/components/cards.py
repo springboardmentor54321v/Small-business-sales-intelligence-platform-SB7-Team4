@@ -7,25 +7,25 @@ def show_cards(metrics):
 
     with col1:
         st.metric(
-            label="💰 Total Revenue",
+            label=" Total Revenue",
             value=f"₹{metrics['Revenue']:,.2f}"
         )
 
     with col2:
         st.metric(
-            label="🛒 Total Orders",
+            label=" Total Orders",
             value=metrics["Orders"]
         )
 
     with col3:
         st.metric(
-            label="📦 Products Sold",
+            label=" Products Sold",
             value=metrics["Products Sold"]
         )
 
     with col4:
         st.metric(
-            label="🏬 Inventory Count",
+            label=" Inventory Count",
             value=metrics["Inventory"]
         )
 

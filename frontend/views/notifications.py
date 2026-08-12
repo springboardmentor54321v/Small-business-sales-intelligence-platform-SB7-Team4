@@ -1,72 +1,87 @@
 import streamlit as st
 import pandas as pd
+import requests
 
 from components.sidebar import show_sidebar
 
+# ---------------- API Configuration ---------------- #
+
+BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+
+NOTIFICATION_API = f"{BASE_URL}/notifications"
+
+
+# ---------------- Notifications ---------------- #
 
 def notifications_page():
 
     show_sidebar()
 
-    st.title(" Notifications Center")
-    st.caption("Milestone 3 - Day 6")
+    st.title("Notifications Center")
+    st.caption("Real-Time Business Notifications")
 
     st.markdown("---")
 
-    # ---------------- Sample Notifications ---------------- #
+    try:
 
-    notifications = [
+        with st.spinner("Loading Notifications..."):
 
-        {
-            "Type": " Low Stock",
-            "Title": "Laptop Stock Running Low",
-            "Message": "Only 4 laptops remaining in inventory.",
-            "Priority": "High",
-            "Time": "10 mins ago"
-        },
+            response = requests.get(
+                NOTIFICATION_API,
+                timeout=10
+            )
 
-        {
-            "Type": " Invoice",
-            "Title": "Invoice INV-1008 Overdue",
-            "Message": "Payment overdue by 5 days.",
-            "Priority": "Medium",
-            "Time": "30 mins ago"
-        },
+        response.raise_for_status()
 
-        {
-            "Type": " Inventory",
-            "Title": "Mouse Stock Running Low",
-            "Message": "Only 8 units remaining.",
-            "Priority": "Low",
-            "Time": "1 hour ago"
-        },
+        data = response.json()
 
-        {
-            "Type": " Forecast",
-            "Title": "Forecast Accuracy Improved",
-            "Message": "Forecast accuracy reached 94%.",
-            "Priority": "Low",
-            "Time": "2 hours ago"
-        },
+        notifications = data.get(
+            "notifications",
+            []
+        )
 
-        {
-            "Type": " Sales",
-            "Title": "Daily Sales Target Achieved",
-            "Message": "Sales exceeded today's target by 8%.",
-            "Priority": "High",
-            "Time": "Today"
-        }
+        if len(notifications) == 0:
 
-    ]
+            st.warning("No Notifications Available")
+            return
 
-    df = pd.DataFrame(notifications)
+        df = pd.DataFrame(notifications)
+
+    except requests.exceptions.Timeout:
+
+        st.error("❌ Backend request timed out.")
+        return
+
+    except requests.exceptions.ConnectionError:
+
+        st.error("❌ Unable to connect to backend.")
+        return
+
+    except requests.exceptions.HTTPError as e:
+
+        st.error(f"❌ API Error: {e}")
+        return
+
+    except Exception as e:
+
+        st.error(f"❌ Unexpected Error: {e}")
+        return
 
     # ---------------- KPI Cards ---------------- #
 
     total = len(df)
-    high = len(df[df["Priority"] == "High"])
-    medium = len(df[df["Priority"] == "Medium"])
-    low = len(df[df["Priority"] == "Low"])
+
+    high = len(
+        df[df["severity"] == "HIGH"]
+    )
+
+    medium = len(
+        df[df["severity"] == "MEDIUM"]
+    )
+
+    low = len(
+        df[df["severity"] == "LOW"]
+    )
 
     k1, k2, k3, k4 = st.columns(4)
 
@@ -84,62 +99,84 @@ def notifications_page():
     with c1:
 
         priority = st.selectbox(
-            "Priority",
-            ["All", "High", "Medium", "Low"]
+            "Severity",
+            [
+                "All",
+                "HIGH",
+                "MEDIUM",
+                "LOW"
+            ]
         )
 
     with c2:
 
         search = st.text_input(
-            " Search Notification"
+            "Search Notification"
         )
 
     filtered = df.copy()
 
     if priority != "All":
+
         filtered = filtered[
-            filtered["Priority"] == priority
+            filtered["severity"] == priority
         ]
 
     if search:
+
         filtered = filtered[
-            filtered["Title"].str.contains(
+            filtered["title"].str.contains(
                 search,
-                case=False
+                case=False,
+                na=False
             )
         ]
 
     st.markdown("---")
-
     # ---------------- Notification Cards ---------------- #
 
     for i, row in filtered.iterrows():
 
         with st.expander(
-            f"{row['Type']} | {row['Title']}"
+            f"{row['type']} | {row['title']}"
         ):
 
-            st.write(f"**Priority:** {row['Priority']}")
-            st.write(f"**Message:** {row['Message']}")
-            st.write(f"**Time:** {row['Time']}")
+            st.write(f"**Severity:** {row['severity']}")
 
-            b1, b2 = st.columns(2)
+            st.write(f"**Message:** {row['message']}")
+
+            if "reference_id" in row:
+                st.write(
+                    f"**Reference ID:** {row['reference_id']}"
+                )
+
+            b1 = st.columns(1)[0]
 
             with b1:
 
                 if st.button(
-                    " View Details",
+                    "View Details",
                     key=f"view{i}"
                 ):
-                    st.json(row.to_dict())
 
-            with b2:
+                    st.markdown("###  Notification Details")
 
-                if st.button(
-                    " Mark as Read",
-                    key=f"read{i}"
-                ):
-                    st.success("Notification marked as read.")
+                    st.write(f"**Type:** {row['type']}")
+
+                    st.write(f"**Title:** {row['title']}")
+
+                    st.write(f"**Severity:** {row['severity']}")
+
+                    st.write(f"**Message:** {row['message']}")
+
+                    if "reference_id" in row:
+                        st.write(
+                            f"**Reference ID:** {row['reference_id']}"
+                        )
+
+                    
+
+           
 
     st.markdown("---")
 
@@ -149,7 +186,7 @@ def notifications_page():
 
     st.dataframe(
         filtered,
-        width="stretch",
+        use_container_width=True,
         hide_index=True
     )
 
@@ -161,24 +198,25 @@ def notifications_page():
 
     with a1:
 
-        csv = filtered.to_csv(index=False).encode("utf-8")
+        csv = filtered.to_csv(
+            index=False
+        ).encode("utf-8")
 
         st.download_button(
-            "⬇ Download Notification Log",
+            " Download Notification Log",
             data=csv,
             file_name="notifications.csv",
             mime="text/csv",
-            width="stretch"
+            use_container_width=True
         )
 
     with a2:
 
         if st.button(
-            "🔄 Refresh Notifications",
-            width="stretch"
+            " Refresh Notifications",
+            use_container_width=True
         ):
+
             st.rerun()
 
-    st.markdown("---")
-
-    st.success(" Notifications Dashboard Loaded Successfully")
+    

@@ -1,430 +1,795 @@
 import streamlit as st
 import pandas as pd
+import requests
 import plotly.express as px
 
 from components.sidebar import show_sidebar
+from components.cards import show_cards
 
+
+# ============================================================
+# API Configuration
+# ============================================================
+
+BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+
+SALES_API = f"{BASE_URL}/sales/?page=1&page_size=100"
+
+INVENTORY_API = f"{BASE_URL}/inventory/"
+
+REVENUE_API = f"{BASE_URL}/revenue/summary"
+
+
+# ============================================================
+# Business Overview Page
+# ============================================================
 
 def business_overview_page():
 
-    # ---------------- Sidebar ---------------- #
-
     show_sidebar()
 
-    # ---------------- Title ---------------- #
+    st.title(" Business Overview")
 
-    st.title("📊 Business Overview")
-    st.caption("Milestone 3 - Day 5")
-
-    st.markdown("---")
-
-    # ---------------- Filters ---------------- #
-
-    f1, f2, f3, f4 = st.columns(4)
-
-    with f1:
-        start_date = st.date_input("📅 Start Date")
-
-    with f2:
-        end_date = st.date_input("📅 End Date")
-
-    with f3:
-        category = st.selectbox(
-            "📦 Category",
-            [
-                "All",
-                "Electronics",
-                "Furniture",
-                "Office Supplies"
-            ]
-        )
-
-    with f4:
-        region = st.selectbox(
-            "🌍 Region",
-            [
-                "All",
-                "East",
-                "West",
-                "South",
-                "Central"
-            ]
-        )
-
-    st.markdown("---")
-
-    # ---------------- KPI Cards ---------------- #
-
-    c1, c2, c3, c4 = st.columns(4)
-
-    c1.metric("💰 Revenue", "₹2,45,000")
-    c2.metric("📦 Products", "120")
-    c3.metric("👥 Customers", "78")
-    c4.metric("🚨 Alerts", "3")
-
-    st.markdown("---")
-
-    # ---------------- Revenue Data ---------------- #
-
-    revenue = pd.DataFrame({
-        "Month": pd.to_datetime([
-            "2026-01-01",
-            "2026-02-01",
-            "2026-03-01",
-            "2026-04-01",
-            "2026-05-01"
-        ]),
-
-        "Revenue": [
-            120000,
-            150000,
-            180000,
-            210000,
-            245000
-        ]
-    })
-
-    products = pd.DataFrame({
-
-        "Product": [
-            "Laptop",
-            "Mouse",
-            "Keyboard",
-            "Monitor",
-            "Printer"
-        ],
-
-        "Sales": [
-            55,
-            120,
-            85,
-            40,
-            22
-        ]
-
-    })
-
-    chart1, chart2 = st.columns(2)
-
-    # ---------------- Revenue Chart ---------------- #
-    with chart1:
-        st.subheader("📈 Revenue Trend")
-        fig = px.line(
-            revenue,
-            x="Month",
-            y="Revenue",
-            markers=True
-    )
-
-        fig.update_xaxes(
-            tickformat="%b"
-        )
-
-        fig.update_layout(
-            template="plotly_dark",
-
-            plot_bgcolor="#0E1117",
-
-            paper_bgcolor="#0E1117",
-            height=350
-        )
-
-        st.plotly_chart(
-            fig,
-            width="stretch"
-        )
-    
-    # ---------------- Top Products ---------------- #
-
-    with chart2:
-
-        st.subheader("🏆 Top Products")
-
-        fig = px.bar(
-
-            products,
-
-            x="Product",
-
-            y="Sales",
-
-            color="Sales",
-
-            template="plotly_dark"
-
-        )
-
-        fig.update_layout(
-
-            plot_bgcolor="#0E1117",
-
-            paper_bgcolor="#0E1117",
-
-            height=350
-
-        )
-
-        st.plotly_chart(
-            fig,
-            width="stretch"
-        )
-
-    st.markdown("---")
-
-    # ---------------- Product Drill Down ---------------- #
-
-    st.subheader("🔍 Product Drill Down")
-
-    selected_product = st.selectbox(
-        "Select Product",
-        products["Product"]
-    )
-
-    if selected_product == "Laptop":
-
-        revenue_value = "₹1,95,000"
-        sold = 55
-        profit = "₹48,000"
-        stock = 18
-        trend = [10, 12, 15, 14, 18, 20, 22]
-
-    elif selected_product == "Mouse":
-
-        revenue_value = "₹82,000"
-        sold = 120
-        profit = "₹18,500"
-        stock = 45
-        trend = [20, 18, 22, 25, 30, 28, 32]
-
-    elif selected_product == "Keyboard":
-
-        revenue_value = "₹64,000"
-        sold = 85
-        profit = "₹14,000"
-        stock = 30
-        trend = [15, 16, 14, 18, 20, 21, 23]
-
-    elif selected_product == "Monitor":
-
-        revenue_value = "₹96,000"
-        sold = 40
-        profit = "₹22,000"
-        stock = 25
-        trend = [8, 10, 9, 12, 14, 16, 15]
-
-    else:
-
-        revenue_value = "₹32,000"
-        sold = 22
-        profit = "₹7,000"
-        stock = 60
-        trend = [5, 6, 8, 9, 8, 10, 11]
-
-    d1, d2, d3, d4 = st.columns(4)
-
-    d1.metric("💰 Revenue", revenue_value)
-    d2.metric("📦 Units Sold", sold)
-    d3.metric("📈 Profit", profit)
-    d4.metric("📦 Stock Left", stock)
-
-    st.subheader(f"📊 {selected_product} Sales Trend")
-
-    trend_df = pd.DataFrame({
-        "Day Number":[1,2,3,4,5,6,7],
-        "Day":[
-            "Mon",
-            "Tue",
-            "Wed",
-            "Thu",
-            "Fri",
-            "Sat",
-            "Sun"
-        ],
-        "Sales":trend
-    })
-    fig = px.line(
-        trend_df,
-        x="Day Number",
-        y="Sales",
-        markers=True
-    )
-    fig.update_xaxes(
-        tickmode="array",
-
-        tickvals=[1,2,3,4,5,6,7],
-
-        ticktext=[
-            "Mon",
-            "Tue",
-            "Wed",
-            "Thu",
-            "Fri",
-            "Sat",
-            "Sun"
-        ]
-    )
-    
-
-    fig.update_layout(
-
-        template="plotly_dark",
-
-        xaxis=dict(
-
-            categoryorder="array",
-
-            categoryarray=[
-                "Mon",
-                "Tue",
-                "Wed",
-                "Thu",
-                "Fri",
-                "Sat",
-                "Sun"
-            ]
-
-        ),
-
-        plot_bgcolor="#0E1117",
-
-        paper_bgcolor="#0E1117",
-
-        height=350
-
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
+    st.caption(
+        "Complete Business Performance Dashboard"
     )
 
     st.markdown("---")
-    # ---------------- Customer Groups ---------------- #
 
-    st.subheader("👥 Customer Groups")
+    try:
 
-    g1, g2, g3 = st.columns(3)
+        with st.spinner(
+            "Loading Dashboard..."
+        ):
 
-    with g1:
-        st.metric(
-            "⭐ Premium",
-            "20"
-        )
-
-    with g2:
-        st.metric(
-            "👤 Regular",
-            "45"
-        )
-
-    with g3:
-        st.metric(
-            "🆕 New",
-            "13"
-        )
-
-    customer_df = pd.DataFrame({
-
-        "Group": [
-
-            "Premium",
-
-            "Regular",
-
-            "New"
-
-        ],
-
-        "Customers": [
-
-            20,
-
-            45,
-
-            13
-
-        ]
-
-    })
-
-    st.markdown("---")
-
-    # ---------------- Recent Alerts ---------------- #
-
-    st.subheader("🔔 Recent Alerts")
-
-    alerts = pd.DataFrame({
-
-        "Alert": [
-
-            "Laptop Stock Low",
-
-            "Invoice INV-1008 Overdue",
-
-            "Mouse Stock Low"
-
-        ],
-
-        "Priority": [
-
-            "High",
-
-            "Medium",
-
-            "Low"
-
-        ]
-
-    })
-
-    for _, row in alerts.iterrows():
-
-        if row["Priority"] == "High":
-
-            st.error(
-                f"🔴 {row['Alert']}"
+            sales_response = requests.get(
+                SALES_API,
+                timeout=15
             )
 
-        elif row["Priority"] == "Medium":
+            inventory_response = requests.get(
+                INVENTORY_API,
+                timeout=15
+            )
+
+            revenue_response = requests.get(
+                REVENUE_API,
+                timeout=15
+            )
+
+        sales_response.raise_for_status()
+        inventory_response.raise_for_status()
+        revenue_response.raise_for_status()
+
+        sales = sales_response.json()
+
+        inventory = inventory_response.json()
+
+        revenue = revenue_response.json()
+
+        sales_df = pd.DataFrame(sales)
+
+        inventory_df = pd.DataFrame(inventory)
+
+        if sales_df.empty:
 
             st.warning(
-                f"🟡 {row['Alert']}"
+                "No Sales Data Available"
+            )
+
+            return
+
+        if inventory_df.empty:
+
+            st.warning(
+                "No Inventory Data Available"
+            )
+
+            return
+
+        # ---------------- Numeric Columns ---------------- #
+
+        sales_numeric = [
+
+            "quantity",
+
+            "unit_price",
+
+            "discount",
+
+            "total_amount"
+
+        ]
+
+        for col in sales_numeric:
+
+            if col in sales_df.columns:
+
+                sales_df[col] = pd.to_numeric(
+
+                    sales_df[col],
+
+                    errors="coerce"
+
+                ).fillna(0)
+
+        inventory_numeric = [
+
+            "stock_quantity",
+
+            "low_stock_threshold"
+
+        ]
+
+        for col in inventory_numeric:
+
+            if col in inventory_df.columns:
+
+                inventory_df[col] = pd.to_numeric(
+
+                    inventory_df[col],
+
+                    errors="coerce"
+
+                ).fillna(0)
+
+        if "transaction_date" in sales_df.columns:
+
+            sales_df["transaction_date"] = pd.to_datetime(
+
+                sales_df["transaction_date"],
+
+                errors="coerce"
+
+            )
+        # ============================================================
+        # KPI Calculations
+        # ============================================================
+
+        total_revenue = float(
+            revenue.get(
+                "total_revenue",
+                0
+            )
+        )
+
+        total_outstanding = float(
+            revenue.get(
+                "total_outstanding",
+                0
+            )
+        )
+
+        daily_collections = float(
+            revenue.get(
+                "daily_collections",
+                0
+            )
+        )
+
+        total_orders = len(
+            sales_df
+        )
+
+        if "quantity" in sales_df.columns:
+
+            total_products_sold = int(
+                sales_df["quantity"].sum()
+            )
+
+        else:
+
+            total_products_sold = 0
+
+        inventory_count = len(
+            inventory_df
+        )
+
+        if (
+            "stock_quantity" in inventory_df.columns
+            and
+            "low_stock_threshold" in inventory_df.columns
+        ):
+
+            low_stock_df = inventory_df[
+
+                inventory_df["stock_quantity"]
+
+                <=
+
+                inventory_df["low_stock_threshold"]
+
+            ]
+
+        else:
+
+            low_stock_df = pd.DataFrame()
+
+        metrics = {
+
+            "Revenue": total_revenue,
+
+            "Outstanding": total_outstanding,
+
+            "Today's Collection": daily_collections,
+
+            "Orders": total_orders,
+
+            "Products Sold": total_products_sold,
+
+            "Inventory": inventory_count,
+
+            "Low Stock": len(low_stock_df)
+
+        }
+
+        # ============================================================
+        # KPI Cards
+        # ============================================================
+
+        show_cards(metrics)
+
+        st.markdown("---")
+
+        st.subheader(
+            "Revenue Overview"
+        )
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric(
+
+            "Total Revenue",
+
+            f"₹ {total_revenue:,.2f}"
+
+        )
+
+        c2.metric(
+
+            "Outstanding",
+
+            f"₹ {total_outstanding:,.2f}"
+
+        )
+
+        c3.metric(
+
+            "Today's Collection",
+
+            f"₹ {daily_collections:,.2f}"
+
+        )
+
+        st.markdown("---")
+                # ============================================================
+        # Top Selling Products
+        # ============================================================
+
+        st.subheader("Top Selling Products")
+
+        if (
+            "product_id" in sales_df.columns
+            and
+            "quantity" in sales_df.columns
+        ):
+
+            top_products = (
+
+                sales_df
+
+                .groupby(
+                    "product_id",
+                    as_index=False
+                )["quantity"]
+
+                .sum()
+
+                .sort_values(
+                    "quantity",
+                    ascending=False
+                )
+
+                .head(10)
+
+            )
+
+            fig = px.bar(
+
+                top_products,
+
+                x="quantity",
+
+                y="product_id",
+
+                orientation="h",
+
+                text="quantity",
+
+                color="quantity",
+
+                color_continuous_scale="Blues"
+
+            )
+
+            fig.update_layout(
+
+                height=500,
+
+                template="plotly_white",
+
+                xaxis_title="Quantity Sold",
+
+                yaxis_title="Product"
+
+            )
+
+            st.plotly_chart(
+
+                fig,
+
+                width="stretch"
+
+            )
+
+        else:
+
+            st.info(
+                "Top product data not available."
+            )
+
+        st.markdown("---")
+
+
+        # ============================================================
+        # Revenue By Category
+        # ============================================================
+
+        st.subheader("Revenue By Category")
+
+        if (
+            "category" in sales_df.columns
+            and
+            "total_amount" in sales_df.columns
+        ):
+
+            category_df = (
+
+                sales_df
+
+                .groupby(
+                    "category",
+                    as_index=False
+                )["total_amount"]
+
+                .sum()
+
+                .sort_values(
+                    "total_amount",
+                    ascending=False
+                )
+
+            )
+
+            fig = px.pie(
+
+                category_df,
+
+                names="category",
+
+                values="total_amount",
+
+                hole=0.45,
+
+                color_discrete_sequence=px.colors.qualitative.Set3
+
+            )
+
+            fig.update_layout(
+
+                height=450,
+
+                template="plotly_white"
+
+            )
+
+            st.plotly_chart(
+
+                fig,
+
+                width="stretch"
+
+            )
+
+        else:
+
+            st.info(
+                "Category information not available."
+            )
+
+        st.markdown("---")
+        # ============================================================
+        # Product Drill Down
+        # ============================================================
+
+        st.subheader("Product Drill Down")
+
+        if (
+            "product_id" in sales_df.columns
+            and
+            not sales_df.empty
+        ):
+
+            products = sorted(
+                sales_df["product_id"]
+                .dropna()
+                .astype(str)
+                .unique()
+            )
+
+            selected_product = st.selectbox(
+                "Select Product",
+                products
+            )
+
+            product_df = sales_df[
+                sales_df["product_id"].astype(str)
+                == selected_product
+            ]
+
+            # ---------------- KPI Cards ---------------- #
+
+            revenue_value = product_df[
+                "total_amount"
+            ].sum()
+
+            quantity_value = int(
+                product_df["quantity"].sum()
+            )
+
+            order_count = len(product_df)
+
+            stock_left = "N/A"
+
+            if (
+                "product_id" in inventory_df.columns
+                and
+                "stock_quantity" in inventory_df.columns
+            ):
+
+                stock = inventory_df[
+                    inventory_df["product_id"]
+                    .astype(str)
+                    == selected_product
+                ]
+
+                if not stock.empty:
+
+                    stock_left = int(
+                        stock.iloc[0]["stock_quantity"]
+                    )
+
+            c1, c2, c3, c4 = st.columns(4)
+
+            c1.metric(
+                "Revenue",
+                f"₹ {revenue_value:,.2f}"
+            )
+
+            c2.metric(
+                "Units Sold",
+                quantity_value
+            )
+
+            c3.metric(
+                "Orders",
+                order_count
+            )
+
+            c4.metric(
+                "Stock Left",
+                stock_left
+            )
+
+            st.markdown("---")
+
+           
+
+            # ---------------- Recent Transactions ---------------- #
+
+            st.subheader(
+                "Recent Transactions"
+            )
+
+            columns = [
+
+                "transaction_date",
+
+                "invoice_id",
+
+                "customer_id",
+
+                "quantity",
+
+                "total_amount"
+
+            ]
+
+            available_columns = [
+
+                col
+
+                for col in columns
+
+                if col in product_df.columns
+
+            ]
+
+            if available_columns:
+
+                st.dataframe(
+
+                    product_df[
+                        available_columns
+                    ].sort_values(
+                        by="transaction_date",
+                        ascending=False
+                    ),
+
+                    width="stretch",
+
+                    hide_index=True
+
+                )
+
+            else:
+
+                st.info(
+                    "Transaction details not available."
+                )
+
+        else:
+
+            st.info(
+                "Product information not available."
+            )
+
+        st.markdown("---")
+        # ============================================================
+        # Customer Insights
+        # ============================================================
+
+        
+        st.subheader(" Customer Insights")
+
+        customer_df = (
+            sales_df.groupby("customer_id", as_index=False)
+            .agg(
+                Revenue=("total_amount", "sum"),
+                Orders=("invoice_id", "nunique")
+            )
+        )
+
+        customer_df = customer_df.sort_values(
+            "Revenue",
+            ascending=False
+        ).head(10)
+
+        if customer_df.empty:
+
+            st.info("No customer data available.")
+
+        else:
+
+            fig = px.bar(
+                customer_df,
+                x="Revenue",
+                y="customer_id",
+                orientation="h",
+                text="Revenue",
+                title=" Top 10 Customers by Revenue",
+                color="Revenue",
+            )
+
+            fig.update_traces(
+                texttemplate="₹%{text:.2f}",
+                textposition="outside"
+            )
+
+            fig.update_layout(
+                template="plotly_dark",
+                height=500,
+                xaxis_title="Revenue (₹)",
+                yaxis_title="Customer ID",
+                yaxis=dict(autorange="reversed")
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+            st.dataframe(
+                customer_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        # ============================================================
+        # Business Alerts
+        # ============================================================
+
+        st.subheader("Business Alerts")
+
+        if len(low_stock_df) > 0:
+
+            st.warning(
+
+                f"{len(low_stock_df)} products are below the stock threshold."
+
             )
 
         else:
 
             st.success(
-                f"🟢 {row['Alert']}"
+                "No low stock products."
             )
 
-    st.markdown("---")
+        if total_outstanding > 0:
 
-    # ---------------- Dashboard Actions ---------------- #
+            st.warning(
 
-    a1, a2 = st.columns(2)
+                f"Outstanding Payments : ₹ {total_outstanding:,.2f}"
 
-    with a1:
+            )
 
-        if st.button(
-            "🔄 Refresh Dashboard",
-            width="stretch"
-        ):
+        else:
 
-            st.rerun()
+            st.success(
+                "No outstanding payments."
+            )
 
-    with a2:
+        st.markdown("---")
 
-        csv = customer_df.to_csv(
+
+        # ============================================================
+        # Recent Sales
+        # ============================================================
+
+        st.subheader("Recent Sales")
+
+        display_columns = [
+
+            "transaction_id",
+
+            "invoice_id",
+
+            "transaction_date",
+
+            "customer_id",
+
+            "product_id",
+
+            "quantity",
+
+            "total_amount"
+
+        ]
+
+        available_columns = [
+
+            col
+
+            for col in display_columns
+
+            if col in sales_df.columns
+
+        ]
+
+        if available_columns:
+
+            st.dataframe(
+
+                sales_df
+
+                .sort_values(
+                    by="transaction_date",
+                    ascending=False
+                )[available_columns]
+
+                .head(10),
+
+                width="stretch",
+
+                hide_index=True
+
+            )
+
+        else:
+
+            st.info(
+                "No recent sales available."
+            )
+
+        st.markdown("---")
+
+
+        # ============================================================
+        # Revenue Summary
+        # ============================================================
+
+        st.subheader("Revenue Summary")
+
+        summary = pd.DataFrame({
+
+            "Metric": [
+
+                "Revenue",
+
+                "Outstanding",
+
+                "Today's Collection",
+
+                "Orders",
+
+                "Products Sold",
+
+                "Inventory",
+
+                "Low Stock"
+
+            ],
+
+            "Value": [
+
+                f"₹ {total_revenue:,.2f}",
+
+                f"₹ {total_outstanding:,.2f}",
+
+                f"₹ {daily_collections:,.2f}",
+
+                total_orders,
+
+                total_products_sold,
+
+                inventory_count,
+
+                len(low_stock_df)
+
+            ]
+
+        })
+
+        st.dataframe(
+
+            summary,
+
+            width="stretch",
+
+            hide_index=True
+
+        )
+
+        st.markdown("---")
+
+
+        # ============================================================
+        # Export Report
+        # ============================================================
+
+        st.subheader("Export Report")
+
+        csv = sales_df.to_csv(
             index=False
         ).encode("utf-8")
 
         st.download_button(
 
-            label="⬇ Download Customer Report",
+            label="Download Business Report",
 
             data=csv,
 
-            file_name="customer_report.csv",
+            file_name="business_overview_report.csv",
 
             mime="text/csv",
 
@@ -432,6 +797,57 @@ def business_overview_page():
 
         )
 
-    st.markdown("---")
+       
 
-    st.success("✅ Business Overview Loaded Successfully")
+        st.caption(
+            "MarketMind AI • Business Overview • Version 2.0"
+        )
+    # ============================================================
+    # Exception Handling
+    # ============================================================
+
+    except requests.exceptions.Timeout:
+
+        st.error(
+            "Backend request timed out. Please try again."
+        )
+
+    except requests.exceptions.ConnectionError:
+
+        st.error(
+            "Unable to connect to the backend server."
+        )
+
+    except requests.exceptions.HTTPError as e:
+
+        st.error(
+            f"API Error: {e}"
+        )
+
+        try:
+
+            error_response = e.response.json()
+
+            st.json(error_response)
+
+        except Exception:
+
+            if e.response is not None:
+
+                st.code(e.response.text)
+
+    except ValueError as e:
+
+        st.error(
+            f"Data Processing Error: {e}"
+        )
+
+    except KeyError as e:
+
+        st.error(
+            f"Missing Required Column: {e}"
+        )
+
+    except Exception as e:
+
+        st.exception(e)

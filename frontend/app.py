@@ -10,18 +10,25 @@ from views.invoice import invoice_page
 from views.sales_upload import sales_upload_page
 from views.admin import admin_page
 from views.settings import settings_page
-from styles.theme import apply_theme
 from views.notifications import notifications_page
 from views.business_overview import business_overview_page
 from views.forecast_vs_actual import forecast_vs_actual_page
+from views.churn_risk import churn_risk_page
+
+from styles.theme import apply_theme
+
+
+# ================= Page Configuration ================= #
 
 st.set_page_config(
     page_title="MarketMind AI",
-    page_icon="📊",
     layout="wide"
 )
+
 apply_theme()
-# ---------------- Session ---------------- #
+
+
+# ================= Session State ================= #
 
 if "page" not in st.session_state:
     st.session_state.page = "Home"
@@ -35,52 +42,75 @@ if "role" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = ""
 
-# ---------------- Authentication ---------------- #
+
+# ================= Authentication ================= #
 
 if not st.session_state.logged_in:
 
     if st.session_state.page == "Home":
+
         home_page()
 
     elif st.session_state.page == "Login":
+
         login_page()
 
     else:
+
         st.session_state.page = "Login"
+
         login_page()
 
-# ---------------- Application ---------------- #
+
+# ================= Application ================= #
 
 else:
 
     if st.session_state.page == "Dashboard":
+
         dashboard_page()
 
     elif st.session_state.page == "Inventory":
+
         inventory_page()
 
     elif st.session_state.page == "Customer Insights":
+
         customers_page()
 
+    elif st.session_state.page == "Churn Risk":
+
+        churn_risk_page()
+
     elif st.session_state.page == "Reports":
+
         reports_page()
 
     elif st.session_state.page == "Invoice":
+
         invoice_page()
 
     elif st.session_state.page == "Sales Upload":
+
         sales_upload_page()
 
-    elif st.session_state.page == "Admin":
-        admin_page()
 
     elif st.session_state.page == "Settings":
+
         settings_page()
+
     elif st.session_state.page == "Notifications":
+
         notifications_page()
+
     elif st.session_state.page == "Business Overview":
+
         business_overview_page()
+
     elif st.session_state.page == "Forecast vs Actual":
+
         forecast_vs_actual_page()
+
     else:
+
         dashboard_page()

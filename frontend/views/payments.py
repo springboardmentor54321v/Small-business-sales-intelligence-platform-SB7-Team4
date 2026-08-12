@@ -15,14 +15,14 @@ def payments_page():
 
     show_sidebar()
 
-    st.title("💳 Payments")
+    st.title("Payments")
     st.caption("Manage Customer Payments")
 
     st.markdown("---")
 
     # ================= Add Payment ================= #
 
-    st.subheader("➕ Add Payment")
+    st.subheader("Add Payment")
 
     col1, col2 = st.columns(2)
 
@@ -83,7 +83,7 @@ def payments_page():
     }
 
     if st.button(
-        "💳 Add Payment",
+        "Add Payment",
         use_container_width=True
     ):
 
@@ -105,7 +105,7 @@ def payments_page():
 
                 if response.status_code in [200, 201]:
 
-                    st.success("✅ Payment Added Successfully")
+                    st.success("Payment Added Successfully")
 
                     st.balloons()
 
@@ -207,17 +207,17 @@ def payments_page():
     c1, c2, c3 = st.columns(3)
 
     c1.metric(
-        "💳 Total Payments",
+        "Total Payments",
         total_payments
     )
 
     c2.metric(
-        "💰 Amount Received",
+        "Amount Received",
         f"₹ {total_amount:,.2f}"
     )
 
     c3.metric(
-        "🏦 Payment Methods",
+        "Payment Methods",
         payment_methods
     )
 
@@ -230,7 +230,7 @@ def payments_page():
     with col1:
 
         search = st.text_input(
-            "🔍 Search Invoice / Transaction"
+            "Search Invoice / Transaction"
         )
 
     with col2:
@@ -281,7 +281,7 @@ def payments_page():
 
     # ================= Payment Records ================= #
 
-    st.subheader("📋 Payment Records")
+    st.subheader("Payment Records")
 
     display_columns = [
 
@@ -323,7 +323,7 @@ def payments_page():
 
     # ================= Payment Summary ================= #
 
-    st.subheader("📊 Payment Summary")
+    st.subheader(" Payment Summary")
 
     summary = pd.DataFrame({
 
@@ -365,7 +365,7 @@ def payments_page():
 
     st.download_button(
 
-        "⬇ Download Payments CSV",
+        "Download Payments CSV",
 
         data=filtered_df.to_csv(index=False),
 
@@ -378,5 +378,5 @@ def payments_page():
     )
 
     st.success(
-        "✅ Payments loaded successfully from the backend."
+        "Payments loaded successfully from the backend."
     )

@@ -3,25 +3,65 @@ import streamlit as st
 
 def show_sidebar():
 
-    role = st.session_state.get("role", "")
+    role = st.session_state.get("role", "Admin")
     username = st.session_state.get("username", "User")
 
-    # ---------------- Header ---------------- #
+    # ---------------- CSS ---------------- #
 
-    st.sidebar.title("📊 MarketMind AI")
-    st.sidebar.markdown("---")
+    st.markdown(
+        """
+        <style>
 
-    st.sidebar.write(f"### 👋 Welcome, {username}")
-    st.sidebar.caption(f"Role: {role}")
+        section[data-testid="stSidebar"]{
+            background:#0F172A;
+            width:300px !important;
+        }
 
-    st.sidebar.markdown("---")
+        section[data-testid="stSidebar"]{
+            border-right:1px solid #1E293B;
+        }
+
+        div[data-testid="stButton"]>button{
+            width:100%;
+            border:none;
+            border-radius:12px;
+            background:#172033;
+            color:white;
+            text-align:left;
+            padding:12px 16px;
+            margin-bottom:8px;
+            font-size:15px;
+            font-weight:500;
+        }
+
+        div[data-testid="stButton"]>button:hover{
+            background:#2563EB;
+            color:white;
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # ---------------- Logo ---------------- #
+
+    st.sidebar.title("MarketMind AI")
+    st.sidebar.caption("Small Business Intelligence")
+
+    st.sidebar.divider()
+
+    # ---------------- User ---------------- #
+
+    st.sidebar.subheader(f"Welcome, {username}")
+    st.sidebar.caption(f"Role : {role}")
+
+    st.sidebar.divider()
 
     # ---------------- Menu ---------------- #
 
     if role == "Owner":
 
-        nav_title = "👑 Owner Panel"
-
         menu = [
             "Dashboard",
             "Business Overview",
@@ -29,6 +69,7 @@ def show_sidebar():
             "Notifications",
             "Inventory",
             "Customer Insights",
+            "Churn Risk",
             "Invoice",
             "Sales Upload",
             "Reports",
@@ -37,8 +78,6 @@ def show_sidebar():
 
     elif role == "Store Manager":
 
-        nav_title = "🏬 Store Manager Panel"
-
         menu = [
             "Dashboard",
             "Business Overview",
@@ -47,81 +86,70 @@ def show_sidebar():
             "Inventory",
             "Invoice",
             "Sales Upload",
+            "Churn Risk",
             "Settings"
         ]
 
     elif role == "Sales Executive":
 
-        nav_title = "💼 Sales Executive Panel"
-
         menu = [
             "Dashboard",
             "Notifications",
             "Sales Upload",
             "Invoice",
-            "Settings"
-        ]
-
-    elif role == "Admin":
-
-        nav_title = "⚙️ Admin Panel"
-
-        menu = [
-            "Dashboard",
-            "Business Overview",
-            "Forecast vs Actual",
-            "Notifications",
-            "Inventory",
-            "Customer Insights",
-            "Invoice",
-            "Sales Upload",
-            "Reports",
-            "Admin",
+            "Churn Risk",
             "Settings"
         ]
 
     else:
 
-        nav_title = "📑 Navigation"
+        menu = [
+            "Dashboard",
+            "Business Overview",
+            "Forecast vs Actual",
+            "Notifications",
+            "Inventory",
+            "Customer Insights",
+            "Churn Risk",
+            "Invoice",
+            "Sales Upload",
+            "Reports",
+            "Settings"
+        ]
 
-        menu = ["Dashboard"]
-
-    # ---------------- Navigation ---------------- #
-
-    if st.session_state.page not in menu:
+    if "page" not in st.session_state:
         st.session_state.page = menu[0]
 
-    selected = st.sidebar.radio(
-        nav_title,
-        menu,
-        index=menu.index(st.session_state.page)
-    )
+    st.sidebar.markdown("### Navigation")
 
-    if selected != st.session_state.page:
-        st.session_state.page = selected
-        st.rerun()
+    for page in menu:
 
-    st.sidebar.markdown("---")
+        if page == st.session_state.page:
 
-    # ---------------- Role Badge ---------------- #
+            st.sidebar.button(
+                page,
+                width="stretch",
+                disabled=True
+            )
 
-    if role == "Owner":
-        st.sidebar.success("👑 Logged in as Owner")
+        else:
 
-    elif role == "Store Manager":
-        st.sidebar.info("🏬 Logged in as Store Manager")
+            if st.sidebar.button(
+                page,
+                width="stretch"
+            ):
 
-    elif role == "Sales Executive":
-        st.sidebar.warning("💼 Logged in as Sales Executive")
+                st.session_state.page = page
+                st.rerun()
 
-    elif role == "Admin":
-        st.sidebar.error("⚙️ Logged in as Administrator")
+    st.sidebar.divider()
 
-    st.sidebar.markdown("---")
+    st.sidebar.info(f"Logged in as {role}")
 
-    # ---------------- Logout ---------------- #
-
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
+    if st.sidebar.button(
+        "Logout",
+        width="stretch"
+    ):
 
         st.session_state.logged_in = False
         st.session_state.username = ""
@@ -129,3 +157,8 @@ def show_sidebar():
         st.session_state.page = "Home"
 
         st.rerun()
+
+    st.sidebar.divider()
+
+    st.sidebar.caption("MarketMind AI")
+    st.sidebar.caption("Version 2.0")

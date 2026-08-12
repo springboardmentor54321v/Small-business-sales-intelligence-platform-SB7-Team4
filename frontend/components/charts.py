@@ -7,11 +7,19 @@ import plotly.express as px
 
 def sales_trend_chart(sales):
 
-    if not sales:
+    if sales is None:
         st.info("No sales data available.")
         return
 
     df = pd.DataFrame(sales)
+
+    if df.empty:
+        st.info("No sales data available.")
+        return
+
+    if "transaction_date" not in df.columns or "total_amount" not in df.columns:
+        st.warning("Required columns are missing.")
+        return
 
     df["transaction_date"] = pd.to_datetime(
         df["transaction_date"],
@@ -25,6 +33,10 @@ def sales_trend_chart(sales):
 
     df = df.dropna(subset=["transaction_date"])
 
+    if df.empty:
+        st.info("No valid sales data available.")
+        return
+
     daily_sales = (
         df.groupby("transaction_date", as_index=False)["total_amount"]
         .sum()
@@ -36,7 +48,7 @@ def sales_trend_chart(sales):
         x="transaction_date",
         y="total_amount",
         markers=True,
-        title="📈 Daily Sales Revenue"
+        title="Daily Sales Revenue"
     )
 
     fig.update_layout(
@@ -46,18 +58,29 @@ def sales_trend_chart(sales):
         yaxis_title="Revenue (₹)"
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(
+        fig,
+        width="stretch"
+    )
 
 
 # ---------------- Top Products ---------------- #
 
 def top_products_chart(sales):
 
-    if not sales:
+    if sales is None:
         st.info("No product data available.")
         return
 
     df = pd.DataFrame(sales)
+
+    if df.empty:
+        st.info("No product data available.")
+        return
+
+    if "product_id" not in df.columns or "quantity" not in df.columns:
+        st.warning("Required columns are missing.")
+        return
 
     df["quantity"] = pd.to_numeric(
         df["quantity"],
@@ -71,12 +94,16 @@ def top_products_chart(sales):
         .head(5)
     )
 
+    if product_sales.empty:
+        st.info("No product data available.")
+        return
+
     fig = px.bar(
         product_sales,
         x="product_id",
         y="quantity",
         text="quantity",
-        title=" Top 5 Selling Products"
+        title="Top 5 Selling Products"
     )
 
     fig.update_layout(
@@ -86,4 +113,7 @@ def top_products_chart(sales):
         yaxis_title="Quantity Sold"
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(
+        fig,
+        width="stretch"
+    )

@@ -22,11 +22,17 @@ def get_churn_risk(customer_id="AA-10315"):
 
         data = response.json()
 
+        print("\n" + "=" * 60)
+        print("CHURN API RESPONSE")
+        print("=" * 60)
+        print(data)
+        print("=" * 60)
+
+        if isinstance(data, dict):
+            return pd.DataFrame([data])
+
         if isinstance(data, list):
             return pd.DataFrame(data)
-
-        elif isinstance(data, dict):
-            return pd.DataFrame([data])
 
         return pd.DataFrame({
             "Message": ["No churn prediction found."]

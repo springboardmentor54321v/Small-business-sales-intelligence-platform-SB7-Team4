@@ -1,7 +1,15 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import requests
+
 from components.sidebar import show_sidebar
+
+# ---------------- API Configuration ---------------- #
+
+BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+
+SALES_API = f"{BASE_URL}/sales/"
 
 
 def customers_page():
@@ -13,211 +21,326 @@ def customers_page():
 
     st.markdown("---")
 
-    # ---------------- Sample Customer Data ---------------- #
+    # ---------------- Load Sales Data ---------------- #
 
-    df = pd.DataFrame({
+    try:
 
-        "Customer": [
-            "Ravi",
-            "Priya",
-            "Rahul",
-            "Anita",
-            "Kiran",
-            "Suresh",
-            "Meena",
-            "Ajay",
-            "Neha",
-            "Arjun"
-        ],
+        with st.spinner("Loading Customer Insights..."):
 
-        "Segment": [
-            "Loyal",
-            "High Value",
-            "Occasional",
-            "Loyal",
-            "Occasional",
-            "High Value",
-            "Loyal",
-            "Occasional",
-            "High Value",
-            "Loyal"
-        ],
+            response = requests.get(
+                SALES_API,
+                timeout=10
+            )
 
-        "Orders": [
-            28,
-            17,
-            5,
-            22,
-            8,
-            16,
-            30,
-            4,
-            18,
-            26
-        ],
+        response.raise_for_status()
 
-        "Total Spend": [
-            185000,
-            145000,
-            24000,
-            132000,
-            41000,
-            160000,
-            210000,
-            18000,
-            152000,
-            198000
-        ]
+        sales = response.json()
 
-    })
+        sales_df = pd.DataFrame(sales)
+
+    except requests.exceptions.Timeout:
+
+        st.error("❌ Backend request timed out.")
+        return
+
+    except requests.exceptions.ConnectionError:
+
+        st.error("❌ Unable to connect to backend.")
+        return
+
+    except requests.exceptions.HTTPError as e:
+
+        st.error(f"❌ API Error: {e}")
+        return
+
+    except Exception as e:
+
+        st.error(f"❌ Unexpected Error: {e}")
+        return
+
+    if sales_df.empty:
+
+        st.warning("No Sales Data Available")
+        return
+
+    # ---------------- Prepare Customer Data ---------------- #
+
+    sales_df["total_amount"] = pd.to_numeric(
+        sales_df["total_amount"],
+        errors="coerce"
+    ).fillna(0)
+
+    customer_df = (
+
+        sales_df
+
+        .groupby("customer_id")
+
+        .agg(
+
+            Orders=("transaction_id", "count"),
+
+            Total_Spend=("total_amount", "sum")
+
+        )
+
+        .reset_index()
+
+    )
+
+    customer_df.rename(
+
+        columns={
+
+            "customer_id": "Customer"
+
+        },
+
+        inplace=True
+
+    )
+
+    # ---------------- Customer Segmentation ---------------- #
+
+    def segment_customer(amount):
+
+        if amount >= 10000:
+
+            return "High Value"
+
+        elif amount >= 5000:
+
+            return "Loyal"
+
+        else:
+
+            return "Occasional"
+
+    customer_df["Segment"] = customer_df[
+        "Total_Spend"
+    ].apply(segment_customer)
+
+    df = customer_df.copy()
 
     # ---------------- Dashboard Cards ---------------- #
 
-    loyal = len(df[df["Segment"] == "Loyal"])
+    loyal = len(
 
-    high = len(df[df["Segment"] == "High Value"])
+        df[
+            df["Segment"] == "Loyal"
+        ]
 
-    occasional = len(df[df["Segment"] == "Occasional"])
+    )
+
+    high = len(
+
+        df[
+            df["Segment"] == "High Value"
+        ]
+
+    )
+
+    occasional = len(
+
+        df[
+            df["Segment"] == "Occasional"
+        ]
+
+    )
 
     c1, c2, c3 = st.columns(3)
 
     c1.metric(
-        "⭐ Loyal Customers",
+        " Loyal Customers",
         loyal
     )
 
     c2.metric(
-        "💎 High Value",
+        " High Value",
         high
     )
 
     c3.metric(
-        "🛍 Occasional",
+        " Occasional",
         occasional
     )
 
     st.markdown("---")
+        # ---------------- Search ---------------- #
 
     search = st.text_input(
-        "🔍 Search Customer"
+        " Search Customer"
     )
 
     if search:
 
         df = df[
-            df["Customer"].str.contains(
+            df["Customer"]
+            .astype(str)
+            .str.contains(
                 search,
-                case=False
+                case=False,
+                na=False
             )
         ]
 
-    st.subheader("📊 Customer Distribution")
-        # ---------------- Pie Chart ---------------- #
+   
 
+    # ---------------- Customer Distribution ---------------- #
+    st.subheader(" Customer Distribution")
     segment_count = (
-        df.groupby("Segment")
+
+        df
+
+        .groupby("Segment")
+
         .size()
+
         .reset_index(name="Customers")
+
     )
 
+
     pie = px.pie(
+
         segment_count,
+
         names="Segment",
+
         values="Customers",
+
+        hole=0.45,
         title="Customer Segmentation"
+
+    )
+
+    pie.update_traces(
+        textinfo="percent+label"
+    )
+
+    pie.update_layout(
+        height=500
     )
 
     st.plotly_chart(
         pie,
-        width="stretch"
+        use_container_width=True
     )
 
-    st.markdown("---")
-
-    # ---------------- Revenue Chart ---------------- #
-
-    revenue = (
-        df.groupby("Segment")["Total Spend"]
-        .sum()
-        .reset_index()
-    )
-
-    bar = px.bar(
-        revenue,
-        x="Segment",
-        y="Total Spend",
-        text="Total Spend",
-        title="Revenue by Customer Segment"
-    )
-
-    bar.update_traces(
-        texttemplate="₹%{text:,}",
-        textposition="outside"
-    )
-
-    st.plotly_chart(
-        bar,
-        width="stretch"
-    )
-
-    st.markdown("---")
+    
 
     # ---------------- Customer Table ---------------- #
 
-    st.subheader("📋 Customer Insights")
+    st.subheader(" Customer Insights")
+
+    display_df = df.rename(
+
+        columns={
+
+            "Total_Spend": "Total Spend"
+
+        }
+
+    )
 
     st.dataframe(
-        df,
-        width="stretch",
+
+        display_df,
+
+        use_container_width=True,
+
         hide_index=True
+
     )
 
     st.markdown("---")
+        # ---------------- Business Summary ---------------- #
 
-    # ---------------- Summary ---------------- #
-
-    st.subheader("📈 Business Summary")
+    st.subheader("Business Summary")
 
     total_customers = len(df)
 
-    total_orders = df["Orders"].sum()
+    total_orders = int(
+        df["Orders"].sum()
+    )
 
-    total_revenue = df["Total Spend"].sum()
+    total_revenue = float(
+        df["Total_Spend"].sum()
+    )
 
-    avg_spend = int(df["Total Spend"].mean())
+    avg_spend = 0
+
+    if total_customers > 0:
+
+        avg_spend = total_revenue / total_customers
 
     c1, c2 = st.columns(2)
 
     c3, c4 = st.columns(2)
 
     c1.metric(
-        "👥 Total Customers",
+        " Total Customers",
         total_customers
     )
 
     c2.metric(
-        "🛒 Total Orders",
+        " Total Orders",
         total_orders
     )
 
     c3.metric(
-        "💰 Revenue",
-        f"₹ {total_revenue:,}"
+        " Revenue",
+        f"₹ {total_revenue:,.2f}"
     )
 
     c4.metric(
-        "📊 Average Spend",
-        f"₹ {avg_spend:,}"
+        " Average Spend",
+        f"₹ {avg_spend:,.2f}"
+    )
+
+    st.markdown("---")
+
+    # ---------------- Top Customers ---------------- #
+
+    st.subheader(" Top 10 Customers")
+
+    top_customers = df.sort_values(
+        by="Total_Spend",
+        ascending=False
+    ).head(10)
+
+    st.dataframe(
+        top_customers.rename(
+            columns={
+                "Total_Spend": "Total Spend"
+            }
+        ),
+        use_container_width=True,
+        hide_index=True
     )
 
     st.markdown("---")
 
     # ---------------- Download ---------------- #
 
+    csv = df.rename(
+        columns={
+            "Total_Spend": "Total Spend"
+        }
+    ).to_csv(index=False).encode("utf-8")
+
     st.download_button(
+
         label="⬇ Download Customer Insights",
-        data=df.to_csv(index=False),
+
+        data=csv,
+
         file_name="customer_insights.csv",
+
         mime="text/csv",
-        width="stretch"
+
+        use_container_width=True
+
     )
+
+    
