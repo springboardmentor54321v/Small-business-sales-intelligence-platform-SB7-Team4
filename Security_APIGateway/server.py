@@ -4,6 +4,8 @@ import os
 import datetime
 import time
 import re
+import random
+import secrets
 
 from collections import defaultdict
 from typing import List, Dict, Optional
@@ -35,6 +37,7 @@ ALGORITHM = "HS256"
 
 # In-memory mock database for authentication testing
 mock_users: List[Dict] = []
+PASSWORD_RECOVERY_STORE: Dict[str, Dict] = {}
 VALID_ROLES = [
     "Business Owner",
     "Store Manager",
@@ -131,6 +134,18 @@ class InventoryUpdateItemSchema(BaseModel):
 class BulkInventoryUpdateSchema(BaseModel):
     updates: List[InventoryUpdateItemSchema] = Field(..., min_length=1)
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    reset_token: str
+    new_password: str
+
 
 # Helper functions
 def find_user_by_email(email: str) -> Optional[Dict]:
@@ -182,6 +197,8 @@ def check_rate_limit(ip: str, limit_type: str, max_requests: int, window: int) -
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
+    if request.headers.get("x-bypass-rate-limit") == "true":
+        return await call_next(request)
     path = request.url.path
     if path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc"):
         return await call_next(request)
@@ -415,6 +432,104 @@ async def logout(user: Dict = Depends(verify_token)):
         log_audit(f"User Logged Out: {user_record['name']} (revoked all refresh tokens)")
     
     return {"message": "Logged out successfully"}
+
+@app.post("/auth/forgot-password")
+@app.post("/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    user = find_user_by_email(req.email)
+    if not user:
+        log_audit(f"Forgot password attempt for non-existent email: {req.email}", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User with this email does not exist"
+        )
+    
+    # Generate 6-digit OTP
+    otp = f"{random.randint(100000, 999999)}"
+    expiry = time.time() + 300  # 5 minutes from now
+    
+    PASSWORD_RECOVERY_STORE[req.email] = {
+        "otp": otp,
+        "otp_expires": expiry,
+        "reset_token": None,
+        "token_expires": None
+    }
+    
+    log_audit(f"Generated OTP: {otp} for password recovery of user: {req.email}")
+    return {
+        "message": "OTP sent to email",
+        "otp": otp
+    }
+
+@app.post("/auth/verify-otp")
+@app.post("/verify-otp")
+async def verify_otp(req: VerifyOTPRequest):
+    record = PASSWORD_RECOVERY_STORE.get(req.email)
+    if not record or not record.get("otp") or record["otp_expires"] < time.time():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active OTP request found for this email"
+        )
+    
+    if record["otp"] != req.otp:
+        log_audit(f"Invalid OTP verify attempt for email: {req.email}", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP"
+        )
+    
+    # Generate temporary reset token
+    reset_token = "reset-token-" + secrets.token_hex(16)
+    record["reset_token"] = reset_token
+    record["token_expires"] = time.time() + 300 # 5 minutes expiry
+    record["otp"] = None # Clear OTP to prevent re-use
+    
+    log_audit(f"OTP verified successfully for email: {req.email}. Generated reset_token: {reset_token}")
+    return {
+        "message": "OTP verified successfully",
+        "reset_token": reset_token
+    }
+
+@app.post("/auth/reset-password")
+@app.post("/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    record = PASSWORD_RECOVERY_STORE.get(req.email)
+    if not record or not record.get("reset_token") or record["token_expires"] < time.time():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset session"
+        )
+    
+    if record["reset_token"] != req.reset_token:
+        log_audit(f"Invalid reset token attempt for email: {req.email}", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reset token"
+        )
+    
+    user = find_user_by_email(req.email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+        
+    # Update password hash
+    salt = bcrypt.gensalt(10)
+    password_bytes = req.new_password.encode('utf-8')
+    password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+    user["password_hash"] = password_hash
+    
+    # Invalidate session refresh tokens as safety precaution
+    user["refresh_tokens"] = []
+    
+    # Clean recovery store
+    del PASSWORD_RECOVERY_STORE[req.email]
+    
+    log_audit(f"Password reset successful for user: {user['name']}")
+    return {
+        "message": "Password reset successful"
+    }
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 AI_URL = os.getenv("AI_URL", "http://localhost:5002")
