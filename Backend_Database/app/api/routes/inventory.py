@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 
+from app.models import inventory
 from app.models.inventory import Inventory
 from app.models.product import Product
 
@@ -92,6 +93,10 @@ def get_inventory(
         .all()
     )
 
+    for item in inventory:
+        item.product_name = item.product.product_name
+        item.category = item.product.category
+
     return inventory
 
 
@@ -168,6 +173,7 @@ def get_inventory_item(
 
     inventory = (
         db.query(Inventory)
+        .join(Product)
         .filter(Inventory.product_id == product_id)
         .first()
     )
@@ -177,6 +183,9 @@ def get_inventory_item(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Inventory record not found."
         )
+
+    inventory.product_name = inventory.product.product_name
+    inventory.category = inventory.product.category
 
     return inventory
 
@@ -213,6 +222,10 @@ def add_inventory(
 
     db.add(new_inventory)
     db.commit()
+
+    new_inventory.product_name = new_inventory.product.product_name
+    new_inventory.category = new_inventory.product.category
+
     db.refresh(new_inventory)
 
     return new_inventory
@@ -252,6 +265,10 @@ def update_inventory(
     )
 
     db.commit()
+
+    inventory.product_name = inventory.product.product_name
+    inventory.category = inventory.product.category
+
     db.refresh(inventory)
 
     return inventory

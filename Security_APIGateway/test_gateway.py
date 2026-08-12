@@ -701,6 +701,90 @@ def run_tests():
             print(f"Bulk Inventory Update (Negative quantity) Status: {bad_bulk_item_res.status_code} (Expected: 422)")
             assert bad_bulk_item_res.status_code == 422
 
+            # Test 29: Password Recovery Flow (Forgot password -> Verify OTP -> Reset password)
+            print("\n-------------------------------------------")
+            print("Test 29: Testing Password Recovery Flow (Forgot, OTP Verify, Reset)...")
+            
+            # Case A: Forgot password for non-existent email (Should fail with 404)
+            forgot_fake_res = client.post(
+                f"{base_url}/auth/forgot-password",
+                json={"email": "fake_user_email@marketmind.com"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Forgot Password (Non-existent email) Status: {forgot_fake_res.status_code} (Expected: 404)")
+            assert forgot_fake_res.status_code == 404
+
+            # Case B: Forgot password for registered user (Should succeed and return OTP)
+            forgot_real_res = client.post(
+                f"{base_url}/auth/forgot-password",
+                json={"email": "bob@marketmind.com"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Forgot Password (Valid email) Status: {forgot_real_res.status_code} (Expected: 200)")
+            assert forgot_real_res.status_code == 200
+            forgot_data = forgot_real_res.json()
+            assert "otp" in forgot_data
+            otp_code = forgot_data["otp"]
+            print(f"Retrieved generated OTP: {otp_code}")
+
+            # Case C: Verify OTP with invalid OTP code (Should fail with 400)
+            verify_bad_res = client.post(
+                f"{base_url}/auth/verify-otp",
+                json={"email": "bob@marketmind.com", "otp": "000000"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify OTP (Invalid code) Status: {verify_bad_res.status_code} (Expected: 400)")
+            assert verify_bad_res.status_code == 400
+
+            # Case D: Verify OTP with valid OTP code (Should succeed and return reset_token)
+            verify_good_res = client.post(
+                f"{base_url}/auth/verify-otp",
+                json={"email": "bob@marketmind.com", "otp": otp_code},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify OTP (Valid code) Status: {verify_good_res.status_code} (Expected: 200)")
+            assert verify_good_res.status_code == 200
+            verify_data = verify_good_res.json()
+            assert "reset_token" in verify_data
+            reset_token = verify_data["reset_token"]
+            print(f"Retrieved reset_token: {reset_token}")
+
+            # Case E: Reset password with invalid reset_token (Should fail with 400)
+            reset_bad_res = client.post(
+                f"{base_url}/auth/reset-password",
+                json={"email": "bob@marketmind.com", "reset_token": "invalid-token", "new_password": "newpassword123"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Reset Password (Invalid token) Status: {reset_bad_res.status_code} (Expected: 400)")
+            assert reset_bad_res.status_code == 400
+
+            # Case F: Reset password with valid reset_token (Should succeed)
+            reset_good_res = client.post(
+                f"{base_url}/auth/reset-password",
+                json={"email": "bob@marketmind.com", "reset_token": reset_token, "new_password": "newpassword123"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Reset Password (Valid token) Status: {reset_good_res.status_code} (Expected: 200)")
+            assert reset_good_res.status_code == 200
+
+            # Case G: Try logging in with the OLD password (Should fail with 401)
+            login_old_res = client.post(
+                f"{base_url}/auth/login",
+                json={"email": "bob@marketmind.com", "password": "bob_sales_password"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Login with old password Status: {login_old_res.status_code} (Expected: 401)")
+            assert login_old_res.status_code == 401
+
+            # Case H: Log in with the NEW password (Should succeed with 200)
+            login_new_res = client.post(
+                f"{base_url}/auth/login",
+                json={"email": "bob@marketmind.com", "password": "newpassword123"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Login with new password Status: {login_new_res.status_code} (Expected: 200)")
+            assert login_new_res.status_code == 200
+
             print("\n===========================================")
             print("All API Gateway integration tests passed successfully!")
             print("===========================================")

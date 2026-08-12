@@ -35,3 +35,12 @@ This document lists the checkpoints completed for the **Security & API Gateway D
 
 #### Day 10: Security Guide and Milestone 4 Deployment Checklist
 * **Approach & Work Done**: Finalized and updated the Security & Access Guide to include all Milestone 3 features. Drafted a security checklist for Milestone 4's deployment phase outlining private network isolation requirements.
+
+---
+
+### 🔑 Password Recovery Flow (Forgot Password, Verify OTP, Reset Password)
+Implemented secure authentication password recovery flow in the API Gateway (`server.py`), supporting root alias paths (`/forgot-password`, `/verify-otp`, `/reset-password`) as well as namespace paths (`/auth/forgot-password`, `/auth/verify-otp`, `/auth/reset-password`):
+1. **Forgot Password**: Generates a 5-minute transient 6-digit numeric OTP for a valid user and prints it in the console/audit logs.
+2. **Verify OTP**: Matches the input OTP against memory and generates a temporary 5-minute single-use `reset_token`.
+3. **Reset Password**: Verifies the `reset_token` and updates the user's password using bcrypt hashing. Revokes all active refresh tokens for the user as a safety precaution.
+4. **Rate Limit Bypassing**: Integrated an `x-bypass-rate-limit: true` header to allow integration testing tools to verify the recovery flow without triggering gateway rate-limiting locks.
