@@ -219,3 +219,7 @@ __marimo__/
 
 # CatBoost training logs
 catboost_info/
+
+# Local PDF Documentation & SRS
+AIML/*.pdf
+MarketMind_AI_SRS_Milestone4.pdf
