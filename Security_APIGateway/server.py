@@ -1194,6 +1194,134 @@ async def proxy_ai_anomaly_raw(request: Request):
                 content={"detail": f"Failed to connect to AI/ML anomaly detection service: {str(e)}"}
             )
 
+@app.post("/customer-group")
+async def proxy_ai_customer_group_raw(request: Request):
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
+            response = await client.post(
+                f"{AI_URL}/customer-group",
+                content=body,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML customer segmentation service: {str(e)}"}
+            )
+
+@app.post("/customer-group/batch")
+async def proxy_ai_customer_group_batch(request: Request):
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
+            response = await client.post(
+                f"{AI_URL}/customer-group/batch",
+                content=body,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML customer segmentation service: {str(e)}"}
+            )
+
+@app.post("/churn-risk")
+async def proxy_ai_churn_risk_raw(request: Request):
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
+            response = await client.post(
+                f"{AI_URL}/churn-risk",
+                content=body,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML churn risk service: {str(e)}"}
+            )
+
+@app.post("/churn-risk/batch")
+async def proxy_ai_churn_risk_batch(request: Request):
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
+            response = await client.post(
+                f"{AI_URL}/churn-risk/batch",
+                content=body,
+                headers=headers,
+                timeout=30.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML churn risk service: {str(e)}"}
+            )
+
+@app.post("/forecast-backtest")
+async def proxy_ai_forecast_backtest_raw(request: Request):
+    async with httpx.AsyncClient() as client:
+        try:
+            form = await request.form()
+            files_to_send = {}
+            for key, val in form.items():
+                if isinstance(val, UploadFile):
+                    content = await val.read()
+                    files_to_send[key] = (val.filename, content, val.content_type)
+            
+            response = await client.post(
+                f"{AI_URL}/forecast-backtest",
+                files=files_to_send,
+                timeout=60.0
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError as e:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": f"Failed to connect to AI/ML forecast backtest service: {str(e)}"}
+            )
+
+
 @app.get("/api/notifications")
 async def proxy_notifications_view(user: Dict = Depends(check_role(["Business Owner", "Store Manager"]))):
     log_audit(f"User {user['name']} requested notifications alert list")

@@ -40,11 +40,11 @@ To verify model stability and prevent overfitting, 5-Fold Stratified Cross-Valid
 
 | Metric | Commercial Threshold | Actual Test Result | Status |
 | :--- | :---: | :---: | :---: |
-| **Accuracy** | $\ge$ 90.00% | **97.48%** | **PASS** |
-| **Precision** | $\ge$ 75.00% | **94.83%** | **PASS** |
-| **Recall** | $\ge$ 70.00% | **98.21%** | **PASS** |
-| **F1 Score** | $\ge$ 0.7500 | **0.9649** | **PASS** |
-| **False Positive Rate (FPR)** | $\le$ 5.00% | **2.91%** | **PASS** |
+| **Accuracy** | >= 90.00% | **97.48%** | **PASS** |
+| **Precision** | >= 75.00% | **94.83%** | **PASS** |
+| **Recall** | >= 70.00% | **98.21%** | **PASS** |
+| **F1 Score** | >= 0.7500 | **0.9649** | **PASS** |
+| **False Positive Rate (FPR)** | <= 5.00% | **2.91%** | **PASS** |
 
 ### Confusion Matrix (Out-of-Sample Test Set)
 
@@ -88,8 +88,8 @@ Evaluated using the **80% Rule (Disparate Impact Ratio between 0.80 and 1.25)** 
 ## Model Monitoring & Drift Detection Framework
 
 The pipeline includes an active `ModelDriftMonitor` class:
-- **Covariate Shift Detection**: Population Stability Index (PSI) calculation ($\text{PSI} < 0.10 \rightarrow \text{STABLE}$, $0.10 \le \text{PSI} < 0.25 \rightarrow \text{WARNING}$, $\text{PSI} \ge 0.25 \rightarrow \text{CRITICAL DRIFT}$).
-- **Statistical Distribution Testing**: 2-sample Kolmogorov-Smirnov (KS) test ($p\text{-value} < 0.05 \rightarrow \text{Distribution Shift Alert}$).
+- **Covariate Shift Detection**: Population Stability Index (PSI) calculation (PSI < 0.10 -> STABLE, 0.10 <= PSI < 0.25 -> WARNING, PSI >= 0.25 -> CRITICAL DRIFT).
+- **Statistical Distribution Testing**: 2-sample Kolmogorov-Smirnov (KS) test (p-value < 0.05 -> Distribution Shift Alert).
 
 ---
 
