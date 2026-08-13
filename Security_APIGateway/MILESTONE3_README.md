@@ -40,7 +40,14 @@ This document lists the checkpoints completed for the **Security & API Gateway D
 
 ### 🔑 Password Recovery Flow (Forgot Password, Verify OTP, Reset Password)
 Implemented secure authentication password recovery flow in the API Gateway (`server.py`), supporting root alias paths (`/forgot-password`, `/verify-otp`, `/reset-password`) as well as namespace paths (`/auth/forgot-password`, `/auth/verify-otp`, `/auth/reset-password`):
-1. **Forgot Password**: Generates a 5-minute transient 6-digit numeric OTP for a valid user and prints it in the console/audit logs.
+1. **Forgot Password**: Generates a 5-minute transient 6-digit numeric OTP for a valid user. If SMTP credentials are configured, it dispatches the OTP to the recipient's inbox via a secure STARTTLS connection. Otherwise, it defaults to print simulation in console/audit logs.
 2. **Verify OTP**: Matches the input OTP against memory and generates a temporary 5-minute single-use `reset_token`.
 3. **Reset Password**: Verifies the `reset_token` and updates the user's password using bcrypt hashing. Revokes all active refresh tokens for the user as a safety precaution.
 4. **Rate Limit Bypassing**: Integrated an `x-bypass-rate-limit: true` header to allow integration testing tools to verify the recovery flow without triggering gateway rate-limiting locks.
+
+#### 📧 Real-time SMTP Configuration Environment Variables
+To enable actual email delivery for recovery OTP codes, set the following environment variables prior to running the API Gateway:
+* `SMTP_HOST`: Your SMTP server address (e.g. `smtp.gmail.com`).
+* `SMTP_PORT`: SMTP port (typically `587` for secure connections).
+* `SMTP_USER`: The sender's login email address (e.g. `sender@gmail.com`).
+* `SMTP_PASSWORD`: The sender's SMTP password or app-specific password.

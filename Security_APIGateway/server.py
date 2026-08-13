@@ -6,6 +6,9 @@ import time
 import re
 import random
 import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from collections import defaultdict
 from typing import List, Dict, Optional
@@ -159,6 +162,39 @@ def find_user_by_name(name: str) -> Optional[Dict]:
         if u["name"] == name:
             return u
     return None
+
+def send_otp_email(to_email: str, otp: str) -> bool:
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = os.getenv("SMTP_PORT")
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASSWORD")
+
+    if not all([smtp_host, smtp_port, smtp_user, smtp_pass]):
+        log_audit(f"SMTP environment credentials incomplete. OTP email simulation active. Email: {to_email}, OTP: {otp}", is_alert=True)
+        return False
+
+    try:
+        port = int(smtp_port)
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = to_email
+        msg['Subject'] = "MarketMind AI - Password Recovery OTP"
+
+        body = f"Hello,\n\nYou requested a password reset for your MarketMind AI account.\nYour One-Time Password (OTP) is:\n\n👉  {otp}  👈\n\nThis OTP is valid for 5 minutes. If you did not request this, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Standard SMTP connection with STARTTLS
+        server = smtplib.SMTP(smtp_host, port, timeout=10)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(smtp_user, to_email, msg.as_string())
+        server.quit()
+        
+        log_audit(f"Successfully sent OTP email to {to_email}")
+        return True
+    except Exception as e:
+        log_audit(f"Failed to send OTP email to {to_email}: {str(e)}", is_alert=True)
+        return False
 
 AUDIT_LOG_FILE = os.getenv("AUDIT_LOG_FILE", os.path.join(os.path.dirname(__file__), "audit.log"))
 
@@ -454,6 +490,9 @@ async def forgot_password(req: ForgotPasswordRequest):
         "reset_token": None,
         "token_expires": None
     }
+    
+    # Send real-time OTP email
+    send_otp_email(req.email, otp)
     
     log_audit(f"Generated OTP: {otp} for password recovery of user: {req.email}")
     return {
