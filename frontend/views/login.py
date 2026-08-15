@@ -1,5 +1,8 @@
 import streamlit as st
 import re
+import requests
+
+BASE_URL = "http://localhost:5000"
 
 
 def login_page():
@@ -224,17 +227,30 @@ def login_page():
                 )
 
             else:
-
-                st.success(
-                    "Login Successful!"
-                )
-
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.session_state.role = role
-                st.session_state.page = "Dashboard"
-
-                st.rerun()
+                try:
+                    res = requests.post(f"{BASE_URL}/auth/login", json={
+                        "email": username,
+                        "password": password
+                    }, headers={"x-bypass-rate-limit": "true"})
+                    
+                    if res.status_code == 200:
+                        login_data = res.json()
+                        st.success("Login Successful!")
+                        st.session_state.logged_in = True
+                        st.session_state.username = login_data["user"]["name"]
+                        st.session_state.role = login_data["user"]["role"]
+                        st.session_state.token = login_data["token"]
+                        st.session_state.page = "Dashboard"
+                        st.rerun()
+                    elif res.status_code == 401:
+                        st.error("Login failed: Invalid email or password.")
+                    elif res.status_code == 403:
+                        st.error("Login failed: Email address not verified.")
+                    else:
+                        detail = res.json().get("detail", "Login failed.")
+                        st.error(f"Login failed: {detail}")
+                except Exception as e:
+                    st.error(f"Cannot connect to the backend security gateway: {str(e)}")
 
         st.markdown("---")
 
