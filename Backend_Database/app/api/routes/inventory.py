@@ -50,10 +50,13 @@ def get_inventory(
     db: Session = Depends(get_db),
 
 ):
-
+    
     query = (
         db.query(Inventory)
-        .join(Product)
+        .join(
+            Product,
+            Inventory.product_id == Product.product_id
+        )
     )
 
     # ==========================
@@ -61,30 +64,23 @@ def get_inventory(
     # ==========================
 
     if category:
-
         query = query.filter(
-            Product.category.ilike(f"%{category}%")
-        )
+        Product.category.ilike(f"%{category}%")
+    )
 
     # ==========================
     # Search
     # ==========================
 
     if search:
-
         query = query.filter(
-
             or_(
-
-                Product.product_id.ilike(f"%{search}%"),
-
+                Inventory.product_id.ilike(f"%{search}%"),
                 Product.product_name.ilike(f"%{search}%"),
-
             )
-
         )
 
-        query = query.order_by(Inventory.id)
+    query = query.order_by(Inventory.id)
 
     inventory = (
         query
