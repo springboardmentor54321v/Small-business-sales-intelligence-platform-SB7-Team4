@@ -59,7 +59,8 @@ def run_security_audit():
         [sys.executable, "-m", "uvicorn", "server:app", "--port", "5000"],
         cwd=os.path.dirname(os.path.abspath(__file__)),
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        stderr=subprocess.DEVNULL,
+        env={**os.environ, "TESTING": "true"}
     )
 
     # Wait for server to bind

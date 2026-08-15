@@ -43,8 +43,10 @@ preseed_salt = bcrypt.gensalt(10)
 preseed_hash = bcrypt.hashpw(b"Password123", preseed_salt).decode('utf-8')
 
 # In-memory mock database for authentication testing
-mock_users: List[Dict] = [
-    {
+mock_users: List[Dict] = []
+
+if os.getenv("TESTING") != "true":
+    mock_users.append({
         "id": 1,
         "name": "Rithika Reddy",
         "email": "rithikareddy968@gmail.com",
@@ -55,8 +57,7 @@ mock_users: List[Dict] = [
         "is_verified": True,
         "verification_token": None,
         "verification_token_expires": None
-    }
-]
+    })
 PASSWORD_RECOVERY_STORE: Dict[str, Dict] = {}
 VALID_ROLES = [
     "Business Owner",
