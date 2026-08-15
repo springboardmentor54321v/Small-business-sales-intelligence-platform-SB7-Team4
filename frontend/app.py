@@ -1,5 +1,5 @@
 import streamlit as st
-
+from views.customer_management import customer_management_page
 from views.home import home_page
 from views.login import login_page
 from views.dashboard import dashboard_page
@@ -15,11 +15,7 @@ from views.business_overview import business_overview_page
 from views.forecast_vs_actual import forecast_vs_actual_page
 from views.churn_risk import churn_risk_page
 
-try:
-    from styles.theme import apply_theme
-except ModuleNotFoundError:
-    def apply_theme():
-        pass
+from styles.theme import apply_theme
 
 
 # ================= Page Configuration ================= #
@@ -81,7 +77,9 @@ else:
     elif st.session_state.page == "Customer Insights":
 
         customers_page()
+    elif st.session_state.page == "Customer Management":
 
+        customer_management_page()
     elif st.session_state.page == "Churn Risk":
 
         churn_risk_page()

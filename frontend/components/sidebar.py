@@ -102,6 +102,7 @@ def show_sidebar():
         ]
 
     else:
+        # ADMIN
 
         menu = [
             "Dashboard",
@@ -110,6 +111,7 @@ def show_sidebar():
             "Notifications",
             "Inventory",
             "Customer Insights",
+            "Customer Management",   # ⭐ NEW
             "Churn Risk",
             "Invoice",
             "Sales Upload",
@@ -117,10 +119,14 @@ def show_sidebar():
             "Settings"
         ]
 
+    # ---------------- Default Page ---------------- #
+
     if "page" not in st.session_state:
         st.session_state.page = menu[0]
 
     st.sidebar.markdown("### Navigation")
+
+    # ---------------- Navigation Buttons ---------------- #
 
     for page in menu:
 
@@ -144,7 +150,11 @@ def show_sidebar():
 
     st.sidebar.divider()
 
-    st.sidebar.info(f"Logged in as {role}")
+    # ---------------- Logout ---------------- #
+
+    st.sidebar.info(
+        f"Logged in as {role}"
+    )
 
     if st.sidebar.button(
         "Logout",
