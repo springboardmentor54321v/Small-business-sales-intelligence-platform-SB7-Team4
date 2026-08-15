@@ -626,10 +626,12 @@ async def forgot_password(req: ForgotPasswordRequest):
     send_otp_email(req.email, otp)
     
     log_audit(f"Generated OTP: {otp} for password recovery of user: {req.email}")
-    return {
-        "message": "OTP sent to email",
-        "otp": otp
+    res_data = {
+        "message": "OTP sent to email"
     }
+    if os.getenv("TESTING") == "true":
+        res_data["otp"] = otp
+    return res_data
 
 @app.post("/auth/verify-otp")
 @app.post("/verify-otp")
