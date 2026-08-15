@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.sales import router as sales_router
+from app.api.routes.customer import router as customer_router
 from app.api.routes.inventory import router as inventory_router
 from app.api.routes.sales_transaction import (
     router as sales_transaction_router
@@ -16,7 +17,6 @@ from app.api.routes.revenue import (
 )
 
 from app.api.routes.notification import router as notification_router
-from app.api.routes.customer import router as customer_router
 
 app = FastAPI(
     title="MarketMind AI Backend"
@@ -39,10 +39,10 @@ app.add_middleware(
 # =====================================
 
 app.include_router(sales_router)
+app.include_router(customer_router)
 app.include_router(inventory_router)
 app.include_router(sales_transaction_router)
 app.include_router(invoice_router)
 app.include_router(payment_router)
 app.include_router(revenue_router)
 app.include_router(notification_router)
-app.include_router(customer_router)
