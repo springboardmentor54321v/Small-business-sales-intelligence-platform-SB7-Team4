@@ -1,8 +1,7 @@
 import streamlit as st
 import re
 import requests
-
-BASE_URL = "http://localhost:5000"
+from config.config import BASE_URL
 
 
 def login_page():
