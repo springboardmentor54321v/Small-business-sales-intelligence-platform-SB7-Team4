@@ -38,8 +38,25 @@ app.add_middleware(
 JWT_SECRET = os.getenv("JWT_SECRET", "marketmind-secret-key-12345")
 ALGORITHM = "HS256"
 
+# Hash a default password for pre-seeded users
+preseed_salt = bcrypt.gensalt(10)
+preseed_hash = bcrypt.hashpw(b"Password123", preseed_salt).decode('utf-8')
+
 # In-memory mock database for authentication testing
-mock_users: List[Dict] = []
+mock_users: List[Dict] = [
+    {
+        "id": 1,
+        "name": "Rithika Reddy",
+        "email": "rithikareddy968@gmail.com",
+        "password_hash": preseed_hash,
+        "role": "System Administrator",
+        "refresh_tokens": [],
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "is_verified": True,
+        "verification_token": None,
+        "verification_token_expires": None
+    }
+]
 PASSWORD_RECOVERY_STORE: Dict[str, Dict] = {}
 VALID_ROLES = [
     "Business Owner",
