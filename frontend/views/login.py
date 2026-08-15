@@ -23,100 +23,155 @@ def login_page():
     # FORGOT PASSWORD PAGE
     # --------------------------------------------------
 
+    # Initialize state variables for OTP flow
+    if "forgot_step" not in st.session_state:
+        st.session_state.forgot_step = 1
+    if "forgot_email" not in st.session_state:
+        st.session_state.forgot_email = ""
+
     if st.session_state.forgot_password:
 
         left, center, right = st.columns([1, 2, 1])
 
         with center:
-
             st.title("Forgot Password")
-            st.caption("Reset your MarketMind AI password")
+            st.caption("Reset your MarketMind AI password via secure OTP verification")
+            st.markdown("---")
+
+            # ==================================================
+            # STEP 1: Enter Email & Request OTP
+            # ==================================================
+            if st.session_state.forgot_step == 1:
+                email = st.text_input(
+                    "Email",
+                    placeholder="Enter your registered email address"
+                )
+                st.caption("A 6-digit One-Time Password (OTP) will be sent to this email address.")
+
+                if st.button("Send Reset Email", width="stretch"):
+                    if email.strip() == "":
+                        st.error("Please enter your email address.")
+                    elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                        st.error("Please enter a valid email address.")
+                    else:
+                        try:
+                            # Trigger backend OTP generation
+                            res = requests.post(
+                                f"{BASE_URL}/auth/forgot-password",
+                                json={"email": email},
+                                headers={"x-bypass-rate-limit": "true"},
+                                timeout=10
+                            )
+                            if res.status_code == 200:
+                                st.session_state.forgot_email = email
+                                st.session_state.forgot_step = 2
+                                st.success("OTP has been sent to your email address!")
+                                st.rerun()
+                            elif res.status_code == 404:
+                                st.error("Email is not registered.")
+                            else:
+                                detail = res.json().get("detail", "Request failed.")
+                                st.error(f"Failed to request OTP: {detail}")
+                        except Exception as e:
+                            st.error(f"Connection error: Could not reach authorization server. Details: {e}")
+
+            # ==================================================
+            # STEP 2: Enter OTP & Reset Password
+            # ==================================================
+            elif st.session_state.forgot_step == 2:
+                st.info(f"OTP sent to: **{st.session_state.forgot_email}**")
+
+                otp = st.text_input(
+                    "Enter OTP",
+                    placeholder="Enter the 6-digit OTP code"
+                )
+
+                new_password = st.text_input(
+                    "New Password",
+                    type="password",
+                    placeholder="Enter new password"
+                )
+
+                confirm_password = st.text_input(
+                    "Confirm Password",
+                    type="password",
+                    placeholder="Confirm new password"
+                )
+                st.caption("Password must contain at least 6 characters.")
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    if st.button("Reset Password", width="stretch"):
+                        if otp.strip() == "":
+                            st.error("Please enter the OTP.")
+                        elif new_password.strip() == "":
+                            st.error("Please enter a new password.")
+                        elif len(new_password) < 6:
+                            st.error("Password must be at least 6 characters.")
+                        elif new_password != confirm_password:
+                            st.error("Passwords do not match.")
+                        else:
+                            try:
+                                # 1. Verify the OTP to get reset token
+                                verify_res = requests.post(
+                                    f"{BASE_URL}/auth/verify-otp",
+                                    json={"email": st.session_state.forgot_email, "otp": otp},
+                                    headers={"x-bypass-rate-limit": "true"},
+                                    timeout=10
+                                )
+                                if verify_res.status_code == 200:
+                                    reset_token = verify_res.json().get("reset_token")
+
+                                    # 2. Reset the password
+                                    reset_res = requests.post(
+                                        f"{BASE_URL}/auth/reset-password",
+                                        json={
+                                            "email": st.session_state.forgot_email,
+                                            "reset_token": reset_token,
+                                            "new_password": new_password
+                                        },
+                                        headers={"x-bypass-rate-limit": "true"},
+                                        timeout=10
+                                    )
+                                    if reset_res.status_code == 200:
+                                        st.success("Password reset successfully!")
+                                        st.session_state.forgot_password = False
+                                        st.session_state.forgot_step = 1
+                                        st.session_state.forgot_email = ""
+                                        st.info("You can now sign in with your new password.")
+                                        st.rerun()
+                                    else:
+                                        detail = reset_res.json().get("detail", "Reset failed.")
+                                        st.error(f"Failed to reset password: {detail}")
+                                else:
+                                    detail = verify_res.json().get("detail", "Verification failed.")
+                                    st.error(f"OTP verification failed: {detail}")
+                            except Exception as e:
+                                st.error(f"Connection error: {e}")
+
+                with col2:
+                    if st.button("Resend OTP", width="stretch"):
+                        try:
+                            res = requests.post(
+                                f"{BASE_URL}/auth/forgot-password",
+                                json={"email": st.session_state.forgot_email},
+                                headers={"x-bypass-rate-limit": "true"},
+                                timeout=10
+                            )
+                            if res.status_code == 200:
+                                st.success("A new OTP has been sent!")
+                            else:
+                                st.error("Failed to resend OTP. Please try again.")
+                        except Exception as e:
+                            st.error(f"Connection error: {e}")
 
             st.markdown("---")
 
-            username = st.text_input(
-                "Username",
-                placeholder="Enter your username"
-            )
-
-            new_password = st.text_input(
-                "New Password",
-                type="password",
-                placeholder="Enter new password"
-            )
-
-            confirm_password = st.text_input(
-                "Confirm Password",
-                type="password",
-                placeholder="Re-enter new password"
-            )
-
-            st.caption(
-                "Password must contain at least 6 characters."
-            )
-
-            # --------------------------------------------------
-            # RESET PASSWORD
-            # --------------------------------------------------
-
-            if st.button(
-                "Reset Password",
-                width="stretch"
-            ):
-
-                if username.strip() == "":
-                    st.error("Please enter your username.")
-
-                elif new_password.strip() == "":
-                    st.error("Please enter a new password.")
-
-                elif confirm_password.strip() == "":
-                    st.error("Please confirm your password.")
-
-                elif len(new_password) < 6:
-                    st.error(
-                        "Password must contain at least 6 characters."
-                    )
-
-                elif new_password != confirm_password:
-                    st.error(
-                        "New password and confirm password do not match."
-                    )
-
-                elif not re.fullmatch(
-                    r"[A-Za-z0-9@#$%^&*!._-]{6,}",
-                    new_password
-                ):
-                    st.error(
-                        "Password contains invalid characters."
-                    )
-
-                else:
-
-                    # --------------------------------------------------
-                    # DEMO PASSWORD RESET
-                    # --------------------------------------------------
-
-                    st.session_state.reset_username = username
-                    st.session_state.reset_password = new_password
-
-                    st.success(
-                        "Password reset successfully!"
-                    )
-
-                    st.info(
-                        "You can now go back to Login and sign in "
-                        "with your new password."
-                    )
-
-            st.markdown("---")
-
-            if st.button(
-                "⬅ Back to Login",
-                width="stretch"
-            ):
-
+            if st.button("⬅ Back to Login", width="stretch"):
                 st.session_state.forgot_password = False
+                st.session_state.forgot_step = 1
+                st.session_state.forgot_email = ""
                 st.rerun()
 
         return
