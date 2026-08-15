@@ -5,8 +5,7 @@ import requests
 from components.sidebar import show_sidebar
 
 # ---------------- API Configuration ---------------- #
-
-BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+from config.config import BASE_URL
 
 NOTIFICATION_API = f"{BASE_URL}/notifications"
 

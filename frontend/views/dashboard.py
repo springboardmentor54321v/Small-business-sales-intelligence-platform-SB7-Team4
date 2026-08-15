@@ -10,8 +10,7 @@ from components.charts import (
 )
 
 # ---------------- API Configuration ---------------- #
-
-BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+from config.config import BASE_URL
 
 SALES_API = f"{BASE_URL}/sales?page=1&page_size=100"
 INVENTORY_API = f"{BASE_URL}/inventory/"

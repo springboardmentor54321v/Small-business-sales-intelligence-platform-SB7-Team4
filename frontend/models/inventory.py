@@ -1,7 +1,6 @@
 import requests
 import pandas as pd
-
-BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+from config.config import BASE_URL
 
 
 def get_inventory():
