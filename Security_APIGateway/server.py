@@ -1,6 +1,8 @@
 # pyrefly: ignore-file
 # type: ignore
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import datetime
 import time
 import re
