@@ -51,3 +51,14 @@ To enable actual email delivery for recovery OTP codes, set the following enviro
 * `SMTP_PORT`: SMTP port (typically `587` for secure connections).
 * `SMTP_USER`: The sender's login email address (e.g. `sender@gmail.com`).
 * `SMTP_PASSWORD`: The sender's SMTP password or app-specific password.
+
+### 📧 Email Verification Flow (Verify Email, Resend Verification)
+Implemented a robust email verification mechanism to secure user activation:
+1. **Unverified Account Lock**: All newly registered users are flagged as `is_verified: False` by default. Attempts to log in with an unverified account are rejected with `HTTP 403 Forbidden`.
+2. **Verification Token Generation**: Upon signup, a secure hex token is generated via `secrets.token_hex(16)` with a 24-hour expiration window.
+3. **Email Dispatched**: A verification link formatted as `{FRONTEND_URL}?token={token}` is dispatched automatically.
+4. **Endpoint `POST /auth/verify-email`**: Extracts and validates the token, activating the user account and clearing the token keys.
+5. **Endpoint `POST /auth/resend-verification`**: Re-generates a verification token and dispatches a fresh link if the user exists and is not yet verified.
+
+#### 🌐 Frontend Configuration Variable
+* `FRONTEND_URL`: Set this environment variable in the API Gateway to define your frontend verification page redirect link (e.g. `https://marketmind.app/verify`). Defaults to `http://localhost:3000/verify`.

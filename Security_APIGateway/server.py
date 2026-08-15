@@ -149,6 +149,12 @@ class ResetPasswordRequest(BaseModel):
     reset_token: str
     new_password: str
 
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
 
 # Helper functions
 def find_user_by_email(email: str) -> Optional[Dict]:
@@ -194,6 +200,41 @@ def send_otp_email(to_email: str, otp: str) -> bool:
         return True
     except Exception as e:
         log_audit(f"Failed to send OTP email to {to_email}: {str(e)}", is_alert=True)
+        return False
+
+def send_verification_email(to_email: str, token: str) -> bool:
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = os.getenv("SMTP_PORT")
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASSWORD")
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000/verify")
+    verification_link = f"{frontend_url}?token={token}"
+
+    if not all([smtp_host, smtp_port, smtp_user, smtp_pass]):
+        log_audit(f"SMTP environment credentials incomplete. Verification email simulation active. Email: {to_email}, Link: {verification_link}", is_alert=True)
+        return False
+
+    try:
+        port = int(smtp_port)
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = to_email
+        msg['Subject'] = "MarketMind AI - Email Verification"
+
+        body = f"Hello,\n\nWelcome to MarketMind AI! Please verify your email address by clicking the link below:\n\n🔗  {verification_link}\n\nThis verification link is valid for 24 hours. If you did not sign up for this account, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Standard SMTP connection with STARTTLS
+        server = smtplib.SMTP(smtp_host, port, timeout=10)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(smtp_user, to_email, msg.as_string())
+        server.quit()
+        
+        log_audit(f"Successfully sent verification email to {to_email}")
+        return True
+    except Exception as e:
+        log_audit(f"Failed to send verification email to {to_email}: {str(e)}", is_alert=True)
         return False
 
 AUDIT_LOG_FILE = os.getenv("AUDIT_LOG_FILE", os.path.join(os.path.dirname(__file__), "audit.log"))
@@ -336,6 +377,9 @@ async def register(req: RegisterRequest):
     password_bytes = req.password.encode('utf-8')
     password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
+    token = secrets.token_hex(16)
+    expiry = time.time() + 86400
+
     new_user = {
         "id": len(mock_users) + 1,
         "name": req.name,
@@ -343,10 +387,16 @@ async def register(req: RegisterRequest):
         "password_hash": password_hash,
         "role": req.role,
         "refresh_tokens": [],  # Active refresh tokens list
-        "created_at": datetime.datetime.now(datetime.UTC).isoformat()
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "is_verified": False,
+        "verification_token": token,
+        "verification_token_expires": expiry
     }
     mock_users.append(new_user)
-    log_audit(f"User Registered: {req.name} as {req.role}")
+    log_audit(f"User Registered: {req.name} as {req.role}. Verification token generated.")
+
+    # Send verification email
+    send_verification_email(req.email, token)
 
     return {
         "message": "Registration successful",
@@ -355,8 +405,10 @@ async def register(req: RegisterRequest):
             "name": new_user["name"],
             "email": new_user["email"],
             "role": new_user["role"],
-            "created_at": new_user["created_at"]
-        }
+            "created_at": new_user["created_at"],
+            "is_verified": new_user["is_verified"]
+        },
+        "verification_token": token
     }
 
 @app.post("/auth/login")
@@ -377,6 +429,14 @@ async def login(req: LoginRequest):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
+        )
+
+    # Verify email is verified
+    if not user.get("is_verified", False):
+        log_audit(f"Failed login attempt for unverified email: {req.email}", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email address not verified. Please verify your email before logging in."
         )
 
     # Generate short-lived Access Token (15 minutes)
@@ -468,6 +528,59 @@ async def logout(user: Dict = Depends(verify_token)):
         log_audit(f"User Logged Out: {user_record['name']} (revoked all refresh tokens)")
     
     return {"message": "Logged out successfully"}
+
+@app.post("/auth/verify-email")
+@app.post("/verify-email")
+async def verify_email(req: VerifyEmailRequest):
+    user = next((u for u in mock_users if u.get("verification_token") == req.token), None)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or already-used verification token."
+        )
+    
+    if user.get("verification_token_expires", 0) < time.time():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification token has expired."
+        )
+
+    user["is_verified"] = True
+    user["verification_token"] = None
+    user["verification_token_expires"] = None
+
+    log_audit(f"User email verified successfully: {user['email']}")
+    return {"message": "Email verified successfully."}
+
+@app.post("/auth/resend-verification")
+@app.post("/resend-verification")
+async def resend_verification(req: ResendVerificationRequest):
+    user = find_user_by_email(req.email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Email not registered."
+        )
+
+    if user.get("is_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email address is already verified."
+        )
+
+    new_token = secrets.token_hex(16)
+    expiry = time.time() + 86400
+
+    user["verification_token"] = new_token
+    user["verification_token_expires"] = expiry
+
+    log_audit(f"Resent verification email for: {req.email}")
+    send_verification_email(req.email, new_token)
+
+    return {
+        "message": "Verification email resent.",
+        "verification_token": new_token
+    }
 
 @app.post("/auth/forgot-password")
 @app.post("/forgot-password")

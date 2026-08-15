@@ -91,23 +91,34 @@ def run_security_audit():
         # Register Owner
         reg_owner = client.post(f"{base_url}/auth/register", json={
             "name": "audit_owner", "email": "owner@audit.com", "password": "password123", "role": "Business Owner"
-        })
-        owner_login = client.post(f"{base_url}/auth/login", json={"email": "owner@audit.com", "password": "password123"}).json()
+        }, headers={"x-bypass-rate-limit": "true"})
+        print("Owner Register Status:", reg_owner.status_code, reg_owner.text)
+        owner_tok_val = reg_owner.json().get("verification_token")
+        ver_owner_res = client.post(f"{base_url}/auth/verify-email", json={"token": owner_tok_val}, headers={"x-bypass-rate-limit": "true"})
+        print("Owner Verify Status:", ver_owner_res.status_code, ver_owner_res.text)
+        
+        owner_login = client.post(f"{base_url}/auth/login", json={"email": "owner@audit.com", "password": "password123"}, headers={"x-bypass-rate-limit": "true"}).json()
         owner_token = owner_login["token"]
 
         # Register Sales Executive
         reg_sales = client.post(f"{base_url}/auth/register", json={
             "name": "audit_sales", "email": "sales@audit.com", "password": "password123", "role": "Sales Executive"
-        })
-        sales_login = client.post(f"{base_url}/auth/login", json={"email": "sales@audit.com", "password": "password123"}).json()
+        }, headers={"x-bypass-rate-limit": "true"})
+        sales_tok_val = reg_sales.json().get("verification_token")
+        client.post(f"{base_url}/auth/verify-email", json={"token": sales_tok_val}, headers={"x-bypass-rate-limit": "true"})
+        
+        sales_login = client.post(f"{base_url}/auth/login", json={"email": "sales@audit.com", "password": "password123"}, headers={"x-bypass-rate-limit": "true"}).json()
         sales_token = sales_login["token"]
 
         # Register Admin
         reg_admin = client.post(f"{base_url}/auth/register", json={
             "name": "audit_admin", "email": "admin@audit.com", "password": "password123", "role": "System Administrator"
-        })
+        }, headers={"x-bypass-rate-limit": "true"})
+        admin_tok_val = reg_admin.json().get("verification_token")
+        client.post(f"{base_url}/auth/verify-email", json={"token": admin_tok_val}, headers={"x-bypass-rate-limit": "true"})
+        
         print("Admin Register Status:", reg_admin.status_code, reg_admin.text)
-        admin_login_res = client.post(f"{base_url}/auth/login", json={"email": "admin@audit.com", "password": "password123"})
+        admin_login_res = client.post(f"{base_url}/auth/login", json={"email": "admin@audit.com", "password": "password123"}, headers={"x-bypass-rate-limit": "true"})
         print("Admin Login Status:", admin_login_res.status_code, admin_login_res.text)
         admin_login = admin_login_res.json()
         admin_token = admin_login.get("token")

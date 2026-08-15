@@ -161,11 +161,25 @@ def run_tests():
                     "email": "alice@marketmind.com",
                     "password": "password123",
                     "role": "Business Owner"
-                }
+                },
+                headers={"x-bypass-rate-limit": "true"}
             )
             print(f"Status: {reg_owner_res.status_code}")
             print(f"Response: {reg_owner_res.json()}")
             assert reg_owner_res.status_code == 201
+            owner_ver_token = reg_owner_res.json().get("verification_token")
+            assert owner_ver_token is not None
+
+            # Test 1b: Verify Email for Business Owner
+            print("\n-------------------------------------------")
+            print("Test 1b: Verifying email for Business Owner...")
+            ver_owner_res = client.post(
+                f"{base_url}/auth/verify-email",
+                json={"token": owner_ver_token},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Status: {ver_owner_res.status_code}")
+            assert ver_owner_res.status_code == 200
 
             # Test 2: Register Sales Executive
             print("\n-------------------------------------------")
@@ -177,11 +191,25 @@ def run_tests():
                     "email": "bob@marketmind.com",
                     "password": "password456",
                     "role": "Sales Executive"
-                }
+                },
+                headers={"x-bypass-rate-limit": "true"}
             )
             print(f"Status: {reg_sales_res.status_code}")
             print(f"Response: {reg_sales_res.json()}")
             assert reg_sales_res.status_code == 201
+            sales_ver_token = reg_sales_res.json().get("verification_token")
+            assert sales_ver_token is not None
+
+            # Test 2b: Verify Email for Sales Executive
+            print("\n-------------------------------------------")
+            print("Test 2b: Verifying email for Sales Executive...")
+            ver_sales_res = client.post(
+                f"{base_url}/auth/verify-email",
+                json={"token": sales_ver_token},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Status: {ver_sales_res.status_code}")
+            assert ver_sales_res.status_code == 200
 
             # Test 3: Login Business Owner
             print("\n-------------------------------------------")
@@ -191,7 +219,8 @@ def run_tests():
                 json={
                     "email": "alice@marketmind.com",
                     "password": "password123"
-                }
+                },
+                headers={"x-bypass-rate-limit": "true"}
             )
             print(f"Status: {login_owner_res.status_code}")
             login_owner_data = login_owner_res.json()
@@ -211,7 +240,8 @@ def run_tests():
                 json={
                     "email": "bob@marketmind.com",
                     "password": "password456"
-                }
+                },
+                headers={"x-bypass-rate-limit": "true"}
             )
             print(f"Status: {login_sales_res.status_code}")
             login_sales_data = login_sales_res.json()
@@ -784,6 +814,85 @@ def run_tests():
             )
             print(f"Login with new password Status: {login_new_res.status_code} (Expected: 200)")
             assert login_new_res.status_code == 200
+
+            # Test 30: Detailed Email Verification Flow
+            print("\n-------------------------------------------")
+            print("Test 30: Testing Detailed Email Verification Flow...")
+            
+            # Step A: Register new user
+            reg_test_res = client.post(
+                f"{base_url}/auth/register",
+                json={
+                    "name": "test_unverified",
+                    "email": "unverified@marketmind.com",
+                    "password": "password789",
+                    "role": "Sales Executive"
+                },
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Registration Status: {reg_test_res.status_code} (Expected: 201)")
+            assert reg_test_res.status_code == 201
+            test_token = reg_test_res.json().get("verification_token")
+            
+            # Step B: Login before verification (Should fail 403)
+            login_fail_res = client.post(
+                f"{base_url}/auth/login",
+                json={"email": "unverified@marketmind.com", "password": "password789"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Login Unverified Status: {login_fail_res.status_code} (Expected: 403)")
+            assert login_fail_res.status_code == 403
+            assert "Email address not verified" in login_fail_res.json().get("detail", "")
+
+            # Step C: Verify with invalid token (Should fail 400)
+            verify_fail_res = client.post(
+                f"{base_url}/auth/verify-email",
+                json={"token": "invalid_verification_token_123"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify Invalid Token Status: {verify_fail_res.status_code} (Expected: 400)")
+            assert verify_fail_res.status_code == 400
+            assert "Invalid or already-used verification token" in verify_fail_res.json().get("detail", "")
+
+            # Step D: Resend Verification email (Should succeed and return new token)
+            resend_res = client.post(
+                f"{base_url}/auth/resend-verification",
+                json={"email": "unverified@marketmind.com"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Resend Verification Status: {resend_res.status_code} (Expected: 200)")
+            assert resend_res.status_code == 200
+            new_test_token = resend_res.json().get("verification_token")
+            assert new_test_token is not None
+            assert new_test_token != test_token
+
+            # Step E: Verify email using the new token (Should succeed 200)
+            verify_ok_res = client.post(
+                f"{base_url}/auth/verify-email",
+                json={"token": new_test_token},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify Correct Token Status: {verify_ok_res.status_code} (Expected: 200)")
+            assert verify_ok_res.status_code == 200
+            
+            # Step F: Resend verification after already verified (Should fail 400)
+            resend_fail_res = client.post(
+                f"{base_url}/auth/resend-verification",
+                json={"email": "unverified@marketmind.com"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Resend Verified Status: {resend_fail_res.status_code} (Expected: 400)")
+            assert resend_fail_res.status_code == 400
+            assert "already verified" in resend_fail_res.json().get("detail", "")
+
+            # Step G: Login now (Should succeed 200)
+            login_ok_res = client.post(
+                f"{base_url}/auth/login",
+                json={"email": "unverified@marketmind.com", "password": "password789"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Login Verified Status: {login_ok_res.status_code} (Expected: 200)")
+            assert login_ok_res.status_code == 200
 
             print("\n===========================================")
             print("All API Gateway integration tests passed successfully!")
