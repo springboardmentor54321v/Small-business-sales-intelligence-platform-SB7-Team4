@@ -113,7 +113,7 @@ def run_security_audit():
 
         # Register Admin
         reg_admin = client.post(f"{base_url}/auth/register", json={
-            "name": "audit_admin", "email": "admin@audit.com", "password": "password123", "role": "System Administrator"
+            "name": "audit_admin", "email": "admin@audit.com", "password": "password123", "role": "Admin"
         }, headers={"x-bypass-rate-limit": "true"})
         admin_tok_val = reg_admin.json().get("verification_token")
         client.post(f"{base_url}/auth/verify-email", json={"token": admin_tok_val}, headers={"x-bypass-rate-limit": "true"})

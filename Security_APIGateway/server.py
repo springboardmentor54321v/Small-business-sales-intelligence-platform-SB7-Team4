@@ -51,7 +51,7 @@ if os.getenv("TESTING") != "true":
         "name": "Rithika Reddy",
         "email": "rithikareddy968@gmail.com",
         "password_hash": preseed_hash,
-        "role": "System Administrator",
+        "role": "Admin",
         "refresh_tokens": [],
         "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "is_verified": True,
@@ -63,7 +63,7 @@ VALID_ROLES = [
     "Business Owner",
     "Store Manager",
     "Sales Executive",
-    "System Administrator"
+    "Admin"
 ]
 
 # Pydantic Schemas for validation
@@ -874,7 +874,7 @@ async def proxy_forecast_sample(
 @app.get("/api/audit-logs")
 async def proxy_audit_logs(
     request: Request,
-    user: Dict = Depends(check_role(["System Administrator"]))
+    user: Dict = Depends(check_role(["Admin"]))
 ):
     async with httpx.AsyncClient() as client:
         try:
@@ -1573,7 +1573,7 @@ async def proxy_inventory_bulk_update(payload: BulkInventoryUpdateSchema, user: 
             )
 
 @app.get("/api/admin/audit-summary")
-async def audit_summary(user: Dict = Depends(check_role(["Business Owner", "System Administrator"]))):
+async def audit_summary(user: Dict = Depends(check_role(["Business Owner", "Admin"]))):
     if not os.path.exists(AUDIT_LOG_FILE):
         return {
             "total_logs": 0,
