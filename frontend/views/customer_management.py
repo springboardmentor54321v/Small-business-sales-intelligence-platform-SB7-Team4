@@ -7,7 +7,7 @@ import re
 # BACKEND URL
 # =========================================================
 
-API_BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+from config.config import DB_BASE_URL as API_BASE_URL
 
 
 # =========================================================
