@@ -10,7 +10,7 @@ from components.cards import show_cards
 # ============================================================
 # API Configuration
 # ============================================================
-from config.config import BASE_URL
+from config.config import DB_BASE_URL as BASE_URL
 
 SALES_API = f"{BASE_URL}/sales/?page=1&page_size=100"
 

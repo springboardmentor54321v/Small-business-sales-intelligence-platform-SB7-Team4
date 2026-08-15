@@ -5,7 +5,7 @@ import requests
 from components.sidebar import show_sidebar
 
 # ================= API Configuration ================= #
-from config.config import BASE_URL
+from config.config import DB_BASE_URL as BASE_URL
 
 INVOICE_API = f"{BASE_URL}/invoices/"
 

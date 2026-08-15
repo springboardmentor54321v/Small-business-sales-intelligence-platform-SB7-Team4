@@ -1,7 +1,7 @@
 import streamlit as st
 import re
 import requests
-from config.config import BASE_URL
+from config.config import AUTH_BASE_URL as BASE_URL
 
 
 def login_page():

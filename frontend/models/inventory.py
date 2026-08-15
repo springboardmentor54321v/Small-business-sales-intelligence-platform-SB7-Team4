@@ -1,6 +1,6 @@
 import requests
 import pandas as pd
-from config.config import BASE_URL
+from config.config import DB_BASE_URL as BASE_URL
 
 
 def get_inventory():
