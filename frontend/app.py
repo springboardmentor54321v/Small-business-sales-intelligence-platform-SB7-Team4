@@ -17,6 +17,8 @@ from views.notifications import notifications_page
 from views.business_overview import business_overview_page
 from views.forecast_vs_actual import forecast_vs_actual_page
 from views.churn_risk import churn_risk_page
+from views.user_management import user_management_page
+from views.signup import signup_page
 
 try:
     from styles.theme import apply_theme
@@ -61,6 +63,9 @@ if not st.session_state.logged_in:
     elif st.session_state.page == "Login":
         login_page()
 
+    elif st.session_state.page == "Signup":
+        signup_page()
+
     else:
         st.session_state.page = "Login"
         login_page()
@@ -83,6 +88,9 @@ else:
 
     elif st.session_state.page == "Customer Management":
         customer_management_page()
+
+    elif st.session_state.page == "User Management":
+        user_management_page()
 
     elif st.session_state.page == "Churn Risk":
         churn_risk_page()

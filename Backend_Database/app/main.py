@@ -17,6 +17,12 @@ from app.api.routes.revenue import (
 )
 
 from app.api.routes.notification import router as notification_router
+from app.api.routes.invitation import router as invitation_router
+from app.core.database import Base, engine
+import app.models
+
+# Auto-create tables on startup (especially locally / SQLite and Render first launch)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="MarketMind AI Backend"
@@ -46,3 +52,4 @@ app.include_router(invoice_router)
 app.include_router(payment_router)
 app.include_router(revenue_router)
 app.include_router(notification_router)
+app.include_router(invitation_router)

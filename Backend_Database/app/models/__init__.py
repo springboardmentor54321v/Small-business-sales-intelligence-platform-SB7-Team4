@@ -10,3 +10,5 @@ from .invoice_item import InvoiceItem
 from .payment import Payment
 
 from .sales_transaction import SalesTransaction
+from .invitation import Invitation
+from .otp import OTP

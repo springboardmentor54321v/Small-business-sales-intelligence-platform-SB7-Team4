@@ -1681,6 +1681,238 @@ async def audit_summary(user: Dict = Depends(check_role(["Business Owner", "Admi
             detail=f"Error reading or parsing audit log: {str(e)}"
         )
 
+# --------------------------------------------------
+# INVITATION & SIGNUP SCHEMAS
+# --------------------------------------------------
+class SignupVerifyInvitationPayload(BaseModel):
+    email: EmailStr
+    code: str
+
+class SignupVerifyOtpPayload(BaseModel):
+    email: EmailStr
+    otp: str
+    session_token: str
+
+class SignupCompletePayload(BaseModel):
+    email: EmailStr
+    signup_token: str
+    name: str
+    phone: str
+    password: str
+
+# --------------------------------------------------
+# INVITATION & SIGNUP PROXIES
+# --------------------------------------------------
+
+@app.post("/api/invitations")
+async def gateway_create_invitation(
+    request: Request,
+    user: Dict = Depends(check_role(["Business Owner", "Admin"]))
+):
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{BACKEND_URL}/invitations/",
+                json=body,
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"],
+                    "content-type": "application/json"
+                }
+            )
+            if response.status_code == 201:
+                log_audit(f"Invitation created by {user['name']} (Owner) for {body.get('email')}")
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service."}
+            )
+
+@app.get("/api/invitations")
+async def gateway_list_invitations(
+    user: Dict = Depends(check_role(["Business Owner", "Admin"]))
+):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                f"{BACKEND_URL}/invitations/",
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"]
+                }
+            )
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service."}
+            )
+
+@app.delete("/api/invitations/{id}")
+async def gateway_revoke_invitation(
+    id: int,
+    user: Dict = Depends(check_role(["Business Owner", "Admin"]))
+):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.delete(
+                f"{BACKEND_URL}/invitations/{id}",
+                headers={
+                    "x-user-id": str(user["userId"]),
+                    "x-user-role": user["role"]
+                }
+            )
+            if response.status_code == 200:
+                log_audit(f"Invitation ID {id} revoked by {user['name']} (Owner)")
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service."}
+            )
+
+@app.post("/auth/signup/verify-invitation")
+async def gateway_verify_invitation(req: SignupVerifyInvitationPayload):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{BACKEND_URL}/invitations/verify-invitation",
+                json=req.dict(),
+                headers={"content-type": "application/json"}
+            )
+            if response.status_code == 200:
+                log_audit(f"Public user verified invitation and requested OTP for email {req.email}")
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service."}
+            )
+
+@app.post("/auth/signup/verify-otp")
+async def gateway_verify_otp(req: SignupVerifyOtpPayload):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                f"{BACKEND_URL}/invitations/verify-otp",
+                json=req.dict(),
+                headers={"content-type": "application/json"}
+            )
+            if response.status_code == 200:
+                log_audit(f"Public user verified OTP successfully for email {req.email}")
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service."}
+            )
+
+@app.post("/auth/signup/complete")
+async def gateway_signup_complete(req: SignupCompletePayload):
+    async with httpx.AsyncClient() as client:
+        try:
+            # 1. Ask backend to validate signup token and get invitation role context
+            backend_res = await client.post(
+                f"{BACKEND_URL}/invitations/complete-signup",
+                json={
+                    "email": req.email,
+                    "signup_token": req.signup_token
+                },
+                headers={"content-type": "application/json"}
+            )
+            if backend_res.status_code != 200:
+                return Response(
+                    content=backend_res.content,
+                    status_code=backend_res.status_code,
+                    headers=dict(backend_res.headers)
+                )
+
+            inv_data = backend_res.json()
+            invited_email = inv_data["email"]
+            invited_role = inv_data["role"]
+
+            # Double-check cross-email modification
+            if invited_email != req.email:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email modification is blocked."
+                )
+
+            # 2. Check if user already exists in mock_users
+            if find_user_by_email(req.email) or find_user_by_name(req.name):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User with this email or name already exists"
+                )
+
+            # Hash password using gateway bcrypt salt
+            salt = bcrypt.gensalt(10)
+            password_bytes = req.password.encode('utf-8')
+            password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+
+            # Create user in gateway mock_users
+            new_user = {
+                "id": len(mock_users) + 1,
+                "name": req.name,
+                "email": req.email,
+                "password_hash": password_hash,
+                "role": invited_role,
+                "refresh_tokens": [],
+                "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
+                "is_verified": True,
+                "verification_token": None,
+                "verification_token_expires": None
+            }
+            mock_users.append(new_user)
+
+            # 3. Inform backend to mark invitation as USED
+            await client.post(
+                f"{BACKEND_URL}/invitations/mark-used",
+                json={
+                    "email": req.email,
+                    "signup_token": req.signup_token
+                },
+                headers={"content-type": "application/json"}
+            )
+
+            log_audit(f"Account provisioning complete for {req.email} as role: {invited_role}")
+            return {
+                "message": "Account created successfully.",
+                "user": {
+                    "id": new_user["id"],
+                    "name": new_user["name"],
+                    "email": new_user["email"],
+                    "role": new_user["role"]
+                }
+            }
+        except httpx.RequestError:
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to connect to database backend service."}
+            )
+
 from fastapi.openapi.utils import get_openapi
 
 def custom_openapi():

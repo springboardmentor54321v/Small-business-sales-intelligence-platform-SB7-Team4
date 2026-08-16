@@ -63,20 +63,21 @@ def show_sidebar():
     # ---------------- Menu ---------------- #
 
     if role == "Owner":
-
-        menu = [
-            "Dashboard",
-            "Business Overview",
-            "Forecast vs Actual",
-            "Notifications",
-            "Inventory",
-            "Customer Insights",
-            "Churn Risk",
-            "Invoice",
-            "Sales Upload",
-            "Reports",
-            "Settings"
-        ]
+ 
+         menu = [
+             "Dashboard",
+             "Business Overview",
+             "Forecast vs Actual",
+             "User Management",
+             "Notifications",
+             "Inventory",
+             "Customer Insights",
+             "Churn Risk",
+             "Invoice",
+             "Sales Upload",
+             "Reports",
+             "Settings"
+         ]
 
     elif role == "Store Manager":
 

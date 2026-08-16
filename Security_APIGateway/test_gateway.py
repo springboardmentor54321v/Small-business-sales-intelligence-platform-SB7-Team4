@@ -8,7 +8,7 @@ import sys
 import httpx
 import threading
 import uvicorn
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, HTTPException
 
 # Spin up a mock backend on Port 8000 to test reverse proxy routing
 mock_backend = FastAPI()
@@ -98,6 +98,102 @@ def mock_inventory_bulk_update(payload: dict, x_user_id: str = Header(None), x_u
         "injected_user_id": x_user_id,
         "injected_user_role": x_user_role
     }
+
+mock_invitations = []
+
+@mock_backend.post("/invitations/", status_code=201)
+def mock_create_invitation(payload: dict, x_user_id: str = Header(None), x_user_role: str = Header(None)):
+    email = payload.get("email")
+    role = payload.get("role")
+    new_inv = {
+        "id": len(mock_invitations) + 1,
+        "email": email,
+        "role": role,
+        "status": "PENDING",
+        "expires_at": "2026-08-17T15:00:00"
+    }
+    mock_invitations.append(new_inv)
+    return {
+        "message": "Invitation created successfully",
+        "invitation": new_inv,
+        "code_sim": "TESTCODE123"
+    }
+
+@mock_backend.get("/invitations/")
+def mock_list_invitations(x_user_role: str = Header(None)):
+    return mock_invitations
+
+@mock_backend.delete("/invitations/{id}")
+def mock_revoke_invitation(id: int, x_user_role: str = Header(None)):
+    for inv in mock_invitations:
+        if inv["id"] == id:
+            inv["status"] = "REVOKED"
+            return {"message": "Invitation revoked successfully."}
+    raise HTTPException(status_code=404, detail="Invitation not found.")
+
+@mock_backend.post("/invitations/verify-invitation")
+def mock_verify_invitation(payload: dict):
+    email = payload.get("email")
+    code = payload.get("code")
+    
+    # Simple check for tests
+    found = False
+    for inv in mock_invitations:
+        if inv["email"] == email and code == "TESTCODE123" and inv["status"] == "PENDING":
+            found = True
+            break
+            
+    if not found and email != "invited@example.com":
+        raise HTTPException(status_code=400, detail="Invalid or expired invitation.")
+        
+    return {
+        "message": "Invitation verified. OTP sent.",
+        "session_token": "test-session-token",
+        "otp_sim": "123456"
+    }
+
+@mock_backend.post("/invitations/verify-otp")
+def mock_verify_otp(payload: dict):
+    email = payload.get("email")
+    otp = payload.get("otp")
+    session_token = payload.get("session_token")
+    
+    if otp != "123456" or session_token != "test-session-token":
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+        
+    return {
+        "message": "OTP verified successfully.",
+        "signup_token": "test-signup-token"
+    }
+
+@mock_backend.post("/invitations/complete-signup")
+def mock_complete_signup(payload: dict):
+    email = payload.get("email")
+    signup_token = payload.get("signup_token")
+    
+    if signup_token != "test-signup-token":
+        raise HTTPException(status_code=400, detail="Invalid or expired invitation.")
+        
+    # Find matching role in mock list or default
+    role = "Sales Executive"
+    for inv in mock_invitations:
+        if inv["email"] == email:
+            role = inv["role"]
+            
+    return {
+        "email": email,
+        "role": role,
+        "message": "Verification success"
+    }
+
+@mock_backend.post("/invitations/mark-used")
+def mock_mark_used(payload: dict):
+    email = payload.get("email")
+    for inv in mock_invitations:
+        if inv["email"] == email:
+            inv["status"] = "USED"
+            return {"message": "Invitation marked as used."}
+    raise HTTPException(status_code=404, detail="Invitation not found.")
 
 def run_mock_backend():
     uvicorn.run(mock_backend, host="127.0.0.1", port=8000, log_level="warning")
@@ -894,6 +990,133 @@ def run_tests():
             )
             print(f"Login Verified Status: {login_ok_res.status_code} (Expected: 200)")
             assert login_ok_res.status_code == 200
+
+            # Test 31: Invitation-Based Account Onboarding & Verification Flow
+            print("\n-------------------------------------------")
+            print("Test 31: Testing Invitation-Based Account Onboarding & Verification Flow...")
+
+            # Case A: Owner (Alice) creates invitation for invited_member@marketmind.com
+            invite_res = client.post(
+                f"{base_url}/api/invitations",
+                json={
+                    "email": "invited_member@marketmind.com",
+                    "role": "Sales Executive"
+                },
+                headers={"Authorization": f"Bearer {alice_new_token}"}
+            )
+            print(f"Owner creates invitation Status: {invite_res.status_code} (Expected: 201)")
+            assert invite_res.status_code == 201
+            assert invite_res.json()["code_sim"] == "TESTCODE123"
+
+            # Case B: Non-Owner (Bob, Sales) tries to invite user (Should fail with 403)
+            # Log Bob back in using his new password from Test 29
+            login_bob_res = client.post(
+                f"{base_url}/auth/login",
+                json={"email": "bob@marketmind.com", "password": "newpassword123"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            bob_token = login_bob_res.json()["token"]
+            invite_fail_res = client.post(
+                f"{base_url}/api/invitations",
+                json={
+                    "email": "another@marketmind.com",
+                    "role": "Sales Executive"
+                },
+                headers={"Authorization": f"Bearer {bob_token}"}
+            )
+            print(f"Non-Owner tries to invite user Status: {invite_fail_res.status_code} (Expected: 403)")
+            assert invite_fail_res.status_code == 403
+
+            # Case C: Verification with mismatched email (Cross-email attack, Should fail with 400)
+            verify_cross_res = client.post(
+                f"{base_url}/auth/signup/verify-invitation",
+                json={
+                    "email": "attacker@marketmind.com",
+                    "code": "TESTCODE123"
+                },
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify Invitation with mismatched email Status: {verify_cross_res.status_code} (Expected: 400)")
+            assert verify_cross_res.status_code == 400
+
+            # Case D: Verification with incorrect code (Should fail with 400)
+            verify_badcode_res = client.post(
+                f"{base_url}/auth/signup/verify-invitation",
+                json={
+                    "email": "invited_member@marketmind.com",
+                    "code": "WRONGCODE123"
+                },
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify Invitation with incorrect code Status: {verify_badcode_res.status_code} (Expected: 400)")
+            assert verify_badcode_res.status_code == 400
+
+            # Case E: Verification with correct details (Should succeed 200)
+            verify_ok_invite_res = client.post(
+                f"{base_url}/auth/signup/verify-invitation",
+                json={
+                    "email": "invited_member@marketmind.com",
+                    "code": "TESTCODE123"
+                },
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify Invitation with correct details Status: {verify_ok_invite_res.status_code} (Expected: 200)")
+            assert verify_ok_invite_res.status_code == 200
+            invite_verify_data = verify_ok_invite_res.json()
+            assert invite_verify_data["session_token"] == "test-session-token"
+            assert invite_verify_data["otp_sim"] == "123456"
+
+            # Case F: Verify OTP with incorrect code (Should fail with 400)
+            otp_fail_res = client.post(
+                f"{base_url}/auth/signup/verify-otp",
+                json={
+                    "email": "invited_member@marketmind.com",
+                    "otp": "000000",
+                    "session_token": "test-session-token"
+                },
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify OTP with incorrect code Status: {otp_fail_res.status_code} (Expected: 400)")
+            assert otp_fail_res.status_code == 400
+
+            # Case G: Verify OTP with correct code (Should succeed 200)
+            otp_ok_res = client.post(
+                f"{base_url}/auth/signup/verify-otp",
+                json={
+                    "email": "invited_member@marketmind.com",
+                    "otp": "123456",
+                    "session_token": "test-session-token"
+                },
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Verify OTP with correct code Status: {otp_ok_res.status_code} (Expected: 200)")
+            assert otp_ok_res.status_code == 200
+            assert otp_ok_res.json()["signup_token"] == "test-signup-token"
+
+            # Case H: Complete signup with correct token (Should succeed 200)
+            complete_res = client.post(
+                f"{base_url}/auth/signup/complete",
+                json={
+                    "email": "invited_member@marketmind.com",
+                    "signup_token": "test-signup-token",
+                    "name": "Invited Executive",
+                    "phone": "9876543210",
+                    "password": "invitedpassword123"
+                },
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Complete Signup Status: {complete_res.status_code} (Expected: 200)")
+            assert complete_res.status_code == 200
+
+            # Case I: Log in with the newly created account (Should succeed and return correct role)
+            login_invited_res = client.post(
+                f"{base_url}/auth/login",
+                json={"email": "invited_member@marketmind.com", "password": "invitedpassword123"},
+                headers={"x-bypass-rate-limit": "true"}
+            )
+            print(f"Login Invited User Status: {login_invited_res.status_code} (Expected: 200)")
+            assert login_invited_res.status_code == 200
+            assert login_invited_res.json()["user"]["role"] == "Sales Executive"
 
             print("\n===========================================")
             print("All API Gateway integration tests passed successfully!")

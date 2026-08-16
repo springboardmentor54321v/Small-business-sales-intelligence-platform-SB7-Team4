@@ -309,6 +309,19 @@ def login_page():
         st.markdown("---")
 
         # --------------------------------------------------
+        # SIGN UP REDIRECT
+        # --------------------------------------------------
+
+        if st.button(
+            "🔑 Don't have an account? Sign up here",
+            width="stretch"
+        ):
+            st.session_state.page = "Signup"
+            st.rerun()
+
+        st.markdown("---")
+
+        # --------------------------------------------------
         # BACK TO HOME
         # --------------------------------------------------
 
