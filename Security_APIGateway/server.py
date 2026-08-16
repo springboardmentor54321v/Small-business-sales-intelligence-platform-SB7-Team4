@@ -68,6 +68,42 @@ if os.getenv("TESTING") != "true":
         "verification_token": None,
         "verification_token_expires": None
     })
+    mock_users.append({
+        "id": 2,
+        "name": "Palak Ganwani",
+        "email": "palakganwani415@gmail.com",
+        "password_hash": preseed_hash,
+        "role": "Business Owner",
+        "refresh_tokens": [],
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "is_verified": True,
+        "verification_token": None,
+        "verification_token_expires": None
+    })
+    mock_users.append({
+        "id": 3,
+        "name": "Rakshu",
+        "email": "rrakshu60@gmail.com",
+        "password_hash": preseed_hash,
+        "role": "Sales Executive",
+        "refresh_tokens": [],
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "is_verified": True,
+        "verification_token": None,
+        "verification_token_expires": None
+    })
+    mock_users.append({
+        "id": 4,
+        "name": "PVSN",
+        "email": "pvsn47139@gmail.com",
+        "password_hash": preseed_hash,
+        "role": "Store Manager",
+        "refresh_tokens": [],
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "is_verified": True,
+        "verification_token": None,
+        "verification_token_expires": None
+    })
 PASSWORD_RECOVERY_STORE: Dict[str, Dict] = {}
 VALID_ROLES = [
     "Business Owner",
