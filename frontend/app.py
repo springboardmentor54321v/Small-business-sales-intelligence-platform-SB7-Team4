@@ -1,4 +1,9 @@
 import streamlit as st
+
+# ================= Imports ================= #
+
+from components.sidebar import show_sidebar
+
 from views.customer_management import customer_management_page
 from views.home import home_page
 from views.login import login_page
@@ -52,17 +57,13 @@ if "username" not in st.session_state:
 if not st.session_state.logged_in:
 
     if st.session_state.page == "Home":
-
         home_page()
 
     elif st.session_state.page == "Login":
-
         login_page()
 
     else:
-
         st.session_state.page = "Login"
-
         login_page()
 
 
@@ -70,53 +71,47 @@ if not st.session_state.logged_in:
 
 else:
 
-    if st.session_state.page == "Dashboard":
+    # ⭐ IMPORTANT:
+    # Show sidebar on every logged-in page
+    show_sidebar()
 
+    # ================= Page Routing ================= #
+
+    if st.session_state.page == "Dashboard":
         dashboard_page()
 
     elif st.session_state.page == "Inventory":
-
         inventory_page()
 
     elif st.session_state.page == "Customer Insights":
-
         customers_page()
+
     elif st.session_state.page == "Customer Management":
-
         customer_management_page()
-    elif st.session_state.page == "Churn Risk":
 
+    elif st.session_state.page == "Churn Risk":
         churn_risk_page()
 
     elif st.session_state.page == "Reports":
-
         reports_page()
 
     elif st.session_state.page == "Invoice":
-
         invoice_page()
 
     elif st.session_state.page == "Sales Upload":
-
         sales_upload_page()
 
-
     elif st.session_state.page == "Settings":
-
         settings_page()
 
     elif st.session_state.page == "Notifications":
-
         notifications_page()
 
     elif st.session_state.page == "Business Overview":
-
         business_overview_page()
 
     elif st.session_state.page == "Forecast vs Actual":
-
         forecast_vs_actual_page()
 
     else:
-
         dashboard_page()
