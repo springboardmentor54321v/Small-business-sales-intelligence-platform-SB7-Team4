@@ -15,19 +15,19 @@ def show_sidebar():
         [data-testid="stSidebar"][aria-expanded="true"] {
             min-width: 300px;
             max-width: 300px;
-            background: #0F172A;
-            border-right: 1px solid #1E293B;
+            background: #171f32;
+            border-right: 1px solid #232f48;
         }
 
         [data-testid="stSidebar"][aria-expanded="false"] {
-            background: #0F172A;
+            background: #171f32;
         }
 
         [data-testid="stSidebar"] div[data-testid="stButton"]>button {
             width: 100%;
             border: none;
             border-radius: 12px;
-            background: #172033;
+            background: #232f48;
             color: white;
             text-align: left;
             padding: 12px 16px;
@@ -37,7 +37,7 @@ def show_sidebar():
         }
 
         [data-testid="stSidebar"] div[data-testid="stButton"]>button:hover {
-            background: #2563EB;
+            background: #ff4b4b;
             color: white;
         }
 
