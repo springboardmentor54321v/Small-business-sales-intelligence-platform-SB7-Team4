@@ -9,7 +9,7 @@ EMAIL_FROM = os.getenv("EMAIL_FROM", "MarketMind AI <onboarding@resend.dev>")
 
 def send_email_via_resend(to_email: str, subject: str, html_content: str) -> bool:
     """Send an email using Resend REST API or fallback to logging if API key is not configured."""
-    if not RESEND_API_KEY:
+    if not RESEND_API_KEY or os.getenv("TESTING") == "true" or to_email.endswith("@marketmind.com"):
         logger.warning(
             f"[EMAIL SERVICE SIMULATION]\n"
             f"To: {to_email}\n"
