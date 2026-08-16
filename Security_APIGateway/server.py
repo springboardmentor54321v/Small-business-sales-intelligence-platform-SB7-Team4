@@ -17,6 +17,14 @@ from typing import List, Dict, Optional
 import jwt
 import bcrypt
 import httpx
+# Monkeypatch httpx.AsyncClient to enforce a default 2.0s timeout, preventing gateway hangs during tests/CI
+_original_async_client_init = httpx.AsyncClient.__init__
+def _new_async_client_init(self, *args, **kwargs):
+    if "timeout" not in kwargs:
+        kwargs["timeout"] = 2.0
+    _original_async_client_init(self, *args, **kwargs)
+httpx.AsyncClient.__init__ = _new_async_client_init
+
 from fastapi import FastAPI, Depends, HTTPException, Header, status, File, UploadFile, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -705,8 +713,8 @@ async def reset_password(req: ResetPasswordRequest):
         "message": "Password reset successful"
     }
 
-BACKEND_URL = os.getenv("BACKEND_URL", "https://small-business-sales-intelligence.onrender.com")
-AI_URL = os.getenv("AI_URL", "https://aiml-analytics.onrender.com")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+AI_URL = os.getenv("AI_URL", "http://localhost:5002")
 NOTIFICATIONS_URL = os.getenv("NOTIFICATIONS_URL", "http://localhost:5003")
 
 
