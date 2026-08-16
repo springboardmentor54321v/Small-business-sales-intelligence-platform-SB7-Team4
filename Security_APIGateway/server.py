@@ -705,8 +705,8 @@ async def reset_password(req: ResetPasswordRequest):
         "message": "Password reset successful"
     }
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
-AI_URL = os.getenv("AI_URL", "http://localhost:5002")
+BACKEND_URL = os.getenv("BACKEND_URL", "https://small-business-sales-intelligence.onrender.com")
+AI_URL = os.getenv("AI_URL", "https://aiml-analytics.onrender.com")
 NOTIFICATIONS_URL = os.getenv("NOTIFICATIONS_URL", "http://localhost:5003")
 
 
