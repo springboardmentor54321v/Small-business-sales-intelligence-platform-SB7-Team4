@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import re
+from components.sidebar import show_sidebar
 
 
 # =========================================================
@@ -562,6 +563,8 @@ def delete_customer_section():
 # =========================================================
 
 def customer_management_page():
+
+    show_sidebar()
 
     st.title("Customer Management")
 

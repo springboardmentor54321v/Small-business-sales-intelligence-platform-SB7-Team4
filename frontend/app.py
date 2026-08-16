@@ -2,8 +2,6 @@ import streamlit as st
 
 # ================= Imports ================= #
 
-from components.sidebar import show_sidebar
-
 from views.customer_management import customer_management_page
 from views.home import home_page
 from views.login import login_page
@@ -70,10 +68,6 @@ if not st.session_state.logged_in:
 # ================= Application ================= #
 
 else:
-
-    # ⭐ IMPORTANT:
-    # Show sidebar on every logged-in page
-    show_sidebar()
 
     # ================= Page Routing ================= #
 
