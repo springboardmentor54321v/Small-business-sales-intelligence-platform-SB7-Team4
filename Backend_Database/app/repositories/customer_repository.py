@@ -35,7 +35,7 @@ def get_all_customers(
 
     customers = (
         query
-        .order_by(Customer.id)
+        .order_by(Customer.id.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
