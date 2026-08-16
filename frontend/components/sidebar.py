@@ -12,32 +12,33 @@ def show_sidebar():
         """
         <style>
 
-        section[data-testid="stSidebar"][data-collapsed="false"]{
-            background:#0F172A;
-            width:300px !important;
+        [data-testid="stSidebar"][aria-expanded="true"] {
+            min-width: 300px;
+            max-width: 300px;
+            background: #0F172A;
+            border-right: 1px solid #1E293B;
         }
 
-        section[data-testid="stSidebar"]{
-            background:#0F172A;
-            border-right:1px solid #1E293B;
+        [data-testid="stSidebar"][aria-expanded="false"] {
+            background: #0F172A;
         }
 
-        div[data-testid="stButton"]>button{
-            width:100%;
-            border:none;
-            border-radius:12px;
-            background:#172033;
-            color:white;
-            text-align:left;
-            padding:12px 16px;
-            margin-bottom:8px;
-            font-size:15px;
-            font-weight:500;
+        [data-testid="stSidebar"] div[data-testid="stButton"]>button {
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            background: #172033;
+            color: white;
+            text-align: left;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            font-size: 15px;
+            font-weight: 500;
         }
 
-        div[data-testid="stButton"]>button:hover{
-            background:#2563EB;
-            color:white;
+        [data-testid="stSidebar"] div[data-testid="stButton"]>button:hover {
+            background: #2563EB;
+            color: white;
         }
 
         </style>

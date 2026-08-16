@@ -29,7 +29,8 @@ except ModuleNotFoundError:
 
 st.set_page_config(
     page_title="MarketMind AI",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 apply_theme()
