@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 
-BASE_URL = "http://127.0.0.1:5000"
+from config.config import AUTH_BASE_URL as BASE_URL
 
 
 # ============================================================
