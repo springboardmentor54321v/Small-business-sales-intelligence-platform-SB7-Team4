@@ -11,11 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements
 COPY requirements.txt .
 
-# Install dependencies
-RUN python -c "import re; open('requirements.txt','w').write(re.sub(r'==.*','',open('requirements.txt').read()))" && \
-    pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# Verify Uvicorn is installed
+RUN python -c "import uvicorn; print('Uvicorn version:', uvicorn.__version__)"
+
+# Copy backend project
 COPY . .
 
 # Expose FastAPI port
@@ -23,4 +25,5 @@ EXPOSE 8000
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start FastAPI
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
