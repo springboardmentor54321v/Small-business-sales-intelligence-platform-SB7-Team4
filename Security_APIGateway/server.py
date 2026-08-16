@@ -234,20 +234,18 @@ def send_otp_email(to_email: str, otp: str) -> bool:
         log_audit(f"Failed to send OTP email to {to_email}: {str(e)}", is_alert=True)
         return False
 
-def send_verification_email(to_email: str, token: str) -> bool:
+def send_verification_email(to_email: str, code: str) -> bool:
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = os.getenv("SMTP_PORT")
     smtp_user = os.getenv("SMTP_USER")
     smtp_pass = os.getenv("SMTP_PASSWORD")
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000/verify")
-    verification_link = f"{frontend_url}?token={token}"
 
     if os.getenv("TESTING") == "true" or to_email.endswith("@marketmind.com"):
-        log_audit(f"[SMTP Simulation] Simulated verification email to {to_email}. (Bypassed real SMTP connection)")
+        log_audit(f"[SMTP Simulation] Simulated verification email with code {code} to {to_email}. (Bypassed real SMTP connection)")
         return True
 
     if not all([smtp_host, smtp_port, smtp_user, smtp_pass]):
-        log_audit(f"SMTP environment credentials incomplete. Verification email simulation active. Email: {to_email}, Link: {verification_link}", is_alert=True)
+        log_audit(f"SMTP environment credentials incomplete. Verification email simulation active. Email: {to_email}, Code: {code}", is_alert=True)
         return False
 
     try:
@@ -255,9 +253,9 @@ def send_verification_email(to_email: str, token: str) -> bool:
         msg = MIMEMultipart()
         msg['From'] = smtp_user
         msg['To'] = to_email
-        msg['Subject'] = "MarketMind AI - Email Verification"
+        msg['Subject'] = "MarketMind AI - Email Verification Code"
 
-        body = f"Hello,\n\nWelcome to MarketMind AI! Please verify your email address by clicking the link below:\n\n🔗  {verification_link}\n\nThis verification link is valid for 24 hours. If you did not sign up for this account, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
+        body = f"Hello,\n\nWelcome to MarketMind AI! Please verify your email address by entering the following unique verification code:\n\n👉  {code}  👈\n\nThis verification code is valid for 24 hours. If you did not sign up for this account, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
         msg.attach(MIMEText(body, 'plain'))
 
         # Standard SMTP connection with STARTTLS
@@ -413,7 +411,7 @@ async def register(req: RegisterRequest):
     password_bytes = req.password.encode('utf-8')
     password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
-    token = secrets.token_hex(16)
+    token = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=6))
     expiry = time.time() + 86400
 
     is_verified = (req.role in ["Business Owner", "Admin"])
@@ -606,7 +604,7 @@ async def resend_verification(req: ResendVerificationRequest):
             detail="Email address is already verified."
         )
 
-    new_token = secrets.token_hex(16)
+    new_token = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=6))
     expiry = time.time() + 86400
 
     user["verification_token"] = new_token

@@ -300,11 +300,61 @@ def login_page():
                         st.error("Login failed: Invalid email or password.")
                     elif res.status_code == 403:
                         st.error("Login failed: Email address not verified.")
+                        st.session_state.unverified_email = username
                     else:
                         detail = res.json().get("detail", "Login failed.")
                         st.error(f"Login failed: {detail}")
                 except Exception as e:
                     st.error(f"Cannot connect to the backend security gateway: {str(e)}")
+
+        if st.session_state.get("unverified_email"):
+            st.markdown("---")
+            st.subheader("Verify Your Email Address")
+            st.info(f"Please check your inbox at **{st.session_state.unverified_email}** for a 6-character alphanumeric verification code.")
+            
+            code_input = st.text_input("Enter Verification Code", key="unverified_code_input", placeholder="e.g. A1B2C3")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Submit Verification Code", use_container_width=True):
+                    if not code_input.strip():
+                        st.error("Please enter the code.")
+                    else:
+                        try:
+                            verify_res = requests.post(
+                                f"{BASE_URL}/auth/verify-email",
+                                json={"token": code_input.strip().upper()},
+                                headers={"x-bypass-rate-limit": "true"}
+                            )
+                            if verify_res.status_code == 200:
+                                st.success("Email verified successfully! You can now log in.")
+                                st.session_state.unverified_email = None
+                                time.sleep(1.5)
+                                st.rerun()
+                            else:
+                                detail = verify_res.json().get("detail", "Invalid verification code.")
+                                st.error(f"Verification failed: {detail}")
+                        except Exception as e:
+                            st.error(f"Cannot connect to the gateway: {str(e)}")
+                            
+            with col2:
+                if st.button("Resend Verification Code", use_container_width=True):
+                    try:
+                        resend_res = requests.post(
+                            f"{BASE_URL}/auth/resend-verification",
+                            json={"email": st.session_state.unverified_email},
+                            headers={"x-bypass-rate-limit": "true"}
+                        )
+                        if resend_res.status_code == 200:
+                            st.success("Verification code resent successfully!")
+                            resend_data = resend_res.json()
+                            if resend_data.get("verification_token"):
+                                st.info(f"🔑 [SIMULATED CODE]: **{resend_data['verification_token']}**")
+                        else:
+                            detail = resend_res.json().get("detail", "Failed to resend.")
+                            st.error(f"Resend failed: {detail}")
+                    except Exception as e:
+                        st.error(f"Cannot connect to the gateway: {str(e)}")
 
         st.markdown("---")
 
