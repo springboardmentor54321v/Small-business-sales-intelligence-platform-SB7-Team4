@@ -2,22 +2,23 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install PostgreSQL/build dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency file
+# Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies
+RUN python -c "import re; open('requirements.txt','w').write(re.sub(r'==.*','',open('requirements.txt').read()))" && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy application
+# Copy project
 COPY . .
 
-# Expose FastAPI Port
+# Expose FastAPI port
 EXPOSE 8000
 
 ENV PYTHONUNBUFFERED=1
