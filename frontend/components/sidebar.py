@@ -12,12 +12,13 @@ def show_sidebar():
         """
         <style>
 
-        section[data-testid="stSidebar"]{
+        section[data-testid="stSidebar"][data-collapsed="false"]{
             background:#0F172A;
             width:300px !important;
         }
 
         section[data-testid="stSidebar"]{
+            background:#0F172A;
             border-right:1px solid #1E293B;
         }
 
