@@ -285,27 +285,39 @@ def login_page():
                     res = requests.post(f"{BASE_URL}/auth/login", json={
                         "email": username,
                         "password": password
-                    }, headers={"x-bypass-rate-limit": "true"})
+                    }, headers={"x-bypass-rate-limit": "true"}, timeout=30)
                     
                     if res.status_code == 200:
-                        login_data = res.json()
-                        st.success("Login Successful!")
-                        st.session_state.logged_in = True
-                        st.session_state.username = login_data["user"]["name"]
-                        st.session_state.role = login_data["user"]["role"]
-                        st.session_state.token = login_data["token"]
-                        st.session_state.page = "Dashboard"
-                        st.rerun()
+                        try:
+                            login_data = res.json()
+                            st.success("Login Successful!")
+                            st.session_state.logged_in = True
+                            st.session_state.username = login_data["user"]["name"]
+                            st.session_state.role = login_data["user"]["role"]
+                            st.session_state.token = login_data["token"]
+                            st.session_state.page = "Dashboard"
+                            st.rerun()
+                        except Exception:
+                            st.error("Login failed: The gateway returned an invalid response. It may still be starting up.")
                     elif res.status_code == 401:
                         st.error("Login failed: Invalid email or password.")
                     elif res.status_code == 403:
                         st.error("Login failed: Email address not verified.")
                         st.session_state.unverified_email = username
+                    elif res.status_code in [502, 503, 504]:
+                        st.error("Login failed (HTTP 502/503). The remote API Gateway is starting up on Render. Please wait 10-20 seconds and try signing in again.")
                     else:
-                        detail = res.json().get("detail", "Login failed.")
+                        try:
+                            detail = res.json().get("detail", "Login failed.")
+                        except Exception:
+                            detail = f"Gateway error (HTTP {res.status_code})."
                         st.error(f"Login failed: {detail}")
                 except Exception as e:
-                    st.error(f"Cannot connect to the backend security gateway: {str(e)}")
+                    # Provide user-friendly warning for Render cold starts / timeouts
+                    if "timeout" in str(e).lower() or "read timed out" in str(e).lower():
+                        st.error("Cannot connect to the backend security gateway: Connection timed out. The remote server is likely waking up on Render. Please try again in 10-15 seconds.")
+                    else:
+                        st.error(f"Cannot connect to the backend security gateway: {str(e)}")
 
         if st.session_state.get("unverified_email"):
             st.markdown("---")
