@@ -7,23 +7,27 @@ import re
 # BACKEND URL
 # =========================================================
 
-API_BASE_URL = "https://undefined-arrest-crescent.ngrok-free.dev"
+from config.config import DB_BASE_URL as API_BASE_URL
 
 
 # =========================================================
 # HELPER FUNCTIONS
 # =========================================================
 
-def get_customers():
+def get_customers(search=None):
     """Get customers from backend."""
+
+    params = {
+        "page": 1,
+        "page_size": 100
+    }
+    if search:
+        params["search"] = search
 
     try:
         response = requests.get(
             f"{API_BASE_URL}/customers/",
-            params={
-                "page": 1,
-                "page_size": 100
-            },
+            params=params,
             timeout=15
         )
 
@@ -306,16 +310,6 @@ def customer_details_section():
         "Search and view customer records from the backend."
     )
 
-    customers = get_customers()
-
-    if not customers:
-
-        st.warning(
-            "No customer records were returned by the backend."
-        )
-
-        return
-
     # -----------------------------------------------------
     # SEARCH
     # -----------------------------------------------------
@@ -325,57 +319,25 @@ def customer_details_section():
         placeholder="Search by Customer ID, name, email or phone..."
     )
 
-    search = search.strip().lower()
+    search_term = search.strip()
 
-    # -----------------------------------------------------
-    # FILTER
-    # -----------------------------------------------------
+    # Fetch customers (server-side search)
+    customers = get_customers(search=search_term if search_term else None)
 
-    if search:
+    if not customers:
 
-        filtered_customers = []
-
-        for customer in customers:
-
-            customer_id = str(
-                customer.get("customer_id", "")
-            ).lower()
-
-            name = str(
-                customer.get("name", "")
-            ).lower()
-
-            email = str(
-                customer.get("email", "")
-            ).lower()
-
-            phone = str(
-                customer.get("phone", "")
-            ).lower()
-
-            if (
-                search in customer_id
-                or search in name
-                or search in email
-                or search in phone
-            ):
-                filtered_customers.append(customer)
-
-    else:
-
-        filtered_customers = customers
-
-    # -----------------------------------------------------
-    # SHOW RESULTS
-    # -----------------------------------------------------
-
-    if not filtered_customers:
-
-        st.warning(
-            f"No customers found for '{search}'."
-        )
+        if search_term:
+            st.warning(
+                f"No customers found for '{search_term}'."
+            )
+        else:
+            st.warning(
+                "No customer records were returned by the backend."
+            )
 
         return
+
+    filtered_customers = customers
 
     st.write(
         f"Showing **{len(filtered_customers)}** customer(s)"
@@ -453,13 +415,27 @@ def delete_customer_section():
         "Remove a customer record from the backend."
     )
 
-    customers = get_customers()
+    # Search bar to filter the customer list to delete
+    search_delete = st.text_input(
+        "🔍 Search Customer to Delete",
+        placeholder="Type name or customer ID to search...",
+        key="search_delete_input"
+    )
+
+    search_term = search_delete.strip()
+
+    customers = get_customers(search=search_term if search_term else None)
 
     if not customers:
 
-        st.warning(
-            "No customers available to delete."
-        )
+        if search_term:
+            st.warning(
+                f"No customers found matching '{search_term}'."
+            )
+        else:
+            st.warning(
+                "No customers available to delete."
+            )
 
         return
 

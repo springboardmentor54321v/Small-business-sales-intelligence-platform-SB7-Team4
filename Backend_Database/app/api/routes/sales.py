@@ -1,5 +1,26 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+)
+
 import pandas as pd
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+
+from app.repositories.sales_transaction_repository import (
+    bulk_import_sales,
+)
+
+from app.utils.sales_csv import (
+    detect_and_map_columns,
+)
+
+from app.models.store import Store
+
 
 router = APIRouter(
     prefix="/api/sales",
@@ -8,75 +29,182 @@ router = APIRouter(
 
 
 @router.post("/upload")
-async def upload_sales_csv(file: UploadFile = File(...)):
+async def upload_sales_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
     """
-    Upload and validate a sales CSV file.
+    Upload, validate, clean and import a sales CSV.
+
+    Supported:
+    - MarketMind cleaned sales dataset
+    - MarketMind standardized sales CSV
+    - Known sales CSV column aliases
     """
 
-    # -------------------------------
-    # Step 1: Validate file type
-    # -------------------------------
-    if not file.filename.endswith(".csv"):
+    # ---------------------------------------------
+    # 1. File validation
+    # ---------------------------------------------
+
+    if not file.filename:
+
+        raise HTTPException(
+            status_code=400,
+            detail="No file was provided."
+        )
+
+    if not file.filename.lower().endswith(".csv"):
+
         raise HTTPException(
             status_code=400,
             detail="Only CSV files are allowed."
         )
 
-    # -------------------------------
-    # Step 2: Read CSV safely
-    # -------------------------------
+    # ---------------------------------------------
+    # 2. Read CSV
+    # ---------------------------------------------
+
     try:
-        dataframe = pd.read_csv(file.file)
+
+        dataframe = pd.read_csv(
+            file.file
+        )
+
     except Exception as e:
+
         raise HTTPException(
             status_code=400,
             detail=f"Invalid CSV file: {str(e)}"
         )
 
-    # -------------------------------
-    # Step 3: Normalize column names
-    # -------------------------------
-    dataframe.columns = (
-        dataframe.columns
-        .str.strip()
-        .str.lower()
-    )
+    if dataframe.empty:
 
-    # -------------------------------
-    # Step 4: Validate required columns
-    # -------------------------------
-    required_columns = [
-        "invoice_id",
-        "customer_id",
-        "product_id",
-        "quantity",
-        "total_amount",
-        "transaction_date"
-    ]
-
-    missing_columns = [
-        column
-        for column in required_columns
-        if column not in dataframe.columns
-    ]
-
-    if missing_columns:
         raise HTTPException(
             status_code=400,
-            detail={
-                "message": "CSV schema validation failed.",
-                "missing_columns": missing_columns
-            }
+            detail="CSV file contains no data."
         )
 
-    # -------------------------------
-    # Step 5: Return success response
-    # -------------------------------
+    # ---------------------------------------------
+    # 3. Detect + normalize + clean
+    # ---------------------------------------------
+
+    dataframe = detect_and_map_columns(
+        dataframe
+    )
+
+    # ---------------------------------------------
+    # 4. Resolve store
+    # ---------------------------------------------
+
+    if "store_id" not in dataframe.columns:
+
+        required_location = [
+            "city",
+            "state",
+            "country",
+        ]
+
+        missing_location = [
+            column
+            for column in required_location
+            if column not in dataframe.columns
+        ]
+
+        if missing_location:
+
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message":
+                        "Store information is required.",
+                    "missing_columns":
+                        missing_location,
+                },
+            )
+
+        stores = db.query(Store).all()
+
+        store_map = {}
+
+        for store in stores:
+
+            if not store.location:
+                continue
+
+            location_key = (
+                store.location
+                .strip()
+                .lower()
+            )
+
+            store_map[
+                location_key
+            ] = store.store_id
+
+        resolved_store_ids = []
+
+        for _, row in dataframe.iterrows():
+
+            location = (
+                f"{str(row['city']).strip()}, "
+                f"{str(row['state']).strip()}, "
+                f"{str(row['country']).strip()}"
+            ).lower()
+
+            store_id = store_map.get(
+                location
+            )
+
+            if not store_id:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message":
+                            "Could not match CSV "
+                            "location to an existing store.",
+                        "location":
+                            location,
+                    },
+                )
+
+            resolved_store_ids.append(
+                store_id
+            )
+
+        dataframe["store_id"] = (
+            resolved_store_ids
+        )
+
+    # ---------------------------------------------
+    # 5. Import
+    # ---------------------------------------------
+
+    result = bulk_import_sales(
+        db=db,
+        dataframe=dataframe,
+    )
+
+    # ---------------------------------------------
+    # 6. Response
+    # ---------------------------------------------
+
     return {
-        "status": "success",
-        "message": "CSV uploaded and schema validated successfully.",
-        "filename": file.filename,
-        "rows": len(dataframe),
-        "columns": len(dataframe.columns),
-        "column_names": dataframe.columns.tolist()
-    }
+    "status": "success",
+    "message":
+        "Sales CSV validated, cleaned and "
+        "imported successfully.",
+    "filename": file.filename,
+    "rows_received": len(dataframe),
+    "rows_inserted":
+        result["inserted_count"],
+    "rows_skipped":
+        result["skipped_count"],
+    "invoices_created":
+        result["created_invoice_count"],
+    "invoice_items_created":
+        result["created_item_count"],
+    "columns": len(dataframe.columns),
+    "column_names":
+        dataframe.columns.tolist(),
+}

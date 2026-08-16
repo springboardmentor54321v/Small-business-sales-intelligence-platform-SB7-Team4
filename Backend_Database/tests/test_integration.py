@@ -2,18 +2,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+
 client = TestClient(app)
-
-
-import pytest
-from app.core.database import Base, engine
-import app.models
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
 
 
 # =====================================================
@@ -55,24 +45,28 @@ def test_notification_api():
 
 def test_inventory_api():
 
-    response = client.get("/inventory")
+    response = client.get("/inventory/")
 
     assert response.status_code == 200
 
-    assert isinstance(response.json(), list)
+    data = response.json()
+
+    assert isinstance(data, list)
 
 
 # =====================================================
-# Sales API
+# Sales Transaction API
 # =====================================================
 
-def test_sales_api():
+def test_sales_transaction_api():
 
-    response = client.get("/sales")
+    response = client.get("/sales/")
 
     assert response.status_code == 200
 
-    assert isinstance(response.json(), list)
+    data = response.json()
+
+    assert isinstance(data, list)
 
 
 # =====================================================
@@ -81,8 +75,40 @@ def test_sales_api():
 
 def test_invoice_api():
 
-    response = client.get("/invoices")
+    response = client.get("/invoices/")
 
     assert response.status_code == 200
 
-    assert isinstance(response.json(), list)
+    data = response.json()
+
+    assert isinstance(data, list)
+
+
+# =====================================================
+# Customer API
+# =====================================================
+
+def test_customer_api():
+
+    response = client.get("/customers/")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert isinstance(data, list)
+
+
+# =====================================================
+# Payment API
+# =====================================================
+
+def test_payment_api():
+
+    response = client.get("/payments/")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert isinstance(data, list)
