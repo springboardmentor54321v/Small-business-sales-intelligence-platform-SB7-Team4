@@ -15,7 +15,11 @@ from views.business_overview import business_overview_page
 from views.forecast_vs_actual import forecast_vs_actual_page
 from views.churn_risk import churn_risk_page
 
-from styles.theme import apply_theme
+try:
+    from styles.theme import apply_theme
+except ModuleNotFoundError:
+    def apply_theme():
+        pass
 
 
 # ================= Page Configuration ================= #

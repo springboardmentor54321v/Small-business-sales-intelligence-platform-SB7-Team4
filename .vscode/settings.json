@@ -1,35 +1,6 @@
 {
-    "python.defaultInterpreterPath": "C:\\Python314\\python.exe",
-    "python.analysis.extraPaths": [
-        "${workspaceFolder}/Backend_Database",
-        "${workspaceFolder}/frontend"
-    ],
-    "python.analysis.autoImportCompletions": true,
-    "python.analysis.typeCheckingMode": "off",
-    "python.analysis.ignore": [
-        "**/__pyrefly_virtual__/**"
-    ],
-    "python.analysis.diagnosticSeverityOverrides": {
-        "reportUndefinedVariable": "none",
-        "reportGeneralTypeIssues": "none"
-    },
-    "python-envs.defaultEnvManager": "ms-python.python:system",
-    "yaml.disableSchemaDetection": [
-        "**/.github/workflows/*.yaml",
-        "**/.github/workflows/*.yml",
-        "**/workflows/*.yml"
-    ],
-    "files.associations": {
-        "**/.github/workflows/*.yml": "yaml",
-        "**/.github/workflows/*.yaml": "yaml",
-        "**/workflows/*.yml": "yaml"
-    },
-    "yaml.validate": false,
-    "yaml.schemas": {
-        "https://json.schemastore.org/empty.json": [
-            "**/.github/workflows/*.yml",
-            "**/.github/workflows/*.yaml",
-            "**/workflows/*.yml"
-        ]
-    }
+  "python.analysis.extraPaths": [
+    "./Backend_Database",
+    "./frontend"
+  ]
 }
