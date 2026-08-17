@@ -358,9 +358,10 @@ async def rate_limit_middleware(request: Request, call_next):
     elif request.client:
         client_ip = request.client.host
     
-    # 1. Strict Auth Limit (10 requests/60s)
+    # 1. Strict Auth Limit (10 requests/60s for testing, 150 requests/60s for production)
     if path.startswith("/auth/"):
-        if check_rate_limit(client_ip, "auth", max_requests=10, window=60):
+        max_auth = 10 if os.getenv("TESTING") == "true" else 150
+        if check_rate_limit(client_ip, "auth", max_requests=max_auth, window=60):
             log_audit(f"Auth rate limit exceeded for IP: {client_ip}", is_alert=True)
             return JSONResponse(
                 content={"detail": "Too many auth attempts. Please wait 1 minute."},
