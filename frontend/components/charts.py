@@ -33,6 +33,12 @@ def sales_trend_chart(sales):
 
     df = df.dropna(subset=["transaction_date"])
 
+    # Filter out future outlier dates dynamically (e.g. 2026/2027 test entries)
+    if len(df) > 5:
+        years = df["transaction_date"].dt.year
+        q3_year = years.quantile(0.75)
+        df = df[df["transaction_date"].dt.year <= q3_year + 2]
+
     if df.empty:
         st.info("No valid sales data available.")
         return
