@@ -62,7 +62,7 @@ def show_sidebar():
 
     # ---------------- Menu ---------------- #
 
-    if role == "Owner":
+    if role in ["Owner", "Business Owner"]:
  
          menu = [
              "Dashboard",

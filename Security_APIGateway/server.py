@@ -344,7 +344,7 @@ def check_rate_limit(ip: str, limit_type: str, max_requests: int, window: int) -
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    if request.headers.get("x-bypass-rate-limit") == "true":
+    if os.getenv("TESTING") != "true" or request.headers.get("x-bypass-rate-limit") == "true":
         return await call_next(request)
     path = request.url.path
     if path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc"):
