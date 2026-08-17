@@ -36,7 +36,7 @@ def dashboard_page():
             page_size = 1000
             while True:
                 url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
-                sales_res = requests.get(url, timeout=15)
+                sales_res = requests.get(url, timeout=3)
                 sales_res.raise_for_status()
                 page_data = sales_res.json()
                 if not page_data:
@@ -48,12 +48,12 @@ def dashboard_page():
 
             inventory_response = requests.get(
                 INVENTORY_API,
-                timeout=10
+                timeout=3
             )
 
             revenue_response = requests.get(
                 REVENUE_API,
-                timeout=10
+                timeout=3
             )
 
         inventory_response.raise_for_status()
