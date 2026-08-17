@@ -8,8 +8,6 @@ from components.sidebar import show_sidebar
 # ---------------- API Configuration ---------------- #
 from config.config import DB_BASE_URL as BASE_URL
 
-SALES_API = f"{BASE_URL}/sales/"
-
 
 def customers_page():
 
@@ -25,15 +23,21 @@ def customers_page():
     try:
 
         with st.spinner("Loading Customer Insights..."):
-
-            response = requests.get(
-                SALES_API,
-                timeout=10
-            )
-
-        response.raise_for_status()
-
-        sales = response.json()
+            # Fetch all sales paginated to render correct insights
+            sales = []
+            page = 1
+            page_size = 1000
+            while True:
+                url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
+                sales_res = requests.get(url, timeout=15)
+                sales_res.raise_for_status()
+                page_data = sales_res.json()
+                if not page_data:
+                    break
+                sales.extend(page_data)
+                if len(page_data) < page_size:
+                    break
+                page += 1
 
         sales_df = pd.DataFrame(sales)
 

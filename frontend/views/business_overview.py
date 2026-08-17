@@ -12,10 +12,7 @@ from components.cards import show_cards
 # ============================================================
 from config.config import DB_BASE_URL as BASE_URL
 
-SALES_API = f"{BASE_URL}/sales/?page=1&page_size=100"
-
 INVENTORY_API = f"{BASE_URL}/inventory/"
-
 REVENUE_API = f"{BASE_URL}/revenue/summary"
 
 
@@ -40,11 +37,21 @@ def business_overview_page():
         with st.spinner(
             "Loading Dashboard..."
         ):
-
-            sales_response = requests.get(
-                SALES_API,
-                timeout=15
-            )
+            # Fetch all sales paginated to render correct graphs
+            sales = []
+            page = 1
+            page_size = 1000
+            while True:
+                url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
+                sales_res = requests.get(url, timeout=15)
+                sales_res.raise_for_status()
+                page_data = sales_res.json()
+                if not page_data:
+                    break
+                sales.extend(page_data)
+                if len(page_data) < page_size:
+                    break
+                page += 1
 
             inventory_response = requests.get(
                 INVENTORY_API,
@@ -56,11 +63,8 @@ def business_overview_page():
                 timeout=15
             )
 
-        sales_response.raise_for_status()
         inventory_response.raise_for_status()
         revenue_response.raise_for_status()
-
-        sales = sales_response.json()
 
         inventory = inventory_response.json()
 
