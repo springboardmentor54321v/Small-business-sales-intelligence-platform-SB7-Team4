@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.inventory import Inventory
 from app.models.sales_transaction import SalesTransaction
@@ -40,6 +40,7 @@ def get_all_sales(
     query = (
         db.query(SalesTransaction)
         .join(Product)
+        .options(joinedload(SalesTransaction.product))
     )
 
     # ==========================
