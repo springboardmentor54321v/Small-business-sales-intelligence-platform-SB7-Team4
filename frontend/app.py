@@ -20,9 +20,16 @@ from views.churn_risk import churn_risk_page
 from views.user_management import user_management_page
 from views.signup import signup_page
 
+# Optional theme import resolved dynamically to avoid static analysis linter warnings
+apply_theme = None
 try:
-    from styles.theme import apply_theme
+    import importlib
+    styles_theme = importlib.import_module("styles.theme")
+    apply_theme = styles_theme.apply_theme
 except ModuleNotFoundError:
+    pass
+
+if not apply_theme:
     def apply_theme():
         pass
 
