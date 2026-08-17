@@ -350,7 +350,13 @@ async def rate_limit_middleware(request: Request, call_next):
     if path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc"):
         return await call_next(request)
         
-    client_ip = request.client.host if request.client else "unknown"
+    # Resolve real client IP address behind reverse proxies (e.g. Render, Cloudflare)
+    client_ip = "unknown"
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        client_ip = xff.split(",")[0].strip()
+    elif request.client:
+        client_ip = request.client.host
     
     # 1. Strict Auth Limit (10 requests/60s)
     if path.startswith("/auth/"):
