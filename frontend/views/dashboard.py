@@ -36,7 +36,12 @@ def dashboard_page():
             page_size = 1000
             while True:
                 url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
-                sales_res = requests.get(url, timeout=3)
+                try:
+                    sales_res = requests.get(url, timeout=3)
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 35 seconds)...")
+                    sales_res = requests.get(url, timeout=35)
+                
                 sales_res.raise_for_status()
                 page_data = sales_res.json()
                 if not page_data:
@@ -46,15 +51,15 @@ def dashboard_page():
                     break
                 page += 1
 
-            inventory_response = requests.get(
-                INVENTORY_API,
-                timeout=3
-            )
+            try:
+                inventory_response = requests.get(INVENTORY_API, timeout=3)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                inventory_response = requests.get(INVENTORY_API, timeout=15)
 
-            revenue_response = requests.get(
-                REVENUE_API,
-                timeout=3
-            )
+            try:
+                revenue_response = requests.get(REVENUE_API, timeout=3)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                revenue_response = requests.get(REVENUE_API, timeout=15)
 
         inventory_response.raise_for_status()
         revenue_response.raise_for_status()
