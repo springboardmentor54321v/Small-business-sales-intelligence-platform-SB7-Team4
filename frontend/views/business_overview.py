@@ -32,13 +32,14 @@ def business_overview_page():
 
     st.markdown("---")
 
-    try:
+    db_error = False
+    sales = []
+    inventory = []
+    revenue = {}
 
-        with st.spinner(
-            "Loading Dashboard..."
-        ):
-            # Fetch all sales paginated to render correct graphs
-            sales = []
+    with st.spinner("Loading Dashboard..."):
+        # 1. Fetch Sales
+        try:
             page = 1
             page_size = 1000
             while True:
@@ -48,7 +49,6 @@ def business_overview_page():
                 except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                     st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 35 seconds)...")
                     sales_res = requests.get(url, timeout=35)
-                
                 sales_res.raise_for_status()
                 page_data = sales_res.json()
                 if not page_data:
@@ -57,34 +57,44 @@ def business_overview_page():
                 if len(page_data) < page_size:
                     break
                 page += 1
+        except Exception:
+            db_error = True
 
+        # 2. Fetch Inventory
+        if not db_error:
             try:
-                inventory_response = requests.get(INVENTORY_API, timeout=3)
-            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                inventory_response = requests.get(INVENTORY_API, timeout=15)
+                try:
+                    inventory_response = requests.get(INVENTORY_API, timeout=3)
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                    inventory_response = requests.get(INVENTORY_API, timeout=15)
+                inventory_response.raise_for_status()
+                inventory = inventory_response.json()
+            except Exception:
+                db_error = True
 
+        # 3. Fetch Revenue
+        if not db_error:
             try:
-                revenue_response = requests.get(REVENUE_API, timeout=3)
-            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                revenue_response = requests.get(REVENUE_API, timeout=15)
+                try:
+                    revenue_response = requests.get(REVENUE_API, timeout=3)
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                    revenue_response = requests.get(REVENUE_API, timeout=15)
+                revenue_response.raise_for_status()
+                revenue = revenue_response.json()
+            except Exception:
+                db_error = True
 
-        inventory_response.raise_for_status()
-        revenue_response.raise_for_status()
+    if db_error:
+        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
+        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
+        return
 
-        inventory = inventory_response.json()
+    sales_df = pd.DataFrame(sales)
+    inventory_df = pd.DataFrame(inventory)
 
-        revenue = revenue_response.json()
-
-        sales_df = pd.DataFrame(sales)
-
-        inventory_df = pd.DataFrame(inventory)
-
+    try:
         if sales_df.empty:
-
-            st.warning(
-                "No Sales Data Available"
-            )
-
+            st.warning("No Sales Data Available")
             return
 
         if inventory_df.empty:

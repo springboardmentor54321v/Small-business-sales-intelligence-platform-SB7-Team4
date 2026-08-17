@@ -20,11 +20,11 @@ def customers_page():
 
     # ---------------- Load Sales Data ---------------- #
 
-    try:
+    db_error = False
+    sales = []
 
-        with st.spinner("Loading Customer Insights..."):
-            # Fetch all sales paginated to render correct insights
-            sales = []
+    with st.spinner("Loading Customer Insights..."):
+        try:
             page = 1
             page_size = 1000
             while True:
@@ -34,7 +34,6 @@ def customers_page():
                 except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                     st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 35 seconds)...")
                     sales_res = requests.get(url, timeout=35)
-                
                 sales_res.raise_for_status()
                 page_data = sales_res.json()
                 if not page_data:
@@ -43,31 +42,17 @@ def customers_page():
                 if len(page_data) < page_size:
                     break
                 page += 1
+        except Exception:
+            db_error = True
 
-        sales_df = pd.DataFrame(sales)
-
-    except requests.exceptions.Timeout:
-
-        st.error("❌ Backend request timed out.")
+    if db_error:
+        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
+        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
         return
 
-    except requests.exceptions.ConnectionError:
-
-        st.error("❌ Unable to connect to backend.")
-        return
-
-    except requests.exceptions.HTTPError as e:
-
-        st.error(f"❌ API Error: {e}")
-        return
-
-    except Exception as e:
-
-        st.error(f"❌ Unexpected Error: {e}")
-        return
+    sales_df = pd.DataFrame(sales)
 
     if sales_df.empty:
-
         st.warning("No Sales Data Available")
         return
 
