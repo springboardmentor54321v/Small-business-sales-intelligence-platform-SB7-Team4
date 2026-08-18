@@ -158,45 +158,33 @@ def payments_page():
 
     st.markdown("---")
 
-import os
-
-@st.cache_data(ttl=180, show_spinner=False)
-def load_payments(api_url):
-    for p in [
-        "Backend_Database/app/etl/output/payments.csv",
-        "../Backend_Database/app/etl/output/payments.csv",
-        "app/Backend_Database/app/etl/output/payments.csv"
-    ]:
-        if os.path.exists(p):
-            try:
-                df = pd.read_csv(p)
-                if not df.empty:
-                    return df
-            except Exception:
-                pass
-    try:
-        response = requests.get(api_url, timeout=3.5)
-        if response.status_code == 200:
-            payments = response.json()
-            if payments:
-                return pd.DataFrame(payments)
-    except Exception:
-        pass
-    return pd.DataFrame()
-
-
     # ================= Load Payments ================= #
 
     try:
-        with st.spinner("Loading Payments..."):
-            df = load_payments(PAYMENT_API)
 
-        if df.empty:
-            st.info("No payment records available.")
-            return
+        response = requests.get(
+            PAYMENT_API,
+            timeout=10
+        )
+
+        response.raise_for_status()
+
+        payments = response.json()
+
+        df = pd.DataFrame(payments)
 
     except Exception as e:
-        st.error(f"Unable to load payments: {e}")
+
+        st.error(
+            f"Unable to load payments: {e}"
+        )
+
+        return
+
+    if df.empty:
+
+        st.warning("No payment records found.")
+
         return
         # ================= Dashboard Metrics ================= #
 

@@ -16,112 +16,76 @@ INVENTORY_API = f"{BASE_URL}/inventory/"
 REVENUE_API = f"{BASE_URL}/revenue/summary"
 
 
-import os
-from concurrent.futures import ThreadPoolExecutor
-
-# ---------------- High-Speed Cached Data Loader ---------------- #
-
-@st.cache_data(ttl=600, show_spinner=False)
-def load_dashboard_data(base_url, inventory_url, revenue_url):
-    sales_df = pd.DataFrame()
-    inventory_df = pd.DataFrame()
-    revenue = {}
-
-    # Fast Instant Loader (0.05s)
-    for p in [
-        "Backend_Database/app/etl/output/sales_transactions.csv",
-        "../Backend_Database/app/etl/output/sales_transactions.csv",
-        "app/Backend_Database/app/etl/output/sales_transactions.csv"
-    ]:
-        if os.path.exists(p):
-            try:
-                sales_df = pd.read_csv(p)
-                break
-            except Exception:
-                pass
-
-    for p in [
-        "Backend_Database/app/etl/output/inventory.csv",
-        "../Backend_Database/app/etl/output/inventory.csv",
-        "app/Backend_Database/app/etl/output/inventory.csv"
-    ]:
-        if os.path.exists(p):
-            try:
-                inventory_df = pd.read_csv(p)
-                break
-            except Exception:
-                pass
-
-    if not sales_df.empty and not inventory_df.empty:
-        revenue = {
-            "total_revenue": float(sales_df["total_amount"].sum()),
-            "total_outstanding": float(sales_df["total_amount"].sum() * 0.12),
-            "daily_collections": float(sales_df["total_amount"].tail(30).sum())
-        }
-        return sales_df, inventory_df, revenue
-
-    # Remote API Fallback
-    try:
-        def _fetch_sales():
-            url = f"{base_url}/sales/?page=1&page_size=2000"
-            r = requests.get(url, timeout=3.5)
-            r.raise_for_status()
-            return pd.DataFrame(r.json())
-
-        def _fetch_inv():
-            r = requests.get(inventory_url, timeout=3.5)
-            r.raise_for_status()
-            return pd.DataFrame(r.json())
-
-        def _fetch_rev():
-            r = requests.get(revenue_url, timeout=3.5)
-            r.raise_for_status()
-            return r.json()
-
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            f_s = executor.submit(_fetch_sales)
-            f_i = executor.submit(_fetch_inv)
-            f_r = executor.submit(_fetch_rev)
-            return f_s.result(), f_i.result(), f_r.result()
-    except Exception:
-        pass
-
-    return sales_df, inventory_df, revenue
-
-
 # ---------------- Dashboard ---------------- #
 
 def dashboard_page():
 
     show_sidebar()
 
-    header_col, refresh_col = st.columns([5, 1])
-    with header_col:
-        st.title("MarketMind AI Dashboard")
-        st.caption("Small Business Sales Intelligence Platform")
-    with refresh_col:
-        st.write("")
-        if st.button("🔄 Refresh Data", help="Clear cache and fetch latest sales & inventory"):
-            st.cache_data.clear()
-            st.rerun()
+    st.title("MarketMind AI Dashboard")
+    st.caption("Small Business Sales Intelligence Platform")
 
     st.markdown("---")
 
     db_error = False
-    sales_df = pd.DataFrame()
-    inventory_df = pd.DataFrame()
+    sales = []
+    inventory = []
     revenue = {}
 
     with st.spinner("Loading Dashboard..."):
+        # 1. Fetch Sales
         try:
-            sales_df, inventory_df, revenue = load_dashboard_data(BASE_URL, INVENTORY_API, REVENUE_API)
+            page = 1
+            page_size = 1000
+            while True:
+                url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
+                try:
+                    sales_res = requests.get(url, timeout=3)
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 60 seconds)...")
+                    sales_res = requests.get(url, timeout=60)
+                sales_res.raise_for_status()
+                page_data = sales_res.json()
+                if not page_data:
+                    break
+                sales.extend(page_data)
+                if len(page_data) < page_size:
+                    break
+                page += 1
         except Exception:
             db_error = True
 
-    if db_error or (sales_df.empty and inventory_df.empty):
+        # 2. Fetch Inventory
+        if not db_error:
+            try:
+                try:
+                    inventory_response = requests.get(INVENTORY_API, timeout=3)
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                    inventory_response = requests.get(INVENTORY_API, timeout=15)
+                inventory_response.raise_for_status()
+                inventory = inventory_response.json()
+            except Exception:
+                db_error = True
+
+        # 3. Fetch Revenue
+        if not db_error:
+            try:
+                try:
+                    revenue_response = requests.get(REVENUE_API, timeout=3)
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                    revenue_response = requests.get(REVENUE_API, timeout=15)
+                revenue_response.raise_for_status()
+                revenue = revenue_response.json()
+            except Exception:
+                db_error = True
+
+    if db_error:
         st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
         st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
         return
+
+    sales_df = pd.DataFrame(sales)
+    inventory_df = pd.DataFrame(inventory)
 
     try:
         if sales_df.empty:
