@@ -13,14 +13,13 @@ from config.config import DB_BASE_URL as BASE_URL
 @st.cache_data(ttl=180, show_spinner=False)
 def load_customers_raw_sales(base_url):
     sales = []
-    page = 1
     page_size = 1000
-    while True:
+    for page in range(1, 4):  # Fetch up to 3000 recent sales transactions
         url = f"{base_url}/sales/?page={page}&page_size={page_size}"
         try:
-            sales_res = requests.get(url, timeout=4)
+            sales_res = requests.get(url, timeout=5)
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            sales_res = requests.get(url, timeout=45)
+            sales_res = requests.get(url, timeout=30)
         sales_res.raise_for_status()
         page_data = sales_res.json()
         if not page_data:
@@ -28,7 +27,6 @@ def load_customers_raw_sales(base_url):
         sales.extend(page_data)
         if len(page_data) < page_size:
             break
-        page += 1
     return sales
 
 

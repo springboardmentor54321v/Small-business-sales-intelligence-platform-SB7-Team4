@@ -16,49 +16,56 @@ INVENTORY_API = f"{BASE_URL}/inventory/"
 REVENUE_API = f"{BASE_URL}/revenue/summary"
 
 
+from concurrent.futures import ThreadPoolExecutor
+
 # ============================================================
-# Cached Business Overview Data Loader
+# Fast Parallel Cached Business Overview Data Loader
 # ============================================================
 
 @st.cache_data(ttl=180, show_spinner=False)
 def load_business_overview_raw_data(base_url, inventory_url, revenue_url):
-    sales = []
-    inventory = []
-    revenue = {}
+    def fetch_sales():
+        all_sales = []
+        for page in range(1, 4):  # Fetch up to 3000 recent sales transactions
+            url = f"{base_url}/sales/?page={page}&page_size={page_size}"
+            try:
+                sales_res = requests.get(url, timeout=5)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                sales_res = requests.get(url, timeout=30)
+            sales_res.raise_for_status()
+            page_data = sales_res.json()
+            if not page_data:
+                break
+            all_sales.extend(page_data)
+            if len(page_data) < 1000:
+                break
+        return all_sales
 
-    # 1. Fetch Sales
-    page = 1
-    page_size = 1000
-    while True:
-        url = f"{base_url}/sales/?page={page}&page_size={page_size}"
+    def fetch_inventory():
         try:
-            sales_res = requests.get(url, timeout=4)
+            res = requests.get(inventory_url, timeout=5)
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            sales_res = requests.get(url, timeout=45)
-        sales_res.raise_for_status()
-        page_data = sales_res.json()
-        if not page_data:
-            break
-        sales.extend(page_data)
-        if len(page_data) < page_size:
-            break
-        page += 1
+            res = requests.get(inventory_url, timeout=20)
+        res.raise_for_status()
+        return res.json()
 
-    # 2. Fetch Inventory
-    try:
-        inventory_response = requests.get(inventory_url, timeout=4)
-    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-        inventory_response = requests.get(inventory_url, timeout=20)
-    inventory_response.raise_for_status()
-    inventory = inventory_response.json()
+    def fetch_revenue():
+        try:
+            res = requests.get(revenue_url, timeout=5)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            res = requests.get(revenue_url, timeout=20)
+        res.raise_for_status()
+        return res.json()
 
-    # 3. Fetch Revenue
-    try:
-        revenue_response = requests.get(revenue_url, timeout=4)
-    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-        revenue_response = requests.get(revenue_url, timeout=20)
-    revenue_response.raise_for_status()
-    revenue = revenue_response.json()
+    page_size = 1000
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        future_sales = executor.submit(fetch_sales)
+        future_inv = executor.submit(fetch_inventory)
+        future_rev = executor.submit(fetch_revenue)
+
+        sales = future_sales.result()
+        inventory = future_inv.result()
+        revenue = future_rev.result()
 
     return sales, inventory, revenue
 
