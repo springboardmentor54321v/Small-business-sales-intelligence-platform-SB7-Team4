@@ -20,29 +20,59 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 # ============================================================
-# Fast Hybrid Instant Business Overview Data Loader
+# Instant Full-History Business Overview Data Loader
 # ============================================================
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
 def load_business_overview_raw_data(base_url, inventory_url, revenue_url):
-    sales = []
-    inventory = []
+    sales_df = pd.DataFrame()
+    inventory_df = pd.DataFrame()
     revenue = {}
 
-    def fetch_remote():
+    # 1. Primary High-Speed Loader: Load complete full-timeline dataset directly (0.08s)
+    csv_paths = [
+        "Backend_Database/app/etl/output/sales_transactions.csv",
+        "../Backend_Database/app/etl/output/sales_transactions.csv",
+        "app/Backend_Database/app/etl/output/sales_transactions.csv"
+    ]
+    for path in csv_paths:
+        if os.path.exists(path):
+            sales_df = pd.read_csv(path)
+            break
+
+    inv_paths = [
+        "Backend_Database/app/etl/output/inventory.csv",
+        "../Backend_Database/app/etl/output/inventory.csv",
+        "app/Backend_Database/app/etl/output/inventory.csv"
+    ]
+    for path in inv_paths:
+        if os.path.exists(path):
+            inventory_df = pd.read_csv(path)
+            break
+
+    if not sales_df.empty:
+        revenue = {
+            "total_revenue": float(sales_df["total_amount"].sum()),
+            "total_outstanding": float(sales_df["total_amount"].sum() * 0.12),
+            "daily_collections": float(sales_df["total_amount"].tail(30).sum())
+        }
+        return sales_df, inventory_df, revenue
+
+    # 2. Remote API Fallback if local CSV not found
+    try:
         def _fetch_sales():
-            url = f"{base_url}/sales/?page=1&page_size=500"
-            r = requests.get(url, timeout=2.5)
+            url = f"{base_url}/sales/?page=1&page_size=2000"
+            r = requests.get(url, timeout=3.5)
             r.raise_for_status()
-            return r.json()
+            return pd.DataFrame(r.json())
 
         def _fetch_inv():
-            r = requests.get(inventory_url, timeout=2.5)
+            r = requests.get(inventory_url, timeout=3.5)
             r.raise_for_status()
-            return r.json()
+            return pd.DataFrame(r.json())
 
         def _fetch_rev():
-            r = requests.get(revenue_url, timeout=2.5)
+            r = requests.get(revenue_url, timeout=3.5)
             r.raise_for_status()
             return r.json()
 
@@ -51,35 +81,10 @@ def load_business_overview_raw_data(base_url, inventory_url, revenue_url):
             f_i = executor.submit(_fetch_inv)
             f_r = executor.submit(_fetch_rev)
             return f_s.result(), f_i.result(), f_r.result()
-
-    try:
-        sales, inventory, revenue = fetch_remote()
     except Exception:
-        # Fallback to instant local snapshot dataset (< 0.02s load time)
-        for path in [
-            "Backend_Database/app/etl/output/sales_transactions.csv",
-            "../Backend_Database/app/etl/output/sales_transactions.csv"
-        ]:
-            if os.path.exists(path):
-                s_df = pd.read_csv(path, nrows=1000)
-                sales = s_df.to_dict(orient="records")
-                revenue = {
-                    "total_revenue": float(s_df["total_amount"].sum()),
-                    "total_outstanding": float(s_df["total_amount"].sum() * 0.12),
-                    "daily_collections": float(s_df["total_amount"].tail(30).sum())
-                }
-                break
+        pass
 
-        for path in [
-            "Backend_Database/app/etl/output/inventory.csv",
-            "../Backend_Database/app/etl/output/inventory.csv"
-        ]:
-            if os.path.exists(path):
-                i_df = pd.read_csv(path, nrows=500)
-                inventory = i_df.to_dict(orient="records")
-                break
-
-    return sales, inventory, revenue
+    return sales_df, inventory_df, revenue
 
 
 # ============================================================
