@@ -16,20 +16,120 @@ FORECAST_FEATURE_COLS = [
 ]
 
 
+# ============================================================
+# UNIVERSAL DATASET PARSER (Handles any CSV column format)
+# ============================================================
+
+def _extract_sales_series(uploaded_file):
+    """Robustly extracts and cleans Date and Total Amount from any CSV dataset."""
+    try:
+        if isinstance(uploaded_file, pd.DataFrame):
+            df = uploaded_file.copy()
+        else:
+            uploaded_file.seek(0)
+            df = pd.read_csv(uploaded_file)
+            uploaded_file.seek(0)
+
+        if df.empty:
+            return None
+
+        date_col = None
+        amount_col = None
+
+        # 1. Identify Date Column
+        date_candidates = [
+            "order date", "order_date", "transaction_date", "date", "invoice_date",
+            "sales_date", "ds", "time", "datetime", "created_at"
+        ]
+        for c in df.columns:
+            if c.strip().lower() in date_candidates:
+                date_col = c
+                break
+        if not date_col:
+            for c in df.columns:
+                norm = c.strip().lower()
+                if "date" in norm and "ship" not in norm:
+                    date_col = c
+                    break
+        if not date_col:
+            for c in df.columns:
+                try:
+                    converted = pd.to_datetime(df[c].dropna().head(10), errors="coerce")
+                    if converted.notna().sum() >= min(5, len(df)):
+                        date_col = c
+                        break
+                except Exception:
+                    pass
+
+        # 2. Identify Amount Column
+        amount_candidates = [
+            "total amount", "total_amount", "sales", "total_sales", "amount",
+            "revenue", "total", "y", "price", "total_price", "grand_total"
+        ]
+        for c in df.columns:
+            if c.strip().lower() in amount_candidates:
+                amount_col = c
+                break
+        if not amount_col:
+            for c in df.columns:
+                norm = c.strip().lower()
+                if ("total" in norm or "amount" in norm or "sales" in norm or "revenue" in norm) and "id" not in norm:
+                    amount_col = c
+                    break
+        if not amount_col:
+            for c in df.columns:
+                if c != date_col and "id" not in c.strip().lower() and "name" not in c.strip().lower():
+                    try:
+                        clean_series = df[c].astype(str).str.replace("$", "", regex=False).str.replace("₹", "", regex=False).str.replace(",", "", regex=False).str.strip()
+                        num = pd.to_numeric(clean_series, errors="coerce")
+                        if num.notna().sum() >= min(5, len(df)):
+                            amount_col = c
+                            break
+                    except Exception:
+                        pass
+
+        if not date_col or not amount_col:
+            return None
+
+        clean_amounts = df[amount_col].astype(str).str.replace("$", "", regex=False).str.replace("₹", "", regex=False).str.replace(",", "", regex=False).str.strip()
+
+        sub_df = pd.DataFrame({
+            "Order Date": pd.to_datetime(df[date_col], dayfirst=True, errors="coerce"),
+            "Total amount": pd.to_numeric(clean_amounts, errors="coerce")
+        }).dropna(subset=["Order Date", "Total amount"])
+
+        if sub_df.empty:
+            return None
+
+        daily = (
+            sub_df.groupby("Order Date")["Total amount"]
+            .sum()
+            .reset_index()
+            .sort_values("Order Date")
+            .reset_index(drop=True)
+        )
+        return daily
+    except Exception:
+        return None
+
+
 def _build_forecast_row(history_df, future_date):
-    """Exact feature constructor matching AIML/Integrated_API/app.py for Log-CatBoost."""
+    """Construct multi-scale lag, rolling, and calendar features matching Log-CatBoost."""
     amounts = history_df["Total amount"].values
-    log_amounts = np.log1p(amounts)
+    if len(amounts) == 0:
+        amounts = np.array([500.0])
+    log_amounts = np.log1p(np.maximum(0, amounts))
 
     def get_lag(arr, lag):
         return float(arr[-lag]) if len(arr) >= lag else float(arr[0])
 
     def get_rolling(arr, window):
         sub = arr[-window:] if len(arr) >= window else arr
-        return float(np.mean(sub))
+        return float(np.mean(sub)) if len(sub) > 0 else 0.0
 
     def get_ema(arr, span):
-        return float(pd.Series(arr).ewm(span=span).mean().iloc[-1])
+        s = pd.Series(arr)
+        return float(s.ewm(span=span).mean().iloc[-1]) if not s.empty else 0.0
 
     row_dict = {
         "day": [future_date.day],
@@ -61,8 +161,12 @@ def _build_forecast_row(history_df, future_date):
     return pd.DataFrame(row_dict)[FORECAST_FEATURE_COLS]
 
 
+# ============================================================
+# EXACT LOG-CATBOOST BACKTEST & FORECASTING
+# ============================================================
+
 def _run_local_catboost_backtest(uploaded_file):
-    """Executes the exact trained Log-CatBoost backtest pipeline from AIML/Integrated_API/app.py."""
+    """Executes historical backtest using trained Log-CatBoost model on any dataset format."""
     try:
         model_path = "AIML/week3/forecasting/catboost/catboost_daily_model.pkl"
         if not os.path.exists(model_path):
@@ -75,44 +179,12 @@ def _run_local_catboost_backtest(uploaded_file):
             return None
 
         forecast_model = joblib.load(model_path)
+        daily_sales = _extract_sales_series(uploaded_file)
 
-        if isinstance(uploaded_file, pd.DataFrame):
-            df = uploaded_file.copy()
-        else:
-            uploaded_file.seek(0)
-            df = pd.read_csv(uploaded_file)
-            uploaded_file.seek(0)
-
-        # Normalize column names cleanly
-        col_map = {}
-        for c in df.columns:
-            norm = c.strip().lower()
-            if norm in ["order date", "order_date", "date", "transaction_date", "orderdate"] or ("order" in norm and "date" in norm):
-                col_map[c] = "Order Date"
-            elif norm in ["total amount", "total_amount", "sales", "amount", "revenue", "totalsales"] or ("total" in norm and "amount" in norm):
-                col_map[c] = "Total amount"
-        df = df.rename(columns=col_map)
-
-        if "Order Date" not in df.columns or "Total amount" not in df.columns:
+        if daily_sales is None or len(daily_sales) < 5:
             return None
 
-        clean_df = pd.DataFrame({
-            "Order Date": pd.to_datetime(df["Order Date"], dayfirst=True, errors="coerce"),
-            "Total amount": pd.to_numeric(df["Total amount"], errors="coerce")
-        }).dropna()
-
-        daily_sales = (
-            clean_df.groupby("Order Date")["Total amount"]
-            .sum()
-            .reset_index()
-            .sort_values("Order Date")
-            .reset_index(drop=True)
-        )
-
-        if len(daily_sales) < 35:
-            return None
-
-        test_size = 30
+        test_size = min(30, max(3, int(len(daily_sales) * 0.2)))
         train_data = daily_sales.iloc[:-test_size].copy()
         test_data = daily_sales.iloc[-test_size:].copy()
         history = train_data.copy()
@@ -157,12 +229,12 @@ def _run_local_catboost_backtest(uploaded_file):
             },
             "error": None
         }
-    except Exception as e:
+    except Exception:
         return None
 
 
 def _run_local_catboost_forecast(uploaded_file, periods=30):
-    """Executes the exact trained Log-CatBoost 30-day forecast pipeline from AIML/Integrated_API/app.py."""
+    """Executes future sales forecasting using trained Log-CatBoost model on any dataset format."""
     try:
         model_path = "AIML/week3/forecasting/catboost/catboost_daily_model.pkl"
         if not os.path.exists(model_path):
@@ -175,33 +247,9 @@ def _run_local_catboost_forecast(uploaded_file, periods=30):
             return None
 
         forecast_model = joblib.load(model_path)
+        daily_sales = _extract_sales_series(uploaded_file)
 
-        if isinstance(uploaded_file, pd.DataFrame):
-            df = uploaded_file.copy()
-        else:
-            uploaded_file.seek(0)
-            df = pd.read_csv(uploaded_file)
-            uploaded_file.seek(0)
-
-        col_map = {}
-        for c in df.columns:
-            norm = c.strip().lower()
-            if norm in ["order date", "order_date", "date", "transaction_date", "orderdate"] or ("order" in norm and "date" in norm):
-                col_map[c] = "Order Date"
-            elif norm in ["total amount", "total_amount", "sales", "amount", "revenue", "totalsales"] or ("total" in norm and "amount" in norm):
-                col_map[c] = "Total amount"
-        df = df.rename(columns=col_map)
-
-        if "Order Date" not in df.columns or "Total amount" not in df.columns:
-            return None
-
-        clean_df = pd.DataFrame({
-            "Order Date": pd.to_datetime(df["Order Date"], dayfirst=True, errors="coerce"),
-            "Total amount": pd.to_numeric(df["Total amount"], errors="coerce")
-        }).dropna()
-
-        daily_sales = clean_df.groupby("Order Date")["Total amount"].sum().reset_index().sort_values("Order Date").reset_index(drop=True)
-        if daily_sales.empty:
+        if daily_sales is None or daily_sales.empty:
             return None
 
         history = daily_sales.copy()
@@ -279,20 +327,20 @@ def get_sales_forecast(uploaded_file):
 
         if response is not None and response.status_code == 200:
             data = response.json()
-            if isinstance(data, list):
+            if isinstance(data, list) and len(data) > 0:
                 return pd.DataFrame(data)
             if isinstance(data, dict) and "error" not in data:
                 return pd.DataFrame([data])
     except Exception:
         pass
 
-    # 2. Local CatBoost Pipeline (Identical to backend API)
+    # 2. Local CatBoost Pipeline
     local_df = _run_local_catboost_forecast(uploaded_file)
     if local_df is not None and not local_df.empty:
         return local_df
 
     return pd.DataFrame({
-        "Error": ["Unable to generate sales forecast. Please verify your CSV format."]
+        "Error": ["Unable to generate sales forecast. Please verify your CSV has a date and sales amount column."]
     })
 
 
@@ -336,7 +384,7 @@ def get_forecast_backtest(uploaded_file):
 
         if response is not None and response.status_code == 200:
             data = response.json()
-            if isinstance(data, dict) and "Results" in data:
+            if isinstance(data, dict) and "Results" in data and len(data.get("Results", [])) > 0:
                 return {
                     "results": pd.DataFrame(data.get("Results", [])),
                     "metrics": data.get("Evaluation Metrics", {}),
@@ -346,7 +394,7 @@ def get_forecast_backtest(uploaded_file):
     except Exception:
         pass
 
-    # 2. Local CatBoost Pipeline (Identical to backend API)
+    # 2. Local CatBoost Pipeline
     local_res = _run_local_catboost_backtest(uploaded_file)
     if local_res is not None:
         return local_res
@@ -355,5 +403,5 @@ def get_forecast_backtest(uploaded_file):
         "results": pd.DataFrame(),
         "metrics": {},
         "period": {},
-        "error": "Unable to complete forecast backtest. Please check your CSV format."
+        "error": "Unable to complete forecast backtest. Please verify your CSV contains a date column and a sales/amount column."
     }
