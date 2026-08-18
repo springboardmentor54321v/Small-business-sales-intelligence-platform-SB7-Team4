@@ -1351,18 +1351,16 @@ async def proxy_inventory_root(request: Request):
 
 @app.post("/predict")
 async def proxy_ai_predict_raw(request: Request):
+    body = await request.body()
     async with httpx.AsyncClient() as client:
         try:
-            form = await request.form()
-            files_to_send = {}
-            for key, val in form.items():
-                if isinstance(val, UploadFile):
-                    content = await val.read()
-                    files_to_send[key] = (val.filename, content, val.content_type)
-            
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
             response = await client.post(
                 f"{AI_URL}/predict",
-                files=files_to_send,
+                content=body,
+                headers=headers,
                 timeout=60.0
             )
             return Response(
@@ -1529,18 +1527,16 @@ async def proxy_ai_churn_risk_batch(request: Request):
 
 @app.post("/forecast-backtest")
 async def proxy_ai_forecast_backtest_raw(request: Request):
+    body = await request.body()
     async with httpx.AsyncClient() as client:
         try:
-            form = await request.form()
-            files_to_send = {}
-            for key, val in form.items():
-                if isinstance(val, UploadFile):
-                    content = await val.read()
-                    files_to_send[key] = (val.filename, content, val.content_type)
-            
+            headers = dict(request.headers)
+            headers.pop("content-length", None)
+            headers.pop("host", None)
             response = await client.post(
                 f"{AI_URL}/forecast-backtest",
-                files=files_to_send,
+                content=body,
+                headers=headers,
                 timeout=60.0
             )
             return Response(
