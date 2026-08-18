@@ -1,7 +1,5 @@
 import requests
 import pandas as pd
-import streamlit as st
-import time
 
 from config.config import AUTH_BASE_URL as BASE_URL
 
@@ -13,23 +11,20 @@ from config.config import AUTH_BASE_URL as BASE_URL
 def get_sales_forecast(uploaded_file):
 
     try:
-        if isinstance(uploaded_file, pd.DataFrame):
-            file_content = uploaded_file.to_csv(index=False).encode('utf-8')
-            filename = "sales.csv"
-        else:
-            uploaded_file.seek(0)
-            file_content = uploaded_file.read()
-            uploaded_file.seek(0)
-            filename = getattr(uploaded_file, "name", "sales.csv")
+
+        uploaded_file.seek(0)
+        file_content = uploaded_file.read()
 
         files = {
             "file": (
-                filename,
+                uploaded_file.name,
                 file_content,
                 "text/csv"
             )
         }
 
+        import streamlit as st
+        import time
         response = None
         for attempt in range(4):
             try:
@@ -56,13 +51,17 @@ def get_sales_forecast(uploaded_file):
         data = response.json()
 
         if isinstance(data, list):
+
             return pd.DataFrame(data)
 
         if isinstance(data, dict):
+
             if "error" in data:
+
                 return pd.DataFrame({
                     "Error": [data["error"]]
                 })
+
             return pd.DataFrame([data])
 
         return pd.DataFrame()
@@ -84,6 +83,7 @@ def get_sales_forecast(uploaded_file):
         })
 
     except Exception as e:
+
         return pd.DataFrame({
             "Error": [str(e)]
         })
@@ -96,23 +96,20 @@ def get_sales_forecast(uploaded_file):
 def get_forecast_backtest(uploaded_file):
 
     try:
-        if isinstance(uploaded_file, pd.DataFrame):
-            file_content = uploaded_file.to_csv(index=False).encode('utf-8')
-            filename = "sales.csv"
-        else:
-            uploaded_file.seek(0)
-            file_content = uploaded_file.read()
-            uploaded_file.seek(0)
-            filename = getattr(uploaded_file, "name", "sales.csv")
+
+        uploaded_file.seek(0)
+        file_content = uploaded_file.read()
 
         files = {
             "file": (
-                filename,
+                uploaded_file.name,
                 file_content,
                 "text/csv"
             )
         }
 
+        import streamlit as st
+        import time
         response = None
         for attempt in range(4):
             try:
@@ -143,6 +140,7 @@ def get_forecast_backtest(uploaded_file):
         # --------------------------------------------
 
         if isinstance(data, dict) and "error" in data:
+
             return {
                 "results": pd.DataFrame(),
                 "metrics": {},
@@ -187,6 +185,7 @@ def get_forecast_backtest(uploaded_file):
         }
 
     except requests.exceptions.Timeout:
+
         return {
             "results": pd.DataFrame(),
             "metrics": {},
@@ -195,6 +194,7 @@ def get_forecast_backtest(uploaded_file):
         }
 
     except requests.exceptions.ConnectionError:
+
         return {
             "results": pd.DataFrame(),
             "metrics": {},
@@ -222,6 +222,7 @@ def get_forecast_backtest(uploaded_file):
         }
 
     except Exception as e:
+
         return {
             "results": pd.DataFrame(),
             "metrics": {},

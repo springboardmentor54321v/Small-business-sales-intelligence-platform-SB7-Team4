@@ -3,7 +3,6 @@ import pandas as pd
 import requests
 
 from components.sidebar import show_sidebar
-from models.data_loader import set_active_sales_df, reset_to_default_dataset, get_active_sales_df
 
 # ================= API Configuration ================= #
 from config.config import DB_BASE_URL as BASE_URL
@@ -17,91 +16,229 @@ def sales_upload_page():
 
     show_sidebar()
 
-    st.title("📤 Sales Dataset Upload")
-    st.caption("Upload sales CSV dataset to update metrics, charts, and forecasts throughout the app")
+    st.title(" Sales Upload")
 
-    active_name = st.session_state.get("active_dataset_name", "Default Dataset (All 4 Years)")
-    st.info(f"📊 **Current Active Dataset:** `{active_name}`")
-
-    col_btn1, col_btn2 = st.columns([2, 2])
-    with col_btn2:
-        if st.session_state.get("active_sales_df") is not None:
-            if st.button("🔄 Reset to Default Dataset", key="reset_dataset_btn", width="stretch"):
-                reset_to_default_dataset()
-                st.success("Reset back to default multi-year dataset!")
-                st.rerun()
+    st.caption(
+        "Upload Sales Transactions CSV to the Backend"
+    )
 
     st.markdown("---")
 
     uploaded_file = st.file_uploader(
-        "Choose a CSV File (Supports raw sales transactions or daily sales summaries)",
+        "Choose a CSV File",
         type=["csv"]
     )
 
     if uploaded_file is None:
-        st.info("💡 Please upload a CSV file (such as `sales_forecast_fixed.csv` or `dataset.csv`) to update all app metrics.")
+
+        st.info(
+            " Please upload a CSV file to continue."
+        )
+
         return
 
     # ================= Read CSV ================= #
 
     try:
-        df = pd.read_csv(uploaded_file)
+
+        df = pd.read_csv(
+            uploaded_file
+        )
+
     except Exception as e:
-        st.error(f"❌ Unable to read CSV: {e}")
+
+        st.error(
+            f"❌ Unable to read CSV.\n\n{e}"
+        )
+
         return
 
-    st.success("✅ CSV Loaded Successfully")
+    st.success(
+        " CSV Loaded Successfully"
+    )
 
-    # Inspect columns
-    col_names = [str(c).strip().lower() for c in df.columns]
-    has_date = any(k in col_names for k in ["order date", "order_date", "date", "transaction_date"])
-    has_amount = any(k in col_names for k in ["total amount", "total_amount", "sales", "amount", "revenue", "totalsales"])
+    c1, c2, c3 = st.columns(3)
 
-    if not (has_date and has_amount):
-        st.error("❌ CSV Validation Failed: Dataset must contain at least a Date column (`Order Date` / `transaction_date`) and a Sales column (`Total amount` / `sales`).")
-        st.write("Found columns:", df.columns.tolist())
-        return
+    c1.metric(
+        "Rows",
+        len(df)
+    )
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Rows / Observations", f"{len(df):,}")
-    c2.metric("Columns", len(df.columns))
-    
-    # Calculate revenue preview
-    amt_col = [c for c in df.columns if str(c).strip().lower() in ["total amount", "total_amount", "sales", "amount", "revenue", "totalsales"]][0]
-    total_rev = float(pd.to_numeric(df[amt_col], errors="coerce").fillna(0.0).sum())
-    c3.metric("Total Revenue Preview", f"₹ {total_rev:,.2f}")
-    c4.metric("File Size", f"{uploaded_file.size / 1024:.1f} KB")
+    c2.metric(
+        "Columns",
+        len(df.columns)
+    )
+
+    c3.metric(
+        "File Size",
+        f"{uploaded_file.size / 1024:.1f} KB"
+    )
 
     st.markdown("---")
 
-    st.subheader("📋 Dataset Preview")
-    st.dataframe(df.head(10), width="stretch", hide_index=True)
+    st.subheader(
+        " CSV Preview"
+    )
+
+    st.dataframe(
+        df.head(10),
+        width="stretch",
+        hide_index=True
+    )
 
     st.markdown("---")
 
-    # ================= Activate Dataset ================= #
+    # ================= CSV Validation ================= #
 
-    if st.button("🚀 Apply Dataset to Dashboard & Entire Application", type="primary", width="stretch"):
-        with st.spinner("Applying dataset and updating all dashboards..."):
-            norm_df = set_active_sales_df(df, uploaded_file.name)
-            
-            # Also try to upload to backend API if reachable
-            try:
-                uploaded_file.seek(0)
-                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")}
-                requests.post(UPLOAD_API, files=files, timeout=3.0)
-            except Exception:
-                pass
+    st.subheader(" CSV Validation")
 
-        st.balloons()
-        st.success(f"🎉 Dataset `{uploaded_file.name}` applied successfully! All {len(norm_df):,} records and ₹ {norm_df['total_amount'].sum():,.2f} total revenue are now live.")
-        
-        col_nav1, col_nav2 = st.columns(2)
-        with col_nav1:
-            if st.button("📊 Go to Dashboard", type="secondary", width="stretch"):
-                st.session_state.page = "Dashboard"
-                st.rerun()
-        with col_nav2:
-            if st.button("📈 Go to Business Overview", type="secondary", width="stretch"):
-                st.session_state.page = "Business Overview"
-                st.rerun()
+    required_columns = [
+
+        "transaction_id",
+        "invoice_id",
+        "transaction_date",
+        "customer_id",
+        "product_id",
+        "store_id",
+        "quantity",
+        "unit_price",
+        "discount",
+        "total_amount",
+        "payment_method"
+
+    ]
+
+    missing_columns = [
+
+        col
+        for col in required_columns
+        if col not in df.columns
+
+    ]
+
+    if missing_columns:
+
+        st.error("❌ CSV Validation Failed")
+
+        st.write("Missing Columns:")
+
+        st.code("\n".join(missing_columns))
+
+        return
+
+    st.success(" Required columns found.")
+
+    c1, c2 = st.columns(2)
+
+    missing_values = int(
+        df.isnull().sum().sum()
+    )
+
+    duplicate_rows = int(
+        df.duplicated().sum()
+    )
+
+    c1.metric(
+        "Missing Values",
+        missing_values
+    )
+
+    c2.metric(
+        "Duplicate Rows",
+        duplicate_rows
+    )
+
+    if missing_values > 0:
+
+        st.warning(
+            f"⚠ {missing_values} missing values found."
+        )
+
+    if duplicate_rows > 0:
+
+        st.warning(
+            f"⚠ {duplicate_rows} duplicate rows found."
+        )
+
+    st.markdown("---")
+        # ================= Upload ================= #
+
+    if st.button(
+        "Upload Sales Data",
+        use_container_width=True
+    ):
+
+        try:
+
+            uploaded_file.seek(0)
+
+            files = {
+                "file": (
+                    uploaded_file.name,
+                    uploaded_file.getvalue(),
+                    "text/csv"
+                )
+            }
+
+            progress = st.progress(0)
+
+            with st.spinner("Uploading Sales Data..."):
+
+                progress.progress(50)
+
+                response = requests.post(
+                    UPLOAD_API,
+                    files=files,
+                    timeout=60
+                )
+
+                progress.progress(100)
+
+            if response.ok:
+
+                st.balloons()
+
+                st.success(
+                    " Sales Data Uploaded Successfully!"
+                )
+
+            else:
+
+                st.error(
+                    f"❌ Upload Failed (HTTP {response.status_code})"
+                )
+
+                try:
+
+                    error = response.json()
+
+                    st.error(
+                        error.get(
+                            "message",
+                            "Upload failed."
+                        )
+                    )
+
+                except Exception:
+
+                    st.write(
+                        response.text
+                    )
+
+        except requests.exceptions.ConnectionError:
+
+            st.error(
+                "❌ Unable to connect to backend."
+            )
+
+        except requests.exceptions.Timeout:
+
+            st.error(
+                "❌ Upload timed out."
+            )
+
+        except Exception as e:
+
+            st.error(
+                f"❌ {e}"
+            )

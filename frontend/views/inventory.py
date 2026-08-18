@@ -144,15 +144,15 @@ def inventory_page():
             "Low Stock Items"
         ],
         "Value": [
-            f"{total_products:,}",
-            f"{total_stock:,}",
-            f"{low_stock:,}"
+            total_products,
+            total_stock,
+            low_stock
         ]
     })
 
     st.dataframe(
         summary,
-        width="stretch",
+        use_container_width=True,
         hide_index=True
     )
 

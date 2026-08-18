@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -9,39 +8,13 @@ from components.sidebar import show_sidebar
 # ---------------- API Configuration ---------------- #
 from config.config import DB_BASE_URL as BASE_URL
 
-from models.data_loader import get_active_sales_df
-
-# ---------------- Instant Full-History Customer Data Loader ---------------- #
-
-def load_customers_raw_sales(base_url):
-    df = get_active_sales_df()
-    if not df.empty:
-        return df
-
-    try:
-        url = f"{base_url}/sales/?page=1&page_size=2000"
-        sales_res = requests.get(url, timeout=3.5)
-        sales_res.raise_for_status()
-        return pd.DataFrame(sales_res.json())
-    except Exception:
-        return pd.DataFrame()
-
-
-# ---------------- Customer Insights ---------------- #
 
 def customers_page():
 
     show_sidebar()
 
-    header_col, refresh_col = st.columns([5, 1])
-    with header_col:
-        st.title(" Customer Insights")
-        st.caption("Customer Segmentation & Business Insights")
-    with refresh_col:
-        st.write("")
-        if st.button("🔄 Refresh Data", key="refresh_cust_btn", help="Clear cache and fetch latest customer sales"):
-            st.cache_data.clear()
-            st.rerun()
+    st.title(" Customer Insights")
+    st.caption("Customer Segmentation & Business Insights")
 
     st.markdown("---")
 
@@ -52,7 +25,23 @@ def customers_page():
 
     with st.spinner("Loading Customer Insights..."):
         try:
-            sales = load_customers_raw_sales(BASE_URL)
+            page = 1
+            page_size = 1000
+            while True:
+                url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
+                try:
+                    sales_res = requests.get(url, timeout=3)
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 60 seconds)...")
+                    sales_res = requests.get(url, timeout=60)
+                sales_res.raise_for_status()
+                page_data = sales_res.json()
+                if not page_data:
+                    break
+                sales.extend(page_data)
+                if len(page_data) < page_size:
+                    break
+                page += 1
         except Exception:
             db_error = True
 

@@ -338,11 +338,11 @@ def payments_page():
 
         "Value": [
 
-            f"{total_payments:,}",
+            total_payments,
 
             f"₹ {total_amount:,.2f}",
 
-            f"{payment_methods:,}"
+            payment_methods
 
         ]
 
@@ -352,7 +352,7 @@ def payments_page():
 
         summary,
 
-        width="stretch",
+        use_container_width=True,
 
         hide_index=True
 

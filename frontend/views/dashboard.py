@@ -6,8 +6,7 @@ from components.sidebar import show_sidebar
 from components.cards import show_cards
 from components.charts import (
     sales_trend_chart,
-    top_products_chart,
-    revenue_by_category_chart
+    top_products_chart
 )
 
 # ---------------- API Configuration ---------------- #
@@ -19,16 +18,41 @@ REVENUE_API = f"{BASE_URL}/revenue/summary"
 
 import os
 from concurrent.futures import ThreadPoolExecutor
-from models.data_loader import get_active_sales_df, get_active_inventory_df, reset_to_default_dataset
 
-# ---------------- Instant Full-History Cached Data Loader ---------------- #
+# ---------------- High-Speed Cached Data Loader ---------------- #
 
-def load_dashboard_raw_data(base_url, inventory_url, revenue_url):
-    # 1. Primary: Use active dataset (uploaded CSV if present, otherwise default)
-    sales_df = get_active_sales_df()
-    inventory_df = get_active_inventory_df()
+@st.cache_data(ttl=600, show_spinner=False)
+def load_dashboard_data(base_url, inventory_url, revenue_url):
+    sales_df = pd.DataFrame()
+    inventory_df = pd.DataFrame()
+    revenue = {}
 
-    if not sales_df.empty:
+    # Fast Instant Loader (0.05s)
+    for p in [
+        "Backend_Database/app/etl/output/sales_transactions.csv",
+        "../Backend_Database/app/etl/output/sales_transactions.csv",
+        "app/Backend_Database/app/etl/output/sales_transactions.csv"
+    ]:
+        if os.path.exists(p):
+            try:
+                sales_df = pd.read_csv(p)
+                break
+            except Exception:
+                pass
+
+    for p in [
+        "Backend_Database/app/etl/output/inventory.csv",
+        "../Backend_Database/app/etl/output/inventory.csv",
+        "app/Backend_Database/app/etl/output/inventory.csv"
+    ]:
+        if os.path.exists(p):
+            try:
+                inventory_df = pd.read_csv(p)
+                break
+            except Exception:
+                pass
+
+    if not sales_df.empty and not inventory_df.empty:
         revenue = {
             "total_revenue": float(sales_df["total_amount"].sum()),
             "total_outstanding": float(sales_df["total_amount"].sum() * 0.12),
@@ -36,7 +60,7 @@ def load_dashboard_raw_data(base_url, inventory_url, revenue_url):
         }
         return sales_df, inventory_df, revenue
 
-    # 2. Remote API Fallback
+    # Remote API Fallback
     try:
         def _fetch_sales():
             url = f"{base_url}/sales/?page=1&page_size=2000"
@@ -62,7 +86,7 @@ def load_dashboard_raw_data(base_url, inventory_url, revenue_url):
     except Exception:
         pass
 
-    return sales_df, inventory_df, {}
+    return sales_df, inventory_df, revenue
 
 
 # ---------------- Dashboard ---------------- #
@@ -81,17 +105,6 @@ def dashboard_page():
             st.cache_data.clear()
             st.rerun()
 
-    # Active dataset banner
-    active_dataset_name = st.session_state.get("active_dataset_name", "Cleaned Primary Dataset")
-    if st.session_state.get("active_sales_df") is not None:
-        c_info, c_rst = st.columns([5, 1])
-        with c_info:
-            st.info(f"📊 **Active Dataset:** `{active_dataset_name}` ({len(st.session_state['active_sales_df']):,} records)")
-        with c_rst:
-            if st.button("🔄 Use Default", key="dash_reset_btn", help="Revert to primary cleaned dataset"):
-                reset_to_default_dataset()
-                st.rerun()
-
     st.markdown("---")
 
     db_error = False
@@ -101,9 +114,14 @@ def dashboard_page():
 
     with st.spinner("Loading Dashboard..."):
         try:
-            sales_df, inventory_df, revenue = load_dashboard_raw_data(BASE_URL, INVENTORY_API, REVENUE_API)
+            sales_df, inventory_df, revenue = load_dashboard_data(BASE_URL, INVENTORY_API, REVENUE_API)
         except Exception:
             db_error = True
+
+    if db_error or (sales_df.empty and inventory_df.empty):
+        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
+        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
+        return
 
     try:
         if sales_df.empty:
@@ -124,8 +142,13 @@ def dashboard_page():
         ]
 
         for col in numeric_sales:
+
             if col in sales_df.columns:
-                sales_df[col] = pd.to_numeric(sales_df[col], errors="coerce").fillna(0)
+
+                sales_df[col] = pd.to_numeric(
+                    sales_df[col],
+                    errors="coerce"
+                ).fillna(0)
 
         numeric_inventory = [
             "stock_quantity",
@@ -133,37 +156,83 @@ def dashboard_page():
         ]
 
         for col in numeric_inventory:
+
             if col in inventory_df.columns:
-                inventory_df[col] = pd.to_numeric(inventory_df[col], errors="coerce").fillna(0)
+
+                inventory_df[col] = pd.to_numeric(
+                    inventory_df[col],
+                    errors="coerce"
+                ).fillna(0)
 
         # ---------------- Date Conversion ---------------- #
 
         if "transaction_date" in sales_df.columns:
-            sales_df["transaction_date"] = pd.to_datetime(sales_df["transaction_date"], errors="coerce")
-            sales_df = sales_df.sort_values(by="transaction_date", ascending=False)
 
-        # ---------------- KPI Values ---------------- #
+            sales_df["transaction_date"] = pd.to_datetime(
+                sales_df["transaction_date"],
+                errors="coerce"
+            )
 
-        total_revenue = float(revenue.get("total_revenue") or sales_df["total_amount"].sum())
-        total_outstanding = float(revenue.get("total_outstanding") or (total_revenue * 0.12))
-        daily_collections = float(revenue.get("daily_collections") or sales_df["total_amount"].tail(30).sum())
+            sales_df = sales_df.sort_values(
+                by="transaction_date",
+                ascending=False
+            )
+                # ---------------- KPI Values ---------------- #
+
+        total_revenue = float(
+            revenue.get("total_revenue") or 0
+        )
+
+        total_outstanding = float(
+            revenue.get("total_outstanding") or 0
+        )
+
+        daily_collections = float(
+            revenue.get("daily_collections") or 0
+        )
+
         total_orders = len(sales_df)
-        total_products_sold = int(sales_df["quantity"].sum()) if "quantity" in sales_df.columns else len(sales_df)
+
+        if "quantity" in sales_df.columns:
+            total_products_sold = int(
+                sales_df["quantity"].sum()
+            )
+        else:
+            total_products_sold = 0
+
         inventory_count = len(inventory_df)
 
-        if "stock_quantity" in inventory_df.columns and "low_stock_threshold" in inventory_df.columns:
-            low_stock_df = inventory_df[inventory_df["stock_quantity"] <= inventory_df["low_stock_threshold"]]
+        if (
+            "stock_quantity" in inventory_df.columns
+            and
+            "low_stock_threshold" in inventory_df.columns
+        ):
+
+            low_stock_df = inventory_df[
+                inventory_df["stock_quantity"]
+                <= inventory_df["low_stock_threshold"]
+            ]
+
         else:
+
             low_stock_df = pd.DataFrame()
 
         metrics = {
+
             "Revenue": total_revenue,
+
             "Outstanding": total_outstanding,
+
             "Today's Collection": daily_collections,
+
             "Orders": total_orders,
+
             "Products Sold": total_products_sold,
+
             "Inventory": inventory_count,
+
             "Low Stock": len(low_stock_df)
+
         }
 
         # ---------------- KPI Cards ---------------- #
@@ -174,21 +243,18 @@ def dashboard_page():
 
         # ---------------- Charts ---------------- #
 
-        col_c1, col_c2 = st.columns([3, 2])
+        col1, col2 = st.columns(2)
 
-        with col_c1:
+        with col1:
+
             sales_trend_chart(sales_df)
 
-        with col_c2:
-            revenue_by_category_chart(sales_df)
+        with col2:
 
-        st.markdown("---")
+            top_products_chart(sales_df)
 
-        top_products_chart(sales_df)
-
-        st.markdown("---")
-
-        # ---------------- Recent Sales ---------------- #
+        st.markdown("---")  
+                # ---------------- Recent Sales ---------------- #
 
         st.subheader("Recent Sales")
 
@@ -197,7 +263,7 @@ def dashboard_page():
             "invoice_id",
             "transaction_date",
             "customer_id",
-            "product_name",
+            "product_id",
             "quantity",
             "total_amount"
         ]

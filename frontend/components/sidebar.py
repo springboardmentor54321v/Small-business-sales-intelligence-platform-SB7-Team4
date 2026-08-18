@@ -58,19 +58,6 @@ def show_sidebar():
     st.sidebar.subheader(f"Welcome, {username}")
     st.sidebar.caption(f"Role : {role}")
 
-    # ---------------- Active Dataset Status ---------------- #
-
-    active_name = st.session_state.get("active_dataset_name", "Cleaned Primary Dataset")
-    if st.session_state.get("active_sales_df") is not None:
-        st.sidebar.markdown(f"📁 **Dataset:** `{active_name[:22]}`")
-        if st.sidebar.button("🔄 Reset to Default", key="sidebar_reset_btn", help="Revert to primary cleaned dataset"):
-            st.session_state["active_sales_df"] = None
-            st.session_state["active_dataset_name"] = "Cleaned Primary Dataset"
-            st.cache_data.clear()
-            st.rerun()
-    else:
-        st.sidebar.caption("📁 Dataset: Cleaned Primary (9,994 rows)")
-
     st.sidebar.divider()
 
     # ---------------- Menu ---------------- #
