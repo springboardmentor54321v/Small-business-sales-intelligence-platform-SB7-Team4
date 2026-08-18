@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
+# pyrefly: ignore [missing-import]
 from app.models.inventory import Inventory
 from app.models.sales_transaction import SalesTransaction
 from app.models.product import Product
