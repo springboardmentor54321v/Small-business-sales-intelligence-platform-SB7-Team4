@@ -74,8 +74,11 @@ def normalize_sales_df(df_input):
 
 
 def get_default_sales_df():
-    """Load default 51k-row historical dataset from repository disk."""
+    """Load default cleaned_dataset.csv (from AIML/week1/preprocessing) as primary dataset."""
     for path in [
+        "AIML/week1/preprocessing/cleaned_dataset.csv",
+        "../AIML/week1/preprocessing/cleaned_dataset.csv",
+        "app/AIML/week1/preprocessing/cleaned_dataset.csv",
         "Backend_Database/app/etl/output/sales_transactions.csv",
         "../Backend_Database/app/etl/output/sales_transactions.csv",
         "app/Backend_Database/app/etl/output/sales_transactions.csv"
@@ -105,7 +108,7 @@ def get_default_inventory_df():
 
 
 def get_active_sales_df():
-    """Retrieve currently active sales DataFrame (uploaded or default)."""
+    """Retrieve currently active sales DataFrame (uploaded or default cleaned_dataset.csv)."""
     if "active_sales_df" in st.session_state and st.session_state["active_sales_df"] is not None:
         if not st.session_state["active_sales_df"].empty:
             return st.session_state["active_sales_df"]
@@ -130,7 +133,7 @@ def set_active_sales_df(df_input, dataset_name="Custom Upload"):
 
 
 def reset_to_default_dataset():
-    """Reset application data back to default retail database."""
+    """Reset application data back to default cleaned_dataset.csv."""
     st.session_state["active_sales_df"] = None
-    st.session_state["active_dataset_name"] = "Default Dataset (All 4 Years)"
+    st.session_state["active_dataset_name"] = "Cleaned Retail Dataset (Primary)"
     st.cache_data.clear()
