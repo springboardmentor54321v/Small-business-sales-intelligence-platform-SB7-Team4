@@ -32,8 +32,8 @@ def customers_page():
                 try:
                     sales_res = requests.get(url, timeout=3)
                 except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 35 seconds)...")
-                    sales_res = requests.get(url, timeout=35)
+                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 60 seconds)...")
+                    sales_res = requests.get(url, timeout=60)
                 sales_res.raise_for_status()
                 page_data = sales_res.json()
                 if not page_data:

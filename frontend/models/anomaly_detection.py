@@ -20,19 +20,19 @@ def get_anomaly_alerts(order_date="2011-01-04"):
                 timeout=3
             )
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            st.info("⏳ The AI Anomaly engine is currently waking up on Render. Performing analysis (up to 35 seconds)...")
+            st.info("⏳ The AI Anomaly engine is currently waking up on Render. Performing analysis (up to 60 seconds)...")
             response = requests.post(
                 f"{BASE_URL}/check-anomaly",
                 json=payload,
-                timeout=35
+                timeout=60
             )
 
         if response.status_code in [502, 503]:
-            st.info("⏳ Establishing connection to the AI anomaly engine (up to 35 seconds)...")
+            st.info("⏳ Establishing connection to the AI anomaly engine (up to 60 seconds)...")
             response = requests.post(
                 f"{BASE_URL}/check-anomaly",
                 json=payload,
-                timeout=35
+                timeout=60
             )
 
         response.raise_for_status()

@@ -22,23 +22,23 @@ def get_recommendations(product_name):
                 timeout=3
             )
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            st.info("⏳ The AI Recommendation engine is currently waking up on Render. Performing analysis (up to 35 seconds)...")
+            st.info("⏳ The AI Recommendation engine is currently waking up on Render. Performing analysis (up to 60 seconds)...")
             response = requests.post(
                 f"{BASE_URL}/recommend-product",
                 json={
                     "Product Name": product_name.strip()
                 },
-                timeout=35
+                timeout=60
             )
 
         if response.status_code in [502, 503]:
-            st.info("⏳ Establishing connection to the AI recommendation engine (up to 35 seconds)...")
+            st.info("⏳ Establishing connection to the AI recommendation engine (up to 60 seconds)...")
             response = requests.post(
                 f"{BASE_URL}/recommend-product",
                 json={
                     "Product Name": product_name.strip()
                 },
-                timeout=35
+                timeout=60
             )
 
         if response.status_code == 404:
