@@ -1,8 +1,10 @@
 import requests
 import pandas as pd
+import streamlit as st
 from config.config import DB_BASE_URL as BASE_URL
 
 
+@st.cache_data(ttl=180, show_spinner=False)
 def get_inventory():
 
     try:

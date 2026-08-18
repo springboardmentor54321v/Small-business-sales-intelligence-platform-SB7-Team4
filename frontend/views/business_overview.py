@@ -17,6 +17,53 @@ REVENUE_API = f"{BASE_URL}/revenue/summary"
 
 
 # ============================================================
+# Cached Business Overview Data Loader
+# ============================================================
+
+@st.cache_data(ttl=180, show_spinner=False)
+def load_business_overview_raw_data(base_url, inventory_url, revenue_url):
+    sales = []
+    inventory = []
+    revenue = {}
+
+    # 1. Fetch Sales
+    page = 1
+    page_size = 1000
+    while True:
+        url = f"{base_url}/sales/?page={page}&page_size={page_size}"
+        try:
+            sales_res = requests.get(url, timeout=4)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            sales_res = requests.get(url, timeout=45)
+        sales_res.raise_for_status()
+        page_data = sales_res.json()
+        if not page_data:
+            break
+        sales.extend(page_data)
+        if len(page_data) < page_size:
+            break
+        page += 1
+
+    # 2. Fetch Inventory
+    try:
+        inventory_response = requests.get(inventory_url, timeout=4)
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        inventory_response = requests.get(inventory_url, timeout=20)
+    inventory_response.raise_for_status()
+    inventory = inventory_response.json()
+
+    # 3. Fetch Revenue
+    try:
+        revenue_response = requests.get(revenue_url, timeout=4)
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        revenue_response = requests.get(revenue_url, timeout=20)
+    revenue_response.raise_for_status()
+    revenue = revenue_response.json()
+
+    return sales, inventory, revenue
+
+
+# ============================================================
 # Business Overview Page
 # ============================================================
 
@@ -24,11 +71,15 @@ def business_overview_page():
 
     show_sidebar()
 
-    st.title(" Business Overview")
-
-    st.caption(
-        "Complete Business Performance Dashboard"
-    )
+    header_col, refresh_col = st.columns([5, 1])
+    with header_col:
+        st.title(" Business Overview")
+        st.caption("Complete Business Performance Dashboard")
+    with refresh_col:
+        st.write("")
+        if st.button("🔄 Refresh Data", key="refresh_bo_btn", help="Clear cache and fetch latest sales & inventory"):
+            st.cache_data.clear()
+            st.rerun()
 
     st.markdown("---")
 
@@ -38,51 +89,10 @@ def business_overview_page():
     revenue = {}
 
     with st.spinner("Loading Dashboard..."):
-        # 1. Fetch Sales
         try:
-            page = 1
-            page_size = 1000
-            while True:
-                url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
-                try:
-                    sales_res = requests.get(url, timeout=3)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 60 seconds)...")
-                    sales_res = requests.get(url, timeout=60)
-                sales_res.raise_for_status()
-                page_data = sales_res.json()
-                if not page_data:
-                    break
-                sales.extend(page_data)
-                if len(page_data) < page_size:
-                    break
-                page += 1
+            sales, inventory, revenue = load_business_overview_raw_data(BASE_URL, INVENTORY_API, REVENUE_API)
         except Exception:
             db_error = True
-
-        # 2. Fetch Inventory
-        if not db_error:
-            try:
-                try:
-                    inventory_response = requests.get(INVENTORY_API, timeout=3)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    inventory_response = requests.get(INVENTORY_API, timeout=15)
-                inventory_response.raise_for_status()
-                inventory = inventory_response.json()
-            except Exception:
-                db_error = True
-
-        # 3. Fetch Revenue
-        if not db_error:
-            try:
-                try:
-                    revenue_response = requests.get(REVENUE_API, timeout=3)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    revenue_response = requests.get(REVENUE_API, timeout=15)
-                revenue_response.raise_for_status()
-                revenue = revenue_response.json()
-            except Exception:
-                db_error = True
 
     if db_error:
         st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
