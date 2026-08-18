@@ -22,7 +22,6 @@ https://api-gateway-kwnl.onrender.com/docs
 
 ## 5. Deployment Architecture
 
-```text
 User
   ↓
 Frontend
@@ -32,7 +31,6 @@ Security API Gateway
 FastAPI Backend
   ↓
 PostgreSQL Database
-''' text
 
 ## 6. Deployment Notes
 
