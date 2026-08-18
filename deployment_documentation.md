@@ -22,6 +22,7 @@ https://api-gateway-kwnl.onrender.com/docs
 
 ## 5. Deployment Architecture
 
+```text
 User
   ↓
 Frontend
