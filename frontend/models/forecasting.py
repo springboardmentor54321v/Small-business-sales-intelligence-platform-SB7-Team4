@@ -24,28 +24,28 @@ def get_sales_forecast(uploaded_file):
         }
 
         import streamlit as st
-        try:
-            response = requests.post(
-                f"{BASE_URL}/predict",
-                files=files,
-                timeout=3
-            )
-        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            st.info("⏳ The AI Forecasting engine is currently waking up on Render. Performing analysis (up to 60 seconds)...")
-            response = requests.post(
-                f"{BASE_URL}/predict",
-                files=files,
-                timeout=60
-            )
+        import time
+        response = None
+        for attempt in range(4):
+            try:
+                timeout = 3 if attempt == 0 else 60
+                if attempt > 0:
+                    st.info(f"⏳ Connection attempt {attempt}/3 to the AI forecasting engine (Render is waking up)...")
+                response = requests.post(
+                    f"{BASE_URL}/predict",
+                    files=files,
+                    timeout=timeout
+                )
+                if response.status_code not in [502, 503]:
+                    break
+                time.sleep(3)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                if attempt == 3:
+                    raise
+                time.sleep(3)
 
-        if response.status_code in [502, 503]:
-            st.info("⏳ Establishing connection to the AI forecasting engine (up to 60 seconds)...")
-            response = requests.post(
-                f"{BASE_URL}/predict",
-                files=files,
-                timeout=60
-            )
-
+        if response is None:
+            raise requests.exceptions.RequestException("Failed to contact forecasting engine.")
         response.raise_for_status()
 
         data = response.json()
@@ -99,28 +99,28 @@ def get_forecast_backtest(uploaded_file):
         }
 
         import streamlit as st
-        try:
-            response = requests.post(
-                f"{BASE_URL}/forecast-backtest",
-                files=files,
-                timeout=3
-            )
-        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            st.info("⏳ The AI Forecasting engine is currently waking up on Render. Performing analysis (up to 60 seconds)...")
-            response = requests.post(
-                f"{BASE_URL}/forecast-backtest",
-                files=files,
-                timeout=60
-            )
+        import time
+        response = None
+        for attempt in range(4):
+            try:
+                timeout = 3 if attempt == 0 else 60
+                if attempt > 0:
+                    st.info(f"⏳ Connection attempt {attempt}/3 to the AI forecasting engine (Render is waking up)...")
+                response = requests.post(
+                    f"{BASE_URL}/forecast-backtest",
+                    files=files,
+                    timeout=timeout
+                )
+                if response.status_code not in [502, 503]:
+                    break
+                time.sleep(3)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                if attempt == 3:
+                    raise
+                time.sleep(3)
 
-        if response.status_code in [502, 503]:
-            st.info("⏳ Establishing connection to the AI forecasting engine (up to 60 seconds)...")
-            response = requests.post(
-                f"{BASE_URL}/forecast-backtest",
-                files=files,
-                timeout=60
-            )
-
+        if response is None:
+            raise requests.exceptions.RequestException("Failed to contact forecasting engine.")
         response.raise_for_status()
 
         data = response.json()

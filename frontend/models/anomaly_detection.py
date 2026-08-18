@@ -12,29 +12,28 @@ def get_anomaly_alerts(order_date="2011-01-04"):
             "Order Date": order_date.strip()
         }
 
-        import streamlit as st
-        try:
-            response = requests.post(
-                f"{BASE_URL}/check-anomaly",
-                json=payload,
-                timeout=3
-            )
-        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            st.info("⏳ The AI Anomaly engine is currently waking up on Render. Performing analysis (up to 60 seconds)...")
-            response = requests.post(
-                f"{BASE_URL}/check-anomaly",
-                json=payload,
-                timeout=60
-            )
+        import time
+        response = None
+        for attempt in range(4):
+            try:
+                timeout = 3 if attempt == 0 else 60
+                if attempt > 0:
+                    st.info(f"⏳ Connection attempt {attempt}/3 to the AI Anomaly engine (Render is waking up)...")
+                response = requests.post(
+                    f"{BASE_URL}/check-anomaly",
+                    json=payload,
+                    timeout=timeout
+                )
+                if response.status_code not in [502, 503]:
+                    break
+                time.sleep(3)
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                if attempt == 3:
+                    raise
+                time.sleep(3)
 
-        if response.status_code in [502, 503]:
-            st.info("⏳ Establishing connection to the AI anomaly engine (up to 60 seconds)...")
-            response = requests.post(
-                f"{BASE_URL}/check-anomaly",
-                json=payload,
-                timeout=60
-            )
-
+        if response is None:
+            raise requests.exceptions.RequestException("Failed to contact Anomaly engine.")
         response.raise_for_status()
 
         data = response.json()
