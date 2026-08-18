@@ -32,6 +32,7 @@ Security API Gateway
 FastAPI Backend
   ↓
 PostgreSQL Database
+''' text
 
 ## 6. Deployment Notes
 
