@@ -18,35 +18,14 @@ REVENUE_API = f"{BASE_URL}/revenue/summary"
 
 import os
 from concurrent.futures import ThreadPoolExecutor
+from models.data_loader import get_active_sales_df, get_active_inventory_df, reset_to_default_dataset
 
 # ---------------- Instant Full-History Cached Data Loader ---------------- #
 
-@st.cache_data(ttl=600, show_spinner=False)
 def load_dashboard_raw_data(base_url, inventory_url, revenue_url):
-    sales_df = pd.DataFrame()
-    inventory_df = pd.DataFrame()
-    revenue = {}
-
-    # 1. Primary High-Speed Loader: Load complete full-timeline dataset directly (0.08s)
-    csv_paths = [
-        "Backend_Database/app/etl/output/sales_transactions.csv",
-        "../Backend_Database/app/etl/output/sales_transactions.csv",
-        "app/Backend_Database/app/etl/output/sales_transactions.csv"
-    ]
-    for path in csv_paths:
-        if os.path.exists(path):
-            sales_df = pd.read_csv(path)
-            break
-
-    inv_paths = [
-        "Backend_Database/app/etl/output/inventory.csv",
-        "../Backend_Database/app/etl/output/inventory.csv",
-        "app/Backend_Database/app/etl/output/inventory.csv"
-    ]
-    for path in inv_paths:
-        if os.path.exists(path):
-            inventory_df = pd.read_csv(path)
-            break
+    # 1. Primary: Use active dataset (uploaded CSV if present, otherwise default)
+    sales_df = get_active_sales_df()
+    inventory_df = get_active_inventory_df()
 
     if not sales_df.empty:
         revenue = {
@@ -56,7 +35,7 @@ def load_dashboard_raw_data(base_url, inventory_url, revenue_url):
         }
         return sales_df, inventory_df, revenue
 
-    # 2. Remote API Fallback if local CSV not found
+    # 2. Remote API Fallback
     try:
         def _fetch_sales():
             url = f"{base_url}/sales/?page=1&page_size=2000"
@@ -82,7 +61,7 @@ def load_dashboard_raw_data(base_url, inventory_url, revenue_url):
     except Exception:
         pass
 
-    return sales_df, inventory_df, revenue
+    return sales_df, inventory_df, {}
 
 
 # ---------------- Dashboard ---------------- #
@@ -101,6 +80,17 @@ def dashboard_page():
             st.cache_data.clear()
             st.rerun()
 
+    # Active dataset banner
+    active_dataset_name = st.session_state.get("active_dataset_name", "Default Dataset (All 4 Years)")
+    if st.session_state.get("active_sales_df") is not None:
+        c_info, c_rst = st.columns([5, 1])
+        with c_info:
+            st.info(f"📊 **Active Dataset:** `{active_dataset_name}` ({len(st.session_state['active_sales_df']):,} records)")
+        with c_rst:
+            if st.button("🔄 Use Default", key="dash_reset_btn", help="Revert to 51k-row default dataset"):
+                reset_to_default_dataset()
+                st.rerun()
+
     st.markdown("---")
 
     db_error = False
@@ -110,17 +100,9 @@ def dashboard_page():
 
     with st.spinner("Loading Dashboard..."):
         try:
-            sales, inventory, revenue = load_dashboard_raw_data(BASE_URL, INVENTORY_API, REVENUE_API)
+            sales_df, inventory_df, revenue = load_dashboard_raw_data(BASE_URL, INVENTORY_API, REVENUE_API)
         except Exception:
             db_error = True
-
-    if db_error:
-        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
-        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
-        return
-
-    sales_df = pd.DataFrame(sales)
-    inventory_df = pd.DataFrame(inventory)
 
     try:
         if sales_df.empty:

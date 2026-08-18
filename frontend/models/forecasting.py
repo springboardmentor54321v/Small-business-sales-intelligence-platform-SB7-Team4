@@ -217,27 +217,45 @@ def _run_local_backtest(df_raw, test_days=30):
 # NORMAL FUTURE FORECAST
 # ============================================================
 
-def get_sales_forecast(uploaded_file):
-    uploaded_file.seek(0)
-    file_content = uploaded_file.read()
-    uploaded_file.seek(0)
+def get_sales_forecast(uploaded_file=None):
+    from models.data_loader import get_active_sales_df
+    
+    if isinstance(uploaded_file, pd.DataFrame):
+        return _run_local_forecast(uploaded_file)
+        
+    if uploaded_file is None:
+        active_df = get_active_sales_df()
+        if not active_df.empty:
+            return _run_local_forecast(active_df)
+        return pd.DataFrame({"Error": ["No active sales data found."]})
+
+    try:
+        uploaded_file.seek(0)
+        file_content = uploaded_file.read()
+        uploaded_file.seek(0)
+    except Exception:
+        file_content = None
 
     # 1. Try Remote API with fast failover
-    try:
-        files = {"file": (uploaded_file.name, file_content, "text/csv")}
-        response = requests.post(f"{BASE_URL}/predict", files=files, timeout=3.5)
-        if response.status_code == 200:
-            data = response.json()
-            if isinstance(data, list) and len(data) > 0:
-                return pd.DataFrame(data)
-            elif isinstance(data, dict) and "error" not in data:
-                return pd.DataFrame([data])
-    except Exception:
-        pass
+    if file_content is not None:
+        try:
+            files = {"file": (getattr(uploaded_file, "name", "sales.csv"), file_content, "text/csv")}
+            response = requests.post(f"{BASE_URL}/predict", files=files, timeout=3.5)
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    return pd.DataFrame(data)
+                elif isinstance(data, dict) and "error" not in data:
+                    return pd.DataFrame([data])
+        except Exception:
+            pass
 
     # 2. Resilient High-Speed On-Device ML Engine
     try:
-        df_raw = pd.read_csv(io.BytesIO(file_content))
+        if file_content is not None:
+            df_raw = pd.read_csv(io.BytesIO(file_content))
+        else:
+            df_raw = get_active_sales_df()
         return _run_local_forecast(df_raw)
     except Exception as e:
         return pd.DataFrame({"Error": [f"Forecasting Error: {str(e)}"]})
@@ -247,30 +265,53 @@ def get_sales_forecast(uploaded_file):
 # FORECAST VS ACTUAL BACKTEST
 # ============================================================
 
-def get_forecast_backtest(uploaded_file):
-    uploaded_file.seek(0)
-    file_content = uploaded_file.read()
-    uploaded_file.seek(0)
+def get_forecast_backtest(uploaded_file=None):
+    from models.data_loader import get_active_sales_df
+    
+    if isinstance(uploaded_file, pd.DataFrame):
+        return _run_local_backtest(uploaded_file)
+        
+    if uploaded_file is None:
+        active_df = get_active_sales_df()
+        if not active_df.empty:
+            return _run_local_backtest(active_df)
+        return {
+            "results": pd.DataFrame(),
+            "metrics": {},
+            "period": {},
+            "error": "Please upload a CSV file or set an active dataset."
+        }
+
+    try:
+        uploaded_file.seek(0)
+        file_content = uploaded_file.read()
+        uploaded_file.seek(0)
+    except Exception:
+        file_content = None
 
     # 1. Try Remote API with fast failover
-    try:
-        files = {"file": (uploaded_file.name, file_content, "text/csv")}
-        response = requests.post(f"{BASE_URL}/forecast-backtest", files=files, timeout=3.5)
-        if response.status_code == 200:
-            data = response.json()
-            if isinstance(data, dict) and "error" not in data:
-                return {
-                    "results": pd.DataFrame(data.get("Results", [])),
-                    "metrics": data.get("Evaluation Metrics", {}),
-                    "period": data.get("Backtest Period", {}),
-                    "error": None
-                }
-    except Exception:
-        pass
+    if file_content is not None:
+        try:
+            files = {"file": (getattr(uploaded_file, "name", "sales.csv"), file_content, "text/csv")}
+            response = requests.post(f"{BASE_URL}/forecast-backtest", files=files, timeout=3.5)
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, dict) and "error" not in data:
+                    return {
+                        "results": pd.DataFrame(data.get("Results", [])),
+                        "metrics": data.get("Evaluation Metrics", {}),
+                        "period": data.get("Backtest Period", {}),
+                        "error": None
+                    }
+        except Exception:
+            pass
 
     # 2. Resilient High-Speed On-Device Backtest Engine
     try:
-        df_raw = pd.read_csv(io.BytesIO(file_content))
+        if file_content is not None:
+            df_raw = pd.read_csv(io.BytesIO(file_content))
+        else:
+            df_raw = get_active_sales_df()
         return _run_local_backtest(df_raw)
     except Exception as e:
         return {

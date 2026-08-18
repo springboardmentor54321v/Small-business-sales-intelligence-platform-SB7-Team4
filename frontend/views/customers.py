@@ -9,17 +9,14 @@ from components.sidebar import show_sidebar
 # ---------------- API Configuration ---------------- #
 from config.config import DB_BASE_URL as BASE_URL
 
+from models.data_loader import get_active_sales_df
+
 # ---------------- Instant Full-History Customer Data Loader ---------------- #
 
-@st.cache_data(ttl=600, show_spinner=False)
 def load_customers_raw_sales(base_url):
-    for path in [
-        "Backend_Database/app/etl/output/sales_transactions.csv",
-        "../Backend_Database/app/etl/output/sales_transactions.csv",
-        "app/Backend_Database/app/etl/output/sales_transactions.csv"
-    ]:
-        if os.path.exists(path):
-            return pd.read_csv(path)
+    df = get_active_sales_df()
+    if not df.empty:
+        return df
 
     try:
         url = f"{base_url}/sales/?page=1&page_size=2000"

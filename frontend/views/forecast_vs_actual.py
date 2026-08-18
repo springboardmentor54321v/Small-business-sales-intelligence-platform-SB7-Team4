@@ -39,34 +39,44 @@ def forecast_vs_actual_page():
         "Actual Sales vs AI Predicted Sales."
     )
 
+    from models.data_loader import get_active_sales_df, set_active_sales_df
+
+    active_df = get_active_sales_df()
+    active_name = st.session_state.get("active_dataset_name", "Default Dataset (All 4 Years)")
+
+    st.info(f"📊 **Current Active Dataset:** `{active_name}` ({len(active_df):,} records)")
+
     # ========================================================
-    # UPLOAD CSV
+    # UPLOAD CSV OR USE ACTIVE DATASET
     # ========================================================
 
     uploaded_file = st.file_uploader(
-        "Upload Sales CSV",
+        "Upload a New Sales CSV (or use currently active dataset)",
         type=["csv"]
     )
 
-    if uploaded_file is None:
-
-        st.info(
-            "Please upload your daily_sales.csv file."
-        )
-
+    source_data = None
+    if uploaded_file is not None:
+        source_data = uploaded_file
+        # Also auto-update active dataset
+        try:
+            temp_df = pd.read_csv(uploaded_file)
+            set_active_sales_df(temp_df, uploaded_file.name)
+            uploaded_file.seek(0)
+        except Exception:
+            pass
+    elif not active_df.empty:
+        source_data = active_df
+    else:
+        st.info("Please upload your sales CSV file.")
         return
 
     # ========================================================
     # RUN BACKTEST
     # ========================================================
 
-    with st.spinner(
-        "Generating Forecast vs Actual analysis..."
-    ):
-
-        result = get_forecast_backtest(
-            uploaded_file
-        )
+    with st.spinner("Generating Forecast vs Actual analysis..."):
+        result = get_forecast_backtest(source_data)
 
     # ========================================================
     # CHECK ERROR
