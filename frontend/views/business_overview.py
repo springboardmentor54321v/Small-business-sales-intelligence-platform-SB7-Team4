@@ -800,13 +800,13 @@ def business_overview_page():
 
                 f"₹ {daily_collections:,.2f}",
 
-                total_orders,
+                f"{total_orders:,}",
 
-                total_products_sold,
+                f"{total_products_sold:,}",
 
-                inventory_count,
+                f"{inventory_count:,}",
 
-                len(low_stock_df)
+                f"{len(low_stock_df):,}"
 
             ]
 
@@ -814,7 +814,7 @@ def business_overview_page():
 
         st.dataframe(
 
-            summary,
+            summary_df,
 
             width="stretch",
 

@@ -2,10 +2,14 @@ import os
 import io
 import time
 import requests
-import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+try:
+    import joblib
+except ImportError:
+    joblib = None
 
 from config.config import AUTH_BASE_URL as BASE_URL
 
