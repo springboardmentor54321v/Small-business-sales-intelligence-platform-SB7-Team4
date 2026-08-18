@@ -15,6 +15,7 @@ from config.config import DB_BASE_URL as API_BASE_URL
 # HELPER FUNCTIONS
 # =========================================================
 
+@st.cache_data(ttl=300, show_spinner=False)
 def get_customers(search=None):
     """Get customers from backend."""
 

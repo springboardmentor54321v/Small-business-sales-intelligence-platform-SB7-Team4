@@ -7,45 +7,31 @@ from components.sidebar import show_sidebar
 
 # ---------------- API Configuration ---------------- #
 from config.config import DB_BASE_URL as BASE_URL
+from services.sales_service import fetch_all_sales, clear_sales_cache
 
 
 def customers_page():
 
     show_sidebar()
 
-    st.title(" Customer Insights")
-    st.caption("Customer Segmentation & Business Insights")
+    top_col1, top_col2 = st.columns([5, 1])
+    with top_col1:
+        st.title(" Customer Insights")
+        st.caption("Customer Segmentation & Business Insights")
+    with top_col2:
+        st.write("")
+        if st.button("🔄 Refresh Data", key="refresh_cust_insights", help="Clear cache and fetch latest data"):
+            clear_sales_cache()
+            st.rerun()
 
     st.markdown("---")
 
     # ---------------- Load Sales Data ---------------- #
 
-    db_error = False
-    sales = []
-
     with st.spinner("Loading Customer Insights..."):
-        try:
-            page = 1
-            page_size = 1000
-            while True:
-                url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
-                try:
-                    sales_res = requests.get(url, timeout=3)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 60 seconds)...")
-                    sales_res = requests.get(url, timeout=60)
-                sales_res.raise_for_status()
-                page_data = sales_res.json()
-                if not page_data:
-                    break
-                sales.extend(page_data)
-                if len(page_data) < page_size:
-                    break
-                page += 1
-        except Exception:
-            db_error = True
+        sales = fetch_all_sales(BASE_URL)
 
-    if db_error:
+    if not sales:
         st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
         st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
         return

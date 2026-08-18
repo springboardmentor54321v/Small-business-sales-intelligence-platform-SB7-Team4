@@ -10,6 +10,13 @@ from config.config import DB_BASE_URL as BASE_URL
 INVOICE_API = f"{BASE_URL}/invoices/"
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_invoices_data(api_url):
+    response = requests.get(api_url, timeout=15)
+    response.raise_for_status()
+    return response.json()
+
+
 # ================= Invoice Page ================= #
 
 def invoice_page():
@@ -125,7 +132,8 @@ def invoice_page():
 
             data = response.json()
 
-            st.success("Invoice Created Successfully")
+            st.success("Invoice created successfully!")
+            fetch_invoices_data.clear()
 
             st.markdown("### Invoice Details")
 
@@ -200,16 +208,9 @@ def invoice_page():
 
         with st.spinner("Loading Invoice Records..."):
 
-            response = requests.get(
-                INVOICE_API,
-                timeout=10
-            )
+            invoices = fetch_invoices_data(INVOICE_API)
 
-        response.raise_for_status()
-
-        invoices = response.json()
-
-        if len(invoices) == 0:
+        if not invoices or len(invoices) == 0:
 
             st.warning("No invoice records found.")
             return

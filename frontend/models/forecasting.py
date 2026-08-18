@@ -70,12 +70,14 @@ def get_sales_forecast(uploaded_file):
         error_detail = str(e)
         if hasattr(e, 'response') and e.response is not None:
             try:
-                error_detail = e.response.json().get("error", e.response.text)
+                res_data = e.response.json()
+                error_detail = res_data.get("detail", res_data.get("error", e.response.text))
             except Exception:
                 error_detail = e.response.text
         elif 'response' in locals() and response is not None:
             try:
-                error_detail = response.json().get("error", response.text)
+                res_data = response.json()
+                error_detail = res_data.get("detail", res_data.get("error", response.text))
             except Exception:
                 error_detail = response.text
         return pd.DataFrame({
@@ -206,12 +208,14 @@ def get_forecast_backtest(uploaded_file):
         error_detail = str(e)
         if hasattr(e, 'response') and e.response is not None:
             try:
-                error_detail = e.response.json().get("error", e.response.text)
+                res_data = e.response.json()
+                error_detail = res_data.get("detail", res_data.get("error", e.response.text))
             except Exception:
                 error_detail = e.response.text
         elif 'response' in locals() and response is not None:
             try:
-                error_detail = response.json().get("error", response.text)
+                res_data = response.json()
+                error_detail = res_data.get("detail", res_data.get("error", response.text))
             except Exception:
                 error_detail = response.text
         return {

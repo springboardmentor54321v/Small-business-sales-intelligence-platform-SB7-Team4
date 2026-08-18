@@ -11,6 +11,12 @@ from components.cards import show_cards
 # API Configuration
 # ============================================================
 from config.config import DB_BASE_URL as BASE_URL
+from services.sales_service import (
+    fetch_all_sales,
+    fetch_inventory_data,
+    fetch_revenue_summary,
+    clear_sales_cache
+)
 
 INVENTORY_API = f"{BASE_URL}/inventory/"
 REVENUE_API = f"{BASE_URL}/revenue/summary"
@@ -24,67 +30,26 @@ def business_overview_page():
 
     show_sidebar()
 
-    st.title(" Business Overview")
-
-    st.caption(
-        "Complete Business Performance Dashboard"
-    )
+    top_col1, top_col2 = st.columns([5, 1])
+    with top_col1:
+        st.title(" Business Overview")
+        st.caption(
+            "Complete Business Performance Dashboard"
+        )
+    with top_col2:
+        st.write("")
+        if st.button("🔄 Refresh Data", key="refresh_biz_overview", help="Clear cache and fetch latest data"):
+            clear_sales_cache()
+            st.rerun()
 
     st.markdown("---")
 
-    db_error = False
-    sales = []
-    inventory = []
-    revenue = {}
+    with st.spinner("Loading Business Overview..."):
+        sales = fetch_all_sales(BASE_URL)
+        inventory = fetch_inventory_data(BASE_URL)
+        revenue = fetch_revenue_summary(BASE_URL)
 
-    with st.spinner("Loading Dashboard..."):
-        # 1. Fetch Sales
-        try:
-            page = 1
-            page_size = 1000
-            while True:
-                url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
-                try:
-                    sales_res = requests.get(url, timeout=3)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 60 seconds)...")
-                    sales_res = requests.get(url, timeout=60)
-                sales_res.raise_for_status()
-                page_data = sales_res.json()
-                if not page_data:
-                    break
-                sales.extend(page_data)
-                if len(page_data) < page_size:
-                    break
-                page += 1
-        except Exception:
-            db_error = True
-
-        # 2. Fetch Inventory
-        if not db_error:
-            try:
-                try:
-                    inventory_response = requests.get(INVENTORY_API, timeout=3)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    inventory_response = requests.get(INVENTORY_API, timeout=15)
-                inventory_response.raise_for_status()
-                inventory = inventory_response.json()
-            except Exception:
-                db_error = True
-
-        # 3. Fetch Revenue
-        if not db_error:
-            try:
-                try:
-                    revenue_response = requests.get(REVENUE_API, timeout=3)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    revenue_response = requests.get(REVENUE_API, timeout=15)
-                revenue_response.raise_for_status()
-                revenue = revenue_response.json()
-            except Exception:
-                db_error = True
-
-    if db_error:
+    if not sales and not inventory:
         st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
         st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
         return

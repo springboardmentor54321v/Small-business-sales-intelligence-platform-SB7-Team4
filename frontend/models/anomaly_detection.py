@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+import streamlit as st
 
 from config.config import AUTH_BASE_URL as BASE_URL
 
