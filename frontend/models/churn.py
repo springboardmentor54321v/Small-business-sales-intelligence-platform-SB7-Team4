@@ -12,11 +12,28 @@ def get_churn_risk(customer_id="AA-10315"):
             "Customer ID": customer_id
         }
 
-        response = requests.post(
-            f"{BASE_URL}/churn-risk",
-            json=payload,
-            timeout=10
-        )
+        import streamlit as st
+        try:
+            response = requests.post(
+                f"{BASE_URL}/churn-risk",
+                json=payload,
+                timeout=3
+            )
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            st.info("⏳ The AI Churn prediction engine is currently waking up on Render. Performing analysis (up to 35 seconds)...")
+            response = requests.post(
+                f"{BASE_URL}/churn-risk",
+                json=payload,
+                timeout=35
+            )
+
+        if response.status_code in [502, 503]:
+            st.info("⏳ Establishing connection to the AI prediction engine (up to 35 seconds)...")
+            response = requests.post(
+                f"{BASE_URL}/churn-risk",
+                json=payload,
+                timeout=35
+            )
 
         response.raise_for_status()
 

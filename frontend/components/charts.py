@@ -63,6 +63,7 @@ def sales_trend_chart(sales):
         xaxis_title="Transaction Date",
         yaxis_title="Revenue (₹)"
     )
+    fig.update_xaxes(rangeslider_visible=True)
 
     st.plotly_chart(
         fig,
