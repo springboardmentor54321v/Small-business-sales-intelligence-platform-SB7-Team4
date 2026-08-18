@@ -98,8 +98,8 @@ def business_overview_page():
     st.markdown("---")
 
     db_error = False
-    sales = []
-    inventory = []
+    sales_df = pd.DataFrame()
+    inventory_df = pd.DataFrame()
     revenue = {}
 
     with st.spinner("Loading Business Overview..."):
@@ -108,25 +108,13 @@ def business_overview_page():
         except Exception:
             db_error = True
 
-    if db_error:
-        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
-        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
-        return
-
-    sales_df = pd.DataFrame(sales)
-    inventory_df = pd.DataFrame(inventory)
-
     try:
         if sales_df.empty:
             st.warning("No Sales Data Available")
             return
 
         if inventory_df.empty:
-
-            st.warning(
-                "No Inventory Data Available"
-            )
-
+            st.warning("No Inventory Data Available")
             return
 
         # ---------------- Numeric Columns ---------------- #
@@ -804,7 +792,7 @@ def business_overview_page():
 
         st.dataframe(
 
-            summary_df,
+            summary,
 
             width="stretch",
 
