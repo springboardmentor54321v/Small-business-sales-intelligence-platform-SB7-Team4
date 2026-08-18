@@ -8,26 +8,26 @@ from components.sidebar import show_sidebar
 # ---------------- API Configuration ---------------- #
 from config.config import DB_BASE_URL as BASE_URL
 
+import os
+
 # ---------------- Cached Customer Data Loader ---------------- #
 
-@st.cache_data(ttl=180, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_customers_raw_sales(base_url):
-    sales = []
-    page_size = 1000
-    for page in range(1, 4):  # Fetch up to 3000 recent sales transactions
-        url = f"{base_url}/sales/?page={page}&page_size={page_size}"
-        try:
-            sales_res = requests.get(url, timeout=5)
-        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-            sales_res = requests.get(url, timeout=30)
+    try:
+        url = f"{base_url}/sales/?page=1&page_size=500"
+        sales_res = requests.get(url, timeout=2.5)
         sales_res.raise_for_status()
-        page_data = sales_res.json()
-        if not page_data:
-            break
-        sales.extend(page_data)
-        if len(page_data) < page_size:
-            break
-    return sales
+        return sales_res.json()
+    except Exception:
+        for path in [
+            "Backend_Database/app/etl/output/sales_transactions.csv",
+            "../Backend_Database/app/etl/output/sales_transactions.csv"
+        ]:
+            if os.path.exists(path):
+                s_df = pd.read_csv(path, nrows=1000)
+                return s_df.to_dict(orient="records")
+        return []
 
 
 # ---------------- Customer Insights ---------------- #
