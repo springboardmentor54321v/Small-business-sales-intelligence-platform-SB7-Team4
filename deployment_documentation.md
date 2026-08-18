@@ -22,19 +22,7 @@ https://api-gateway-kwnl.onrender.com/docs
 
 ## 5. Deployment Architecture
 
-User
-  |
-  v
-Frontend
-  |
-  v
-Security API Gateway
-  |
-  v
-FastAPI Backend
-   |
-   v
-PostgreSQL Database
+User -> Frontend -> Security API Gateway -> FastAPI Backend -> PostgreSQL Database
 
 ## 6. Deployment Notes
 
