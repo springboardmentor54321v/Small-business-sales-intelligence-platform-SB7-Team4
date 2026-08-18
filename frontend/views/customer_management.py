@@ -15,9 +15,29 @@ from config.config import DB_BASE_URL as API_BASE_URL
 # HELPER FUNCTIONS
 # =========================================================
 
-def get_customers(search=None):
-    """Get customers from backend."""
+import os
+import pandas as pd
 
+@st.cache_data(ttl=180, show_spinner=False)
+def get_customers(search=None):
+    """Get customers from backend or local cache."""
+
+    # 1. Fast Local Snapshot
+    if not search:
+        for p in [
+            "Backend_Database/app/etl/output/customers.csv",
+            "../Backend_Database/app/etl/output/customers.csv",
+            "app/Backend_Database/app/etl/output/customers.csv"
+        ]:
+            if os.path.exists(p):
+                try:
+                    df = pd.read_csv(p)
+                    if not df.empty:
+                        return df.head(100).to_dict(orient="records")
+                except Exception:
+                    pass
+
+    # 2. Remote API Fallback
     params = {
         "page": 1,
         "page_size": 100
@@ -29,22 +49,15 @@ def get_customers(search=None):
         response = requests.get(
             f"{API_BASE_URL}/customers/",
             params=params,
-            timeout=15
+            timeout=3.5
         )
 
         if response.status_code == 200:
             data = response.json()
-
-            # Backend normally returns a list
             if isinstance(data, list):
                 return data
-
-            # In case backend returns {"customers": [...]}
             if isinstance(data, dict):
                 return data.get("customers", [])
-
-            return []
-
         return []
 
     except requests.exceptions.RequestException:

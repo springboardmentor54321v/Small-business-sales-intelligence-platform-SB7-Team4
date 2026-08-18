@@ -9,51 +9,68 @@ from components.sidebar import show_sidebar
 from config.config import DB_BASE_URL as BASE_URL
 
 
+import os
+
+# ---------------- High-Speed Cached Sales Loader ---------------- #
+
+@st.cache_data(ttl=600, show_spinner=False)
+def load_customers_sales_data(base_url):
+    sales_df = pd.DataFrame()
+
+    # 1. Fast Local Snapshot (0.05s)
+    for p in [
+        "Backend_Database/app/etl/output/sales_transactions.csv",
+        "../Backend_Database/app/etl/output/sales_transactions.csv",
+        "app/Backend_Database/app/etl/output/sales_transactions.csv"
+    ]:
+        if os.path.exists(p):
+            try:
+                sales_df = pd.read_csv(p)
+                if not sales_df.empty:
+                    return sales_df
+            except Exception:
+                pass
+
+    # 2. Remote API Fallback
+    try:
+        url = f"{base_url}/sales/?page=1&page_size=2000"
+        r = requests.get(url, timeout=3.5)
+        r.raise_for_status()
+        return pd.DataFrame(r.json())
+    except Exception:
+        pass
+
+    return pd.DataFrame()
+
+
 def customers_page():
 
     show_sidebar()
 
-    st.title(" Customer Insights")
-    st.caption("Customer Segmentation & Business Insights")
+    header_col, refresh_col = st.columns([5, 1])
+    with header_col:
+        st.title(" Customer Insights")
+        st.caption("Customer Segmentation & Business Insights")
+    with refresh_col:
+        st.write("")
+        if st.button("🔄 Refresh Data", key="refresh_cust_btn", help="Clear cache and fetch latest customer data"):
+            st.cache_data.clear()
+            st.rerun()
 
     st.markdown("---")
 
     # ---------------- Load Sales Data ---------------- #
 
-    db_error = False
-    sales = []
-
+    sales_df = pd.DataFrame()
     with st.spinner("Loading Customer Insights..."):
         try:
-            page = 1
-            page_size = 1000
-            while True:
-                url = f"{BASE_URL}/sales/?page={page}&page_size={page_size}"
-                try:
-                    sales_res = requests.get(url, timeout=3)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                    st.info("⏳ The database server is currently waking up on Render. Establishing connection (up to 60 seconds)...")
-                    sales_res = requests.get(url, timeout=60)
-                sales_res.raise_for_status()
-                page_data = sales_res.json()
-                if not page_data:
-                    break
-                sales.extend(page_data)
-                if len(page_data) < page_size:
-                    break
-                page += 1
+            sales_df = load_customers_sales_data(BASE_URL)
         except Exception:
-            db_error = True
-
-    if db_error:
-        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
-        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
-        return
-
-    sales_df = pd.DataFrame(sales)
+            sales_df = pd.DataFrame()
 
     if sales_df.empty:
-        st.warning("No Sales Data Available")
+        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
+        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
         return
 
     # ---------------- Prepare Customer Data ---------------- #

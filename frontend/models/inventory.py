@@ -1,21 +1,43 @@
+import os
 import requests
 import pandas as pd
+import streamlit as st
 from config.config import DB_BASE_URL as BASE_URL
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def get_inventory():
 
-    try:
+    # 1. Fast Local Snapshot (0.01s)
+    for p in [
+        "Backend_Database/app/etl/output/inventory.csv",
+        "../Backend_Database/app/etl/output/inventory.csv",
+        "app/Backend_Database/app/etl/output/inventory.csv"
+    ]:
+        if os.path.exists(p):
+            try:
+                df = pd.read_csv(p)
+                if not df.empty:
+                    df["stock_quantity"] = pd.to_numeric(df.get("stock_quantity", 0), errors="coerce").fillna(0)
+                    df["low_stock_threshold"] = pd.to_numeric(df.get("low_stock_threshold", 0), errors="coerce").fillna(0)
+                    df["Status"] = df.apply(
+                        lambda row: "Low Stock"
+                        if row["stock_quantity"] <= row["low_stock_threshold"]
+                        else "In Stock",
+                        axis=1
+                    )
+                    return df
+            except Exception:
+                pass
 
+    # 2. Remote API Fallback
+    try:
         response = requests.get(
             f"{BASE_URL}/inventory/",
-            timeout=10
+            timeout=3.5
         )
-
         response.raise_for_status()
-
         data = response.json()
-
         df = pd.DataFrame(data)
 
         if df.empty:

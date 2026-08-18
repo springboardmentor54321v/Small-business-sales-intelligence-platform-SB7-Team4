@@ -194,46 +194,45 @@ def invoice_page():
             st.error(f"❌ {e}")
 
     st.markdown("---")
+import os
+
+@st.cache_data(ttl=180, show_spinner=False)
+def load_invoices(api_url):
+    for p in [
+        "Backend_Database/app/etl/output/invoices.csv",
+        "../Backend_Database/app/etl/output/invoices.csv",
+        "app/Backend_Database/app/etl/output/invoices.csv"
+    ]:
+        if os.path.exists(p):
+            try:
+                df = pd.read_csv(p)
+                if not df.empty:
+                    return df
+            except Exception:
+                pass
+    try:
+        response = requests.get(api_url, timeout=3.5)
+        if response.status_code == 200:
+            invoices = response.json()
+            if invoices:
+                return pd.DataFrame(invoices)
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
     # ================= Load Invoice Records ================= #
 
     try:
-
         with st.spinner("Loading Invoice Records..."):
+            df = load_invoices(INVOICE_API)
 
-            response = requests.get(
-                INVOICE_API,
-                timeout=10
-            )
-
-        response.raise_for_status()
-
-        invoices = response.json()
-
-        if len(invoices) == 0:
-
-            st.warning("No invoice records found.")
+        if df.empty:
+            st.info("No invoice records available.")
             return
 
-        df = pd.DataFrame(invoices)
-
-    except requests.exceptions.Timeout:
-
-        st.error("❌ Backend request timed out.")
-        return
-
-    except requests.exceptions.ConnectionError:
-
-        st.error("❌ Unable to connect to backend.")
-        return
-
-    except requests.exceptions.HTTPError as e:
-
-        st.error(f"❌ API Error: {e}")
-        return
-
     except Exception as e:
-
-        st.error(f"❌ Unexpected Error: {e}")
+        st.error(f"❌ {e}")
         return
 
     # ================= Dashboard Metrics ================= #

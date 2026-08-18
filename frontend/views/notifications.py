@@ -10,6 +10,18 @@ from config.config import DB_BASE_URL as BASE_URL
 NOTIFICATION_API = f"{BASE_URL}/notifications"
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def load_notifications(api_url):
+    try:
+        response = requests.get(api_url, timeout=3.5)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("notifications", [])
+    except Exception:
+        pass
+    return []
+
+
 # ---------------- Notifications ---------------- #
 
 def notifications_page():
@@ -22,26 +34,10 @@ def notifications_page():
     st.markdown("---")
 
     try:
-
-        with st.spinner("Loading Notifications..."):
-
-            response = requests.get(
-                NOTIFICATION_API,
-                timeout=10
-            )
-
-        response.raise_for_status()
-
-        data = response.json()
-
-        notifications = data.get(
-            "notifications",
-            []
-        )
+        notifications = load_notifications(NOTIFICATION_API)
 
         if len(notifications) == 0:
-
-            st.warning("No Notifications Available")
+            st.info("No new notifications.")
             return
 
         df = pd.DataFrame(notifications)
