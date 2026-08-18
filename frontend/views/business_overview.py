@@ -590,58 +590,54 @@ def business_overview_page():
         # ============================================================
 
         
-        st.subheader(" Customer Insights")
+        st.subheader("👥 Top 10 Customers by Revenue")
+
+        cust_col = "customer_name" if "customer_name" in sales_df.columns else ("Customer Name" if "Customer Name" in sales_df.columns else "customer_id")
 
         customer_df = (
-            sales_df.groupby("customer_id", as_index=False)
+            sales_df.groupby(cust_col, as_index=False)
             .agg(
                 Revenue=("total_amount", "sum"),
                 Orders=("invoice_id", "nunique")
             )
+            .sort_values("Revenue", ascending=False)
+            .head(10)
         )
 
-        customer_df = customer_df.sort_values(
-            "Revenue",
-            ascending=False
-        ).head(10)
-
         if customer_df.empty:
-
             st.info("No customer data available.")
-
         else:
-
             fig = px.bar(
                 customer_df,
                 x="Revenue",
-                y="customer_id",
+                y=cust_col,
                 orientation="h",
                 text="Revenue",
-                title=" Top 10 Customers by Revenue",
-                color="Revenue",
+                title="Top 10 Customers by Total Spend",
+                color_discrete_sequence=["#6366f1"]
             )
 
             fig.update_traces(
-                texttemplate="₹%{text:.2f}",
+                texttemplate="₹%{text:,.2f}",
                 textposition="outside"
             )
 
             fig.update_layout(
-                template="plotly_dark",
-                height=500,
+                template="plotly_white",
+                height=450,
                 xaxis_title="Revenue (₹)",
-                yaxis_title="Customer ID",
+                yaxis_title="Customer",
                 yaxis=dict(autorange="reversed")
             )
 
             st.plotly_chart(
                 fig,
-                use_container_width=True
+                width="stretch"
             )
 
             st.dataframe(
-                customer_df,
-                use_container_width=True,
+                customer_df.rename(columns={cust_col: "Customer Name", "Revenue": "Total Revenue (₹)", "Orders": "Total Orders"}),
+                width="stretch",
                 hide_index=True
             )
 

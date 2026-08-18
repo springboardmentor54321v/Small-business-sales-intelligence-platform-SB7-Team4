@@ -105,22 +105,32 @@ def top_products_chart(sales):
         st.info("No product data available.")
         return
 
+    # Truncate label cleanly to avoid overlapping text
+    product_sales["Product_Display"] = product_sales[prod_col].astype(str).apply(
+        lambda x: x[:32] + "..." if len(x) > 32 else x
+    )
+
     fig = px.bar(
         product_sales,
-        x=prod_col,
-        y=qty_col,
+        x=qty_col,
+        y="Product_Display",
+        orientation="h",
         text=qty_col,
-        title="🏆 Top 5 Selling Products (Units)",
-        color=qty_col,
-        color_continuous_scale="Blues"
+        title="🏆 Top 5 Selling Products (Units Sold)",
+        color_discrete_sequence=["#2563eb"]
+    )
+
+    fig.update_traces(
+        textposition="outside",
+        hovertemplate="<b>%{y}</b><br>Units Sold: %{x:,}"
     )
 
     fig.update_layout(
-        height=420,
+        height=380,
         template="plotly_white",
-        xaxis_title="Product",
-        yaxis_title="Quantity Sold",
-        coloraxis_showscale=False
+        xaxis_title="Quantity Sold (Units)",
+        yaxis_title="Product",
+        yaxis=dict(autorange="reversed")
     )
 
     st.plotly_chart(
