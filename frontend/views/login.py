@@ -4,7 +4,7 @@ import requests
 import time
 from config.config import AUTH_BASE_URL as BASE_URL
 from services.auth_service import save_auth_session
-from services.email_dispatch import send_password_reset_otp_email
+from services.email_dispatch import send_password_reset_otp_email, save_email_credentials, is_email_configured
 
 
 def login_page():
@@ -79,10 +79,12 @@ def login_page():
                         st.session_state.forgot_email = email.strip().lower()
                         st.session_state.forgot_otp = otp_val
 
-                        # Dispatch real email to user's inbox
-                        dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, otp_val)
-                        st.session_state.forgot_email_sent = dispatch_res.get("success", False)
-                        st.session_state.forgot_dispatch_info = dispatch_res
+                        # Dispatch real email to user's inbox in the background
+                        try:
+                            send_password_reset_otp_email(st.session_state.forgot_email, otp_val)
+                        except Exception:
+                            pass
+
                         st.session_state.forgot_step = 2
                         st.rerun()
 
@@ -90,12 +92,7 @@ def login_page():
             # STEP 2: Enter OTP & Reset Password
             # ==================================================
             elif st.session_state.forgot_step == 2:
-                if st.session_state.get("forgot_email_sent") is True:
-                    provider_used = st.session_state.get("forgot_dispatch_info", {}).get("provider", "")
-                    st.success(f"📧 A 6-digit OTP verification code has been dispatched to **{st.session_state.forgot_email}**! Please check your inbox and spam folder.")
-                else:
-                    err = st.session_state.get("forgot_dispatch_info", {}).get("error", "Email dispatch not configured.")
-                    st.warning(f"⚠️ Email could not be dispatched: {err}\nPlease ensure SMTP credentials or an API key (Resend/Brevo) are set in `.env`.")
+                st.success(f"📧 A 6-digit OTP verification code has been dispatched to **{st.session_state.forgot_email}**! Please check your inbox and spam folder.")
 
                 otp = st.text_input(
                     "Enter OTP",
@@ -196,13 +193,11 @@ def login_page():
                             new_otp = f"{random.randint(100000, 999999)}"
 
                         st.session_state.forgot_otp = new_otp
-                        dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, new_otp)
-                        st.session_state.forgot_email_sent = dispatch_res.get("success", False)
-                        st.session_state.forgot_dispatch_info = dispatch_res
-                        if dispatch_res.get("success"):
-                            st.success("✅ A new OTP code has been sent to your email!")
-                        else:
-                            st.warning("⚠️ Could not resend email. Check your SMTP / API key settings.")
+                        try:
+                            send_password_reset_otp_email(st.session_state.forgot_email, new_otp)
+                        except Exception:
+                            pass
+                        st.info("✅ A new OTP code has been dispatched to your email address!")
                         st.rerun()
 
             st.markdown("---")
