@@ -256,22 +256,22 @@ def login_page():
                     "Please enter Username and Password."
                 )
 
-            elif len(username) < 6:
+            elif len(username) < 3:
                 st.error(
-                    "Username must contain at least 6 characters."
+                    "Username must contain at least 3 characters."
                 )
 
-            elif len(password) < 6:
+            elif len(password) < 4:
                 st.error(
-                    "Password must contain at least 6 characters."
+                    "Password must contain at least 4 characters."
                 )
 
             elif not re.fullmatch(
-                r"[A-Za-z0-9@._-]{6,}",
+                r"[A-Za-z0-9@._+-]{3,}",
                 username
             ):
                 st.error(
-                    "Username can contain only letters, numbers, @ . _ -"
+                    "Username can contain only letters, numbers, @ . _ + -"
                 )
 
             elif not re.fullmatch(

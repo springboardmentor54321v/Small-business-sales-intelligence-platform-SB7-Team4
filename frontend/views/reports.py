@@ -160,7 +160,18 @@ def reports_page():
                 f_obj.name = report_file_name
                 forecast_df = get_sales_forecast(f_obj)
             else:
-                forecast_df = pd.DataFrame()
+                from services.sales_service import fetch_all_sales_df
+                import io
+                active_sales = fetch_all_sales_df()
+                if not active_sales.empty:
+                    csv_bytes = active_sales[["transaction_date", "total_amount"]].rename(
+                        columns={"transaction_date": "Order Date", "total_amount": "Total amount"}
+                    ).to_csv(index=False).encode("utf-8")
+                    f_obj = io.BytesIO(csv_bytes)
+                    f_obj.name = "platform_sales.csv"
+                    forecast_df = get_sales_forecast(f_obj)
+                else:
+                    forecast_df = pd.DataFrame()
 
             # ========================================
             # RECOMMENDATIONS

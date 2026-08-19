@@ -23,8 +23,14 @@ def invoice_page():
 
     show_sidebar()
 
-    st.title("Invoice Management")
-    st.caption("Create and Manage Customer Invoices")
+    inv_hcol1, inv_hcol2 = st.columns([5, 1])
+    with inv_hcol1:
+        st.title("Invoice Management")
+        st.caption("Create and Manage Customer Invoices")
+    with inv_hcol2:
+        if st.button("🔄 Refresh", key="refresh_invoices_btn", width="stretch"):
+            fetch_invoices_data.clear()
+            st.rerun()
 
     st.markdown("---")
 

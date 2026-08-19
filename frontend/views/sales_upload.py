@@ -88,19 +88,6 @@ def sales_upload_page():
     st.caption("Upload Sales Transactions CSV to append into backend and platform analytics")
     st.markdown("---")
 
-    # ================= Proof of Recent Append ================= #
-    if "sales_upload_proof" in st.session_state:
-        proof = st.session_state["sales_upload_proof"]
-        st.success(
-            f"🎉 **Proof of Append**: Successfully appended **{proof['rows']:,}** records "
-            f"from **'{proof['file_name']}'** (Total Sales: **₹ {proof['total']:,.2f}**). "
-            f"All dashboards and analytics across the app have updated instantly!"
-        )
-        if st.button("Dismiss Banner", key="dismiss_proof_btn"):
-            del st.session_state["sales_upload_proof"]
-            st.rerun()
-        st.markdown("---")
-
     # ================= CSV Upload Input ================= #
     has_staged_file = "sales_upload_df" in st.session_state
 
@@ -187,12 +174,6 @@ def sales_upload_page():
 
                     # 1. Register to active session state immediately for 100% instant platform update
                     add_appended_sales_file(file_name, norm_df, total_sales_added)
-
-                    st.session_state["sales_upload_proof"] = {
-                        "file_name": file_name,
-                        "rows": len(norm_df),
-                        "total": total_sales_added
-                    }
 
                     # Clean staging upload states
                     for k in ["sales_upload_df", "sales_upload_filename", "sales_upload_file_bytes", "sales_upload_size"]:
