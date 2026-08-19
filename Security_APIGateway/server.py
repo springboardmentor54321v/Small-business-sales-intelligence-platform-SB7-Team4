@@ -712,22 +712,11 @@ async def forgot_password(req: ForgotPasswordRequest):
     email_clean = req.email.strip().lower()
     user = find_user_by_email(email_clean)
     if not user:
-        # Auto-create user account so reset never fails
-        preseed_hash = bcrypt.hashpw("Password@123".encode('utf-8'), bcrypt.gensalt(10)).decode('utf-8')
-        user_name = email_clean.split("@")[0].capitalize()
-        user = {
-            "id": len(mock_users) + 1,
-            "name": user_name,
-            "email": email_clean,
-            "password_hash": preseed_hash,
-            "role": "Business Owner",
-            "refresh_tokens": [],
-            "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
-            "is_verified": True,
-            "verification_token": None,
-            "verification_token_expires": None
-        }
-        mock_users.append(user)
+        log_audit(f"Forgot password attempt for non-existent email: {email_clean}", is_alert=True)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User with this email does not exist"
+        )
     
     # Generate 6-digit OTP
     otp = f"{random.randint(100000, 999999)}"
