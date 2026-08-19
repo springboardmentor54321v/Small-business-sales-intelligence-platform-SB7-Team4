@@ -1,0 +1,20 @@
+name: Deploy AIML to Render
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'AIML/**'
+      - '.github/workflows/render-aiml-deploy.yml'
+
+jobs:
+  deploy-aiml:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render AIML Deployment
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_AIML_DEPLOY_HOOK }}
+        run: |
+          curl -X POST "$RENDER_DEPLOY_HOOK"

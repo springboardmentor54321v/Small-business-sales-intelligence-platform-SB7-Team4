@@ -857,6 +857,74 @@ async def verify_email(req: VerifyEmailRequest):
     log_audit(f"User email verified successfully: {user['email']}")
     return {"message": "Email verified successfully."}
 
+
+def send_otp_email(to_email: str, otp: str) -> bool:
+    """Dispatch OTP email via SMTP or REST API to user's inbox."""
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+    smtp_pass = os.getenv("SMTP_PASSWORD", "").strip().replace(" ", "").strip('\'"')
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
+    smtp_port_raw = os.getenv("SMTP_PORT", "465").strip()
+    email_from = os.getenv("EMAIL_FROM", f"MarketMind AI <{smtp_user}>") if smtp_user else "MarketMind AI <noreply@marketmind.ai>"
+    
+    if not smtp_user or not smtp_pass:
+        log_audit(f"[Email Dispatch] SMTP credentials not set. Simulated OTP {otp} for {to_email}")
+        return False
+
+    try:
+        smtp_port = int(smtp_port_raw)
+    except ValueError:
+        smtp_port = 465
+
+    subject = "MarketMind AI - Your Password Recovery Code"
+    html_body = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 560px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #ffffff;">
+        <h2 style="color: #ff4b4b; margin-top: 0;">MarketMind AI Security</h2>
+        <p style="font-size: 15px; color: #333333;">Hello,</p>
+        <p style="font-size: 15px; color: #333333;">You requested a password reset for your <strong>MarketMind AI</strong> account.</p>
+        <p style="font-size: 15px; color: #333333;">Your One-Time Password (OTP) verification code is:</p>
+        <div style="background-color: #f7f7f9; padding: 18px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; text-align: center; color: #171f32; margin: 20px 0; border: 1px dashed #ff4b4b;">
+            {otp}
+        </div>
+        <p style="font-size: 14px; color: #666666;">This verification code is valid for <strong>15 minutes</strong>. If you did not request this, please ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eeeeee; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #999999; margin-bottom: 0;">&copy; MarketMind AI Platform. All rights reserved.</p>
+    </div>
+    """
+    text_body = f"Hello,\n\nYour MarketMind AI password recovery OTP is: {otp}\n\nValid for 15 minutes."
+    
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = email_from
+    msg["To"] = to_email
+    msg.attach(MIMEText(text_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+    
+    # Try SSL 465
+    try:
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, [to_email], msg.as_string())
+        log_audit(f"Successfully dispatched OTP email to {to_email} via SMTP_SSL.")
+        return True
+    except Exception as e:
+        log_audit(f"SMTP_SSL failed ({e}), attempting STARTTLS fallback on port 587...")
+        try:
+            with smtplib.SMTP(smtp_host, 587, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, [to_email], msg.as_string())
+            log_audit(f"Successfully dispatched OTP email to {to_email} via STARTTLS.")
+            return True
+        except Exception as e2:
+            log_audit(f"Failed to dispatch OTP email to {to_email}: {e2}", is_alert=True)
+            return False
+
+
+def send_verification_email(to_email: str, token: str) -> bool:
+    """Dispatch account verification email to user."""
+    return send_otp_email(to_email, token)
+
+
 @app.post("/auth/resend-verification")
 @app.post("/resend-verification")
 async def resend_verification(req: ResendVerificationRequest):

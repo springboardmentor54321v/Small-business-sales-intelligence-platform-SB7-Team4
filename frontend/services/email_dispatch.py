@@ -28,6 +28,16 @@ def _load_env_files():
     except Exception as e:
         logger.debug(f"dotenv load skipped/failed: {e}")
 
+    # Also automatically read from Streamlit Cloud st.secrets
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets"):
+            for k in ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "EMAIL_FROM", "RESEND_API_KEY", "BREVO_API_KEY", "SENDGRID_API_KEY"]:
+                if k in st.secrets and not os.getenv(k):
+                    os.environ[k] = str(st.secrets[k])
+    except Exception:
+        pass
+
 
 # Initialize env loading on import
 _load_env_files()
@@ -70,13 +80,36 @@ def resolve_mx_hosts(domain: str) -> list:
     return mx_hosts
 
 
+def get_config_val(key: str, default: str = "") -> str:
+    """Read a configuration value from os.environ, Streamlit st.secrets, or fallback."""
+    # 1. Check os.environ
+    for k in [key, key.upper(), key.lower()]:
+        val = os.getenv(k)
+        if val is not None and str(val).strip():
+            return str(val).strip()
+
+    # 2. Check Streamlit st.secrets
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets"):
+            for k in [key, key.upper(), key.lower()]:
+                if k in st.secrets:
+                    val = st.secrets[k]
+                    if val is not None and str(val).strip():
+                        return str(val).strip()
+    except Exception:
+        pass
+
+    return default
+
+
 def _send_via_smtp(to_email: str, subject: str, html_body: str, text_body: str) -> tuple[bool, str]:
     """Attempt email dispatch via configured SMTP (Gmail SSL/TLS, Outlook, custom SMTP)."""
     _load_env_files()
-    smtp_user = os.getenv("SMTP_USER", "").strip()
-    smtp_pass = os.getenv("SMTP_PASSWORD", "").strip()
-    smtp_host = os.getenv("SMTP_HOST", "").strip()
-    smtp_port_raw = os.getenv("SMTP_PORT", "").strip()
+    smtp_user = get_config_val("SMTP_USER").strip('\'"')
+    smtp_pass = get_config_val("SMTP_PASSWORD").replace(" ", "").strip('\'"')
+    smtp_host = get_config_val("SMTP_HOST").strip('\'"')
+    smtp_port_raw = get_config_val("SMTP_PORT", "465").strip('\'"')
 
     if not smtp_user or not smtp_pass:
         return False, "SMTP_USER or SMTP_PASSWORD not configured."
@@ -92,18 +125,17 @@ def _send_via_smtp(to_email: str, subject: str, html_body: str, text_body: str) 
         else:
             smtp_host = "smtp.gmail.com"
 
-    port = 587
+    port = 465 if smtp_host in ["smtp.gmail.com", "smtp.mail.yahoo.com"] else 587
     if smtp_port_raw:
         try:
             port = int(smtp_port_raw)
         except ValueError:
-            port = 587
-    elif smtp_host in ["smtp.gmail.com", "smtp.mail.yahoo.com"]:
-        port = 465
+            port = 465
 
+    email_from = get_config_val("EMAIL_FROM", f"MarketMind AI <{smtp_user}>")
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = os.getenv("EMAIL_FROM", smtp_user)
+    msg["From"] = email_from
     msg["To"] = to_email
     msg.attach(MIMEText(text_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
@@ -154,16 +186,17 @@ def _send_via_smtp(to_email: str, subject: str, html_body: str, text_body: str) 
     return False, " | ".join(errors)
 
 
+
 def _send_via_resend(to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
     """Attempt email dispatch via Resend REST API."""
     _load_env_files()
-    resend_key = os.getenv("RESEND_API_KEY", "").strip() or os.getenv("RESEND_KEY", "").strip()
+    resend_key = get_config_val("RESEND_API_KEY") or get_config_val("RESEND_KEY")
     if not resend_key:
         return False, "RESEND_API_KEY not configured."
 
     try:
         import httpx
-        from_email = os.getenv("EMAIL_FROM", "MarketMind AI <onboarding@resend.dev>")
+        from_email = get_config_val("EMAIL_FROM", "MarketMind AI <onboarding@resend.dev>")
         resp = httpx.post(
             "https://api.resend.com/emails",
             headers={
@@ -190,14 +223,14 @@ def _send_via_resend(to_email: str, subject: str, html_body: str) -> tuple[bool,
 def _send_via_brevo(to_email: str, subject: str, html_body: str, text_body: str) -> tuple[bool, str]:
     """Attempt email dispatch via Brevo / Sendinblue REST API."""
     _load_env_files()
-    brevo_key = os.getenv("BREVO_API_KEY", "").strip() or os.getenv("SIB_API_KEY", "").strip() or os.getenv("SENDINBLUE_API_KEY", "").strip()
+    brevo_key = get_config_val("BREVO_API_KEY") or get_config_val("SIB_API_KEY") or get_config_val("SENDINBLUE_API_KEY")
     if not brevo_key:
         return False, "BREVO_API_KEY not configured."
 
     try:
         import httpx
-        sender_email = os.getenv("SMTP_USER", "").strip() or os.getenv("EMAIL_FROM_ADDRESS", "no-reply@marketmind.ai")
-        sender_name = os.getenv("EMAIL_FROM_NAME", "MarketMind AI")
+        sender_email = get_config_val("SMTP_USER") or get_config_val("EMAIL_FROM_ADDRESS", "no-reply@marketmind.ai")
+        sender_name = get_config_val("EMAIL_FROM_NAME", "MarketMind AI")
         resp = httpx.post(
             "https://api.brevo.com/v3/smtp/email",
             headers={
@@ -226,14 +259,14 @@ def _send_via_brevo(to_email: str, subject: str, html_body: str, text_body: str)
 def _send_via_sendgrid(to_email: str, subject: str, html_body: str, text_body: str) -> tuple[bool, str]:
     """Attempt email dispatch via SendGrid REST API."""
     _load_env_files()
-    sg_key = os.getenv("SENDGRID_API_KEY", "").strip()
+    sg_key = get_config_val("SENDGRID_API_KEY")
     if not sg_key:
         return False, "SENDGRID_API_KEY not configured."
 
     try:
         import httpx
-        from_email = os.getenv("EMAIL_FROM_ADDRESS", "no-reply@marketmind.ai")
-        from_name = os.getenv("EMAIL_FROM_NAME", "MarketMind AI")
+        from_email = get_config_val("EMAIL_FROM_ADDRESS", "no-reply@marketmind.ai")
+        from_name = get_config_val("EMAIL_FROM_NAME", "MarketMind AI")
         resp = httpx.post(
             "https://api.sendgrid.com/v3/mail/send",
             headers={
@@ -252,7 +285,7 @@ def _send_via_sendgrid(to_email: str, subject: str, html_body: str, text_body: s
             timeout=10.0
         )
         if resp.status_code in [200, 202]:
-            logger.info(f"Successfully sent email to {to_email} via SendGrid API.")
+            logger.info(f"Successfully sent email to {to_email} via SendGrid.")
             return True, "SendGrid API"
         else:
             return False, f"SendGrid HTTP {resp.status_code}: {resp.text}"
@@ -293,37 +326,42 @@ def _send_via_direct_mx(to_email: str, subject: str, html_body: str, text_body: 
 
 
 def dispatch_real_email_with_status(to_email: str, subject: str, html_body: str, text_body: str = "") -> dict:
-    """Comprehensive multi-tiered email dispatcher returning status details."""
-    to_email = to_email.strip()
+    """Multi-tiered real email delivery engine returning detailed dispatch status."""
     if not to_email or "@" not in to_email:
-        return {
-            "success": False,
-            "provider": None,
-            "error": "Invalid recipient email address format."
-        }
+        return {"success": False, "provider": None, "error": "Invalid recipient email address format."}
 
     if not text_body:
-        text_body = html_body
+        text_body = subject
+
+    last_error = None
 
     # Attempt 1: Configured SMTP (Gmail, Outlook, Yahoo, Custom)
     ok, detail = _send_via_smtp(to_email, subject, html_body, text_body)
     if ok:
         return {"success": True, "provider": detail, "error": None}
+    else:
+        last_error = detail
 
     # Attempt 2: Resend REST API
     ok, detail = _send_via_resend(to_email, subject, html_body)
     if ok:
         return {"success": True, "provider": detail, "error": None}
+    elif "not configured" not in detail:
+        last_error = detail
 
     # Attempt 3: Brevo REST API
     ok, detail = _send_via_brevo(to_email, subject, html_body, text_body)
     if ok:
         return {"success": True, "provider": detail, "error": None}
+    elif "not configured" not in detail:
+        last_error = detail
 
     # Attempt 4: SendGrid REST API
     ok, detail = _send_via_sendgrid(to_email, subject, html_body, text_body)
     if ok:
         return {"success": True, "provider": detail, "error": None}
+    elif "not configured" not in detail:
+        last_error = detail
 
     # Attempt 5: Direct MX
     ok, detail = _send_via_direct_mx(to_email, subject, html_body, text_body)
@@ -333,20 +371,22 @@ def dispatch_real_email_with_status(to_email: str, subject: str, html_body: str,
     return {
         "success": False,
         "provider": None,
-        "error": "No email provider configured or active. Please configure SMTP credentials (e.g. Gmail App Password) or an API key (Resend/Brevo) in .env."
+        "error": last_error or "No active email credentials found in environment or secrets."
     }
 
 
 def is_email_configured() -> tuple[bool, str]:
-    """Check if any email provider is currently configured in environment."""
+    """Check if any email provider is currently configured in environment or Streamlit secrets."""
     _load_env_files()
-    if os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"):
-        return True, f"SMTP ({os.getenv('SMTP_USER')})"
-    if os.getenv("RESEND_API_KEY") or os.getenv("RESEND_KEY"):
+    smtp_u = get_config_val("SMTP_USER")
+    smtp_p = get_config_val("SMTP_PASSWORD")
+    if smtp_u and smtp_p:
+        return True, f"SMTP ({smtp_u})"
+    if get_config_val("RESEND_API_KEY") or get_config_val("RESEND_KEY"):
         return True, "Resend API"
-    if os.getenv("BREVO_API_KEY") or os.getenv("SIB_API_KEY") or os.getenv("SENDINBLUE_API_KEY"):
+    if get_config_val("BREVO_API_KEY") or get_config_val("SIB_API_KEY") or get_config_val("SENDINBLUE_API_KEY"):
         return True, "Brevo API"
-    if os.getenv("SENDGRID_API_KEY"):
+    if get_config_val("SENDGRID_API_KEY"):
         return True, "SendGrid API"
     return False, "None"
 
