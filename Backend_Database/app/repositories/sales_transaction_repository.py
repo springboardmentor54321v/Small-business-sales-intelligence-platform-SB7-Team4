@@ -526,7 +526,7 @@ def bulk_import_sales(
             store_id = store_ids[0]
 
             # ---------------------------------------------
-            # Validate customer
+            # Validate / auto-create customer
             # ---------------------------------------------
 
             customer = (
@@ -539,17 +539,18 @@ def bulk_import_sales(
             )
 
             if not customer:
-
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "Customer not found: "
-                        f"{customer_id}"
-                    )
+                cust_name = str(first_row.get("customer_name") or first_row.get("name") or f"Customer {customer_id}").strip()
+                customer = Customer(
+                    customer_id=customer_id,
+                    name=cust_name,
+                    email=f"{customer_id.lower().replace(' ', '_')}@example.com",
+                    phone="0000000000"
                 )
+                db.add(customer)
+                db.flush()
 
             # ---------------------------------------------
-            # Validate store
+            # Validate / fallback store
             # ---------------------------------------------
 
             store = (
@@ -562,21 +563,25 @@ def bulk_import_sales(
             )
 
             if not store:
-
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "Store not found: "
-                        f"{store_id}"
+                first_store = db.query(Store).first()
+                if first_store:
+                    store_id = first_store.store_id
+                    store = first_store
+                else:
+                    store = Store(
+                        store_id=store_id,
+                        store_name="Main Store",
+                        location="Main Branch"
                     )
-                )
+                    db.add(store)
+                    db.flush()
 
             # ---------------------------------------------
             # Validate user
             # ---------------------------------------------
 
             user_id = int(
-                first_row["created_by_user_id"]
+                first_row.get("created_by_user_id", 1)
             )
 
             # ---------------------------------------------
@@ -676,7 +681,7 @@ def bulk_import_sales(
                     continue
 
                 # -----------------------------------------
-                # Validate product
+                # Validate / auto-create product
                 # -----------------------------------------
 
                 product = (
@@ -689,14 +694,16 @@ def bulk_import_sales(
                 )
 
                 if not product:
-
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            "Product not found: "
-                            f"{row['product_id']}"
-                        )
+                    prod_name = str(row.get("product_name") or row.get("product") or f"Product {row['product_id']}").strip()
+                    cat = str(row.get("category") or "General").strip()
+                    product = Product(
+                        product_id=str(row["product_id"]),
+                        product_name=prod_name,
+                        category=cat,
+                        unit_price=Decimal(str(row.get("unit_price", 0.0)))
                     )
+                    db.add(product)
+                    db.flush()
 
                 quantity = int(
                     row["quantity"]
