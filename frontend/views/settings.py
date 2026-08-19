@@ -264,6 +264,96 @@ def settings_page():
     st.markdown("---")
 
     # ========================================================
+    # EMAIL & NOTIFICATION SETTINGS
+    # ========================================================
+
+    st.subheader("📧 Email & Notification Dispatch")
+    st.caption("Configure your SMTP or Cloud Email API service to send real-time recovery OTPs and team invitations.")
+
+    from services.email_dispatch import is_email_configured, save_email_credentials, dispatch_real_email_with_status
+    configured, provider_name = is_email_configured()
+
+    if configured:
+        st.success(f"✅ Active Email Provider: **{provider_name}**")
+    else:
+        st.info("ℹ️ No email provider is currently configured. Configure your credentials below.")
+
+    with st.expander("⚙️ Configure Email Provider (Gmail / Resend / Brevo / SMTP)", expanded=not configured):
+        provider_choice = st.selectbox(
+            "Select Provider",
+            ["Gmail (Free App Password)", "Resend API (Free)", "Brevo API (Free)", "Custom SMTP"],
+            key="settings_provider_choice"
+        )
+
+        if provider_choice == "Gmail (Free App Password)":
+            g_user = st.text_input("Your Gmail Address", placeholder="e.g. yourname@gmail.com", key="settings_g_user")
+            g_pass = st.text_input("16-character App Password", type="password", placeholder="e.g. abcd efgh ijkl mnop", key="settings_g_pass")
+            st.caption("👉 Create an App Password in 10 seconds at: [Google App Passwords](https://myaccount.google.com/apppasswords)")
+            if st.button("Save Gmail Configuration", key="save_g_btn", use_container_width=True):
+                if not g_user.strip() or not g_pass.strip():
+                    st.error("Please enter both your Gmail address and 16-character App Password.")
+                else:
+                    save_email_credentials(smtp_user=g_user.strip(), smtp_pass=g_pass.strip(), smtp_host="smtp.gmail.com", smtp_port="465")
+                    st.success("✅ Gmail SMTP credentials saved successfully!")
+                    st.rerun()
+
+        elif provider_choice == "Resend API (Free)":
+            r_key = st.text_input("Resend API Key", type="password", placeholder="re_123456789...", key="settings_r_key")
+            st.caption("👉 Get a free API key at [resend.com](https://resend.com)")
+            if st.button("Save Resend API Key", key="save_r_btn", use_container_width=True):
+                if not r_key.strip():
+                    st.error("Please enter your Resend API Key.")
+                else:
+                    save_email_credentials(resend_key=r_key.strip())
+                    st.success("✅ Resend API key saved successfully!")
+                    st.rerun()
+
+        elif provider_choice == "Brevo API (Free)":
+            b_key = st.text_input("Brevo API Key", type="password", placeholder="xkeysib-...", key="settings_b_key")
+            st.caption("👉 Get a free API key at [brevo.com](https://brevo.com)")
+            if st.button("Save Brevo API Key", key="save_b_btn", use_container_width=True):
+                if not b_key.strip():
+                    st.error("Please enter your Brevo API Key.")
+                else:
+                    save_email_credentials(brevo_key=b_key.strip())
+                    st.success("✅ Brevo API key saved successfully!")
+                    st.rerun()
+
+        elif provider_choice == "Custom SMTP":
+            c_host = st.text_input("SMTP Host", placeholder="smtp.example.com", key="settings_c_host")
+            c_port = st.text_input("SMTP Port", placeholder="587 or 465", key="settings_c_port")
+            c_user = st.text_input("SMTP Username/Email", key="settings_c_user")
+            c_pass = st.text_input("SMTP Password", type="password", key="settings_c_pass")
+            if st.button("Save Custom SMTP", key="save_c_btn", use_container_width=True):
+                if not c_user.strip() or not c_pass.strip():
+                    st.error("Please enter SMTP credentials.")
+                else:
+                    save_email_credentials(smtp_user=c_user.strip(), smtp_pass=c_pass.strip(), smtp_host=c_host.strip(), smtp_port=c_port.strip())
+                    st.success("✅ Custom SMTP credentials saved successfully!")
+                    st.rerun()
+
+    test_col1, test_col2 = st.columns([3, 1])
+    with test_col1:
+        test_dest = st.text_input("Send Test Email To", placeholder="Enter recipient email", key="settings_test_dest")
+    with test_col2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Send Test", use_container_width=True):
+            if not test_dest.strip():
+                st.error("Please enter an email address to test.")
+            else:
+                test_res = dispatch_real_email_with_status(
+                    test_dest.strip(),
+                    "MarketMind AI - Test Email",
+                    "<h3>MarketMind AI Email System Test</h3><p>Your email system is successfully configured and delivering real messages!</p>"
+                )
+                if test_res.get("success"):
+                    st.success(f"✅ Test email successfully delivered to **{test_dest}** via {test_res.get('provider')}!")
+                else:
+                    st.error(f"❌ Test delivery failed: {test_res.get('error')}")
+
+    st.markdown("---")
+
+    # ========================================================
     # ACCOUNT INFORMATION
     # ========================================================
 
@@ -272,7 +362,6 @@ def settings_page():
     info_col1, info_col2 = st.columns(2)
 
     with info_col1:
-
         st.metric(
             "Account Role",
             st.session_state.get(
@@ -282,7 +371,6 @@ def settings_page():
         )
 
     with info_col2:
-
         st.metric(
             "Account Status",
             "Active"
@@ -295,7 +383,6 @@ def settings_page():
     # ========================================================
 
     st.subheader("Session")
-
     st.caption(
         "Sign out of your MarketMind AI account."
     )
