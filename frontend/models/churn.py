@@ -51,6 +51,12 @@ def get_churn_risk(customer_id="AA-10315"):
         if isinstance(data, dict):
             if "error" in data:
                 return pd.DataFrame({"Error": [data["error"]]})
+
+            if data.get("is_cold_start") or "zero churn signals" in str(data.get("note", "")) or (data.get("Total Orders") == 0 and data.get("Total Revenue") == 0 and data.get("Last Purchase Date") == "New Account"):
+                return pd.DataFrame({
+                    "Error": [f"Customer ID '{customer_id}' was not found in the database. Please enter a valid customer ID from the dataset (e.g., AA-10315, CG-12520, DV-13045)."]
+                })
+
             return pd.DataFrame([data])
 
         if isinstance(data, list):
