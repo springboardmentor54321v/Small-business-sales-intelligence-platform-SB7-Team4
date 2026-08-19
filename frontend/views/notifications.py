@@ -10,6 +10,24 @@ from config.config import DB_BASE_URL as BASE_URL
 NOTIFICATION_API = f"{BASE_URL}/notifications"
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_notifications(api_url):
+    import time
+    session = requests.Session()
+    for attempt in range(3):
+        try:
+            timeout = 10 if attempt == 0 else 30
+            r = session.get(api_url, timeout=timeout)
+            r.raise_for_status()
+            data = r.json()
+            return data.get("notifications", []) if isinstance(data, dict) else []
+        except Exception:
+            if attempt == 2:
+                raise
+            time.sleep(1)
+    return []
+
+
 # ---------------- Notifications ---------------- #
 
 def notifications_page():
@@ -24,22 +42,9 @@ def notifications_page():
     try:
 
         with st.spinner("Loading Notifications..."):
+            notifications = fetch_notifications(NOTIFICATION_API)
 
-            response = requests.get(
-                NOTIFICATION_API,
-                timeout=10
-            )
-
-        response.raise_for_status()
-
-        data = response.json()
-
-        notifications = data.get(
-            "notifications",
-            []
-        )
-
-        if len(notifications) == 0:
+        if not notifications or len(notifications) == 0:
 
             st.warning("No Notifications Available")
             return

@@ -10,6 +10,14 @@ from config.config import DB_BASE_URL as BASE_URL
 PAYMENT_API = f"{BASE_URL}/payments/"
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_payments_data(api_url):
+    response = requests.get(api_url, timeout=15)
+    response.raise_for_status()
+    data = response.json()
+    return data if isinstance(data, list) else []
+
+
 def payments_page():
 
     show_sidebar()
@@ -105,7 +113,7 @@ def payments_page():
                 if response.status_code in [200, 201]:
 
                     st.success("Payment Added Successfully")
-
+                    fetch_payments_data.clear()
                     st.balloons()
 
                     try:
@@ -161,16 +169,8 @@ def payments_page():
     # ================= Load Payments ================= #
 
     try:
-
-        response = requests.get(
-            PAYMENT_API,
-            timeout=10
-        )
-
-        response.raise_for_status()
-
-        payments = response.json()
-
+        with st.spinner("Loading Payments..."):
+            payments = fetch_payments_data(PAYMENT_API)
         df = pd.DataFrame(payments)
 
     except Exception as e:

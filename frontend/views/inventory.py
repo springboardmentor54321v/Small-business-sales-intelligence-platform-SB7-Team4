@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 
 from components.sidebar import show_sidebar
-from models.inventory import get_inventory
+from config.config import DB_BASE_URL as BASE_URL
+from services.sales_service import fetch_inventory_df
 
 
 def inventory_page():
@@ -16,15 +17,20 @@ def inventory_page():
 
     # ================= Load Inventory ================= #
 
-    data = get_inventory()
+    with st.spinner("Loading Inventory..."):
+        data = fetch_inventory_df(BASE_URL)
 
     if data.empty:
         st.warning("No inventory data available.")
         return
 
-    if "Error" in data.columns:
-        st.error(data.iloc[0]["Error"])
-        return
+    if "Status" not in data.columns:
+        data["Status"] = data.apply(
+            lambda row: "Low Stock"
+            if row.get("stock_quantity", 0) <= row.get("low_stock_threshold", 0)
+            else "In Stock",
+            axis=1
+        )
 
     # ================= Metrics ================= #
 
