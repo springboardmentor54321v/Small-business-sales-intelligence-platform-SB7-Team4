@@ -1,4 +1,5 @@
 import streamlit as st
+from services.auth_service import clear_auth_session
 
 
 def show_sidebar():
@@ -164,9 +165,7 @@ def show_sidebar():
         width="stretch"
     ):
 
-        st.session_state.logged_in = False
-        st.session_state.username = ""
-        st.session_state.role = ""
+        clear_auth_session()
         st.session_state.page = "Home"
 
         st.rerun()

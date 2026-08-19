@@ -3,6 +3,7 @@ import re
 import requests
 import time
 from config.config import AUTH_BASE_URL as BASE_URL
+from services.auth_service import save_auth_session
 
 
 def login_page():
@@ -297,6 +298,12 @@ def login_page():
                             st.session_state.role = login_data["user"]["role"]
                             st.session_state.token = login_data["token"]
                             st.session_state.page = "Dashboard"
+                            save_auth_session(
+                                username=login_data["user"]["name"],
+                                role=login_data["user"]["role"],
+                                token=login_data["token"],
+                                email=username
+                            )
                             st.rerun()
                         except Exception:
                             st.error("Login failed: The gateway returned an invalid response. It may still be starting up.")

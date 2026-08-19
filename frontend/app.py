@@ -34,6 +34,8 @@ if not apply_theme:
         pass
 
 
+from services.auth_service import restore_auth_session
+
 # ================= Page Configuration ================= #
 
 st.set_page_config(
@@ -58,6 +60,12 @@ if "role" not in st.session_state:
 
 if "username" not in st.session_state:
     st.session_state.username = ""
+
+# Automatically restore user session from browser refresh / token
+if not st.session_state.logged_in:
+    if restore_auth_session():
+        if st.session_state.page in ["Home", "Login", "Signup"]:
+            st.session_state.page = "Dashboard"
 
 
 # ================= Authentication ================= #

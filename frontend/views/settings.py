@@ -305,9 +305,8 @@ def settings_page():
         width="stretch"
     ):
 
-        st.session_state.logged_in = False
-        st.session_state.username = ""
-        st.session_state.role = ""
+        from services.auth_service import clear_auth_session
+        clear_auth_session()
         st.session_state.page = "Home"
 
         st.rerun()

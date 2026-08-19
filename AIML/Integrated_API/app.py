@@ -720,19 +720,11 @@ def customer_group():
                 "is_realtime_prediction": False
             })
 
-    # Case 3: Graceful Cold-Start Fallback for Unseen Customer
-    logger.info(f"Unseen customer '{customer_id}' queried. Assigning cold-start default segment.")
+    # Case 3: Customer ID not found in database
+    logger.info(f"Customer '{customer_id}' not found in database.")
     return jsonify({
-        "Customer ID": customer_id,
-        "Customer Group": "Regular Customers",
-        "Cluster": 1,
-        "Total Spending": 0.0,
-        "Purchase Frequency": 0,
-        "Average Order Value": 0.0,
-        "Cohort Playbook": cluster_playbooks.get(1, {}),
-        "is_cold_start": True,
-        "note": "New/Unseen customer initialized to baseline segment."
-    })
+        "error": f"Customer ID '{customer_id}' was not found in the database. Please enter a valid customer ID (e.g., AA-10315, CG-12520, DV-13045)."
+    }), 404
 
 
 @app.route("/customer-group/batch", methods=["POST"])
@@ -899,24 +891,11 @@ def churn_risk():
                 "is_realtime_prediction": False
             })
 
-    # Case 3: Cold-start fallback for brand new customer with 0 history
-    logger.info(f"Unseen customer '{customer_id}' queried for churn risk. Assigning cold-start safe default.")
+    # Case 3: Customer ID not found in database / reference table
+    logger.info(f"Customer '{customer_id}' not found in database.")
     return jsonify({
-        "Customer ID": customer_id,
-        "Risk": "Low Risk",
-        "Risk Score": 0.05,
-        "Total Orders": 0,
-        "Total Revenue": 0.0,
-        "Last Purchase Date": "New Account",
-        "Days Since Last Purchase": 0,
-        "Explainable AI": {
-            "Risk Factors": ["New customer profile with zero churn signals"],
-            "Prescriptive Actions": ["Welcome onboard sequence & initial purchase discount"],
-            "Priority Tier": "P3 - New Account"
-        },
-        "is_cold_start": True,
-        "note": "New customer profile with zero churn signals."
-    })
+        "error": f"Customer ID '{customer_id}' was not found in the database. Please enter a valid customer ID (e.g., AA-10315, CG-12520, DV-13045)."
+    }), 404
 
 
 @app.route("/churn-risk/batch", methods=["POST"])

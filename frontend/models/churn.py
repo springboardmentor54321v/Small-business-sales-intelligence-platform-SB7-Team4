@@ -35,17 +35,22 @@ def get_churn_risk(customer_id="AA-10315"):
 
         if response is None:
             raise requests.exceptions.RequestException("Failed to contact Churn engine.")
+        
+        if response.status_code == 404:
+            try:
+                res_data = response.json()
+                error_msg = res_data.get("error", res_data.get("detail", f"Customer ID '{customer_id}' not found."))
+            except Exception:
+                error_msg = f"Customer ID '{customer_id}' was not found in the database."
+            return pd.DataFrame({"Error": [error_msg]})
+
         response.raise_for_status()
 
         data = response.json()
 
-        print("\n" + "=" * 60)
-        print("CHURN API RESPONSE")
-        print("=" * 60)
-        print(data)
-        print("=" * 60)
-
         if isinstance(data, dict):
+            if "error" in data:
+                return pd.DataFrame({"Error": [data["error"]]})
             return pd.DataFrame([data])
 
         if isinstance(data, list):
@@ -53,6 +58,18 @@ def get_churn_risk(customer_id="AA-10315"):
 
         return pd.DataFrame({
             "Message": ["No churn prediction found."]
+        })
+
+    except requests.exceptions.HTTPError as e:
+        error_detail = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                res_data = e.response.json()
+                error_detail = res_data.get("error", res_data.get("detail", e.response.text))
+            except Exception:
+                error_detail = e.response.text
+        return pd.DataFrame({
+            "Error": [error_detail]
         })
 
     except requests.exceptions.RequestException as e:
