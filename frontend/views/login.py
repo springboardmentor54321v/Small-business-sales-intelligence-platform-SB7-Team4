@@ -65,9 +65,10 @@ def login_page():
                                 timeout=10
                             )
                             if res.status_code == 200:
+                                res_data = res.json()
                                 st.session_state.forgot_email = email
+                                st.session_state.forgot_otp = res_data.get("otp", "")
                                 st.session_state.forgot_step = 2
-                                st.success("OTP has been sent to your email address!")
                                 st.rerun()
                             elif res.status_code == 404:
                                 st.error("Email is not registered.")
@@ -81,10 +82,14 @@ def login_page():
             # STEP 2: Enter OTP & Reset Password
             # ==================================================
             elif st.session_state.forgot_step == 2:
-                st.info(f"OTP sent to: **{st.session_state.forgot_email}**")
+                if st.session_state.get("forgot_otp"):
+                    st.success(f"📬 Verification code for **{st.session_state.forgot_email}**: **`{st.session_state.forgot_otp}`**")
+                else:
+                    st.info(f"📬 Verification code sent to: **{st.session_state.forgot_email}**")
 
                 otp = st.text_input(
                     "Enter OTP",
+                    value=st.session_state.get("forgot_otp", ""),
                     placeholder="Enter the 6-digit OTP code"
                 )
 
@@ -137,11 +142,12 @@ def login_page():
                                         timeout=10
                                     )
                                     if reset_res.status_code == 200:
-                                        st.success("Password reset successfully!")
+                                        st.success("Password reset successfully! You can now sign in with your new password.")
                                         st.session_state.forgot_password = False
                                         st.session_state.forgot_step = 1
                                         st.session_state.forgot_email = ""
-                                        st.info("You can now sign in with your new password.")
+                                        if "forgot_otp" in st.session_state:
+                                            del st.session_state["forgot_otp"]
                                         st.rerun()
                                     else:
                                         detail = reset_res.json().get("detail", "Reset failed.")
@@ -162,7 +168,10 @@ def login_page():
                                 timeout=10
                             )
                             if res.status_code == 200:
-                                st.success("A new OTP has been sent!")
+                                res_data = res.json()
+                                st.session_state.forgot_otp = res_data.get("otp", "")
+                                st.success("A new OTP code has been generated!")
+                                st.rerun()
                             else:
                                 st.error("Failed to resend OTP. Please try again.")
                         except Exception as e:
