@@ -33,8 +33,13 @@ def dashboard_page():
         st.caption("Small Business Sales Intelligence Platform")
     with head_col2:
         if st.button("🔄 Sync Data", key="sync_dashboard_data", width="stretch"):
-            from services.sales_service import clear_sales_cache
-            clear_sales_cache()
+            with st.spinner("🔄 Syncing latest sales transactions with database..."):
+                from services.sales_service import clear_sales_cache
+                clear_sales_cache()
+                fetch_all_sales_df(BASE_URL)
+                fetch_inventory_df(BASE_URL)
+                fetch_revenue_summary(BASE_URL)
+            st.toast("✅ Dashboard data synced successfully!")
             st.rerun()
 
     st.markdown("---")
