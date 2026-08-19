@@ -65,27 +65,29 @@ def reports_page():
 
     st.subheader("Sales Forecast")
 
-    uploaded_file = st.file_uploader(
-        "Upload Sales CSV",
-        type=["csv"],
-        key="report_sales_file"
-    )
-
-    if uploaded_file is not None:
-        st.session_state["reports_uploaded_file_bytes"] = uploaded_file.getvalue()
-        st.session_state["reports_uploaded_filename"] = uploaded_file.name
-    elif "reports_uploaded_file_bytes" in st.session_state:
+    if "reports_uploaded_file_bytes" in st.session_state:
         r_fname = st.session_state.get("reports_uploaded_filename", "sales.csv")
         r_col_info, r_col_clear = st.columns([5, 1])
         with r_col_info:
-            st.success(f"📊 Active CSV for report: **{r_fname}**")
+            st.success(f"📊 Active File: **{r_fname}** (Ready for Report)")
         with r_col_clear:
-            if st.button("🗑️ Clear", key="clear_reports_csv", help="Clear uploaded CSV"):
+            if st.button("🔄 Change CSV", key="clear_reports_csv", help="Clear uploaded CSV and choose another file", width="stretch"):
                 if "reports_uploaded_file_bytes" in st.session_state:
                     del st.session_state["reports_uploaded_file_bytes"]
                 if "reports_uploaded_filename" in st.session_state:
                     del st.session_state["reports_uploaded_filename"]
                 st.rerun()
+    else:
+        uploaded_file = st.file_uploader(
+            "Upload Sales CSV",
+            type=["csv"],
+            key="report_sales_file"
+        )
+
+        if uploaded_file is not None:
+            st.session_state["reports_uploaded_file_bytes"] = uploaded_file.getvalue()
+            st.session_state["reports_uploaded_filename"] = uploaded_file.name
+            st.rerun()
 
     # ============================================================
     # GENERATE BUTTON

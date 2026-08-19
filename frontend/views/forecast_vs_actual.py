@@ -43,13 +43,30 @@ def forecast_vs_actual_page():
     # UPLOAD CSV / SESSION STATE
     # ========================================================
 
-    uploaded_file = st.file_uploader(
-        "Upload Sales CSV",
-        type=["csv"],
-        key="forecast_vs_actual_uploader"
-    )
+    if "forecast_backtest_result" in st.session_state:
+        result = st.session_state["forecast_backtest_result"]
+        filename = st.session_state.get("forecast_backtest_filename", "daily_sales.csv")
 
-    if uploaded_file is not None:
+        col_info, col_clear = st.columns([5, 1])
+        with col_info:
+            st.success(f"📊 Active File: **{filename}** (Analysis loaded)")
+        with col_clear:
+            if st.button("🔄 Upload New CSV", help="Remove saved analysis and upload a new CSV", width="stretch"):
+                del st.session_state["forecast_backtest_result"]
+                if "forecast_backtest_filename" in st.session_state:
+                    del st.session_state["forecast_backtest_filename"]
+                st.rerun()
+    else:
+        uploaded_file = st.file_uploader(
+            "Upload Sales CSV",
+            type=["csv"],
+            key="forecast_vs_actual_uploader"
+        )
+
+        if uploaded_file is None:
+            st.info("Please upload your daily_sales.csv file to generate Forecast vs Actual analysis.")
+            return
+
         with st.spinner("Generating Forecast vs Actual analysis..."):
             result = get_forecast_backtest(uploaded_file)
 
@@ -59,23 +76,7 @@ def forecast_vs_actual_page():
 
         st.session_state["forecast_backtest_result"] = result
         st.session_state["forecast_backtest_filename"] = uploaded_file.name
-
-    elif "forecast_backtest_result" in st.session_state:
-        result = st.session_state["forecast_backtest_result"]
-        filename = st.session_state.get("forecast_backtest_filename", "daily_sales.csv")
-        
-        col_info, col_clear = st.columns([5, 1])
-        with col_info:
-            st.success(f"📊 Active analysis loaded for **{filename}**")
-        with col_clear:
-            if st.button("🗑️ Clear", help="Remove saved analysis and upload a new CSV"):
-                del st.session_state["forecast_backtest_result"]
-                if "forecast_backtest_filename" in st.session_state:
-                    del st.session_state["forecast_backtest_filename"]
-                st.rerun()
-    else:
-        st.info("Please upload your daily_sales.csv file.")
-        return
+        st.rerun()
 
     df = result["results"]
     metrics = result["metrics"]
