@@ -1,0 +1,17 @@
+name: Deploy Security API Gateway to Render
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-gateway:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render Gateway Deployment
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_GATEWAY_DEPLOY_HOOK }}
+        run: |
+          curl -X POST "$RENDER_DEPLOY_HOOK"
