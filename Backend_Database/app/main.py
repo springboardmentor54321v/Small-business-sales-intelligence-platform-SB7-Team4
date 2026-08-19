@@ -22,7 +22,11 @@ from app.core.database import Base, engine
 import app.models
 
 # Auto-create tables on startup (especially locally / SQLite and Render first launch)
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    import logging
+    logging.getLogger("uvicorn.error").warning(f"Database table initialization deferred or failed: {e}")
 
 app = FastAPI(
     title="MarketMind AI Backend"

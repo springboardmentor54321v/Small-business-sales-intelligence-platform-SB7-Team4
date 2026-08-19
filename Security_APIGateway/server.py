@@ -2,7 +2,7 @@
 # type: ignore
 import os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=False)
 import datetime
 import time
 import re
@@ -1309,11 +1309,12 @@ async def proxy_create_invoice(
             )
             # If backend is not ready, return gateway stub for testing
             if response.status_code == 404:
+                customer_name_val = getattr(payload, "customer_name", None) or f"Customer #{payload.customer_id}"
                 log_audit(f"Invoice {payload.invoice_number} created successfully (Gateway Stub)")
                 return {
                     "message": "[Gateway Stub] Invoice created successfully.",
                     "invoice_number": payload.invoice_number,
-                    "customer_name": payload.customer_name,
+                    "customer_name": customer_name_val,
                     "total_amount": payload.total_amount,
                     "payment_status": payload.payment_status,
                     "created_by": user["userId"]
@@ -1325,11 +1326,12 @@ async def proxy_create_invoice(
             )
         except httpx.RequestError as e:
             # Fallback stub for integration testing/unreachable backend
+            customer_name_val = getattr(payload, "customer_name", None) or f"Customer #{payload.customer_id}"
             log_audit(f"Invoice {payload.invoice_number} created successfully (Gateway Fallback)")
             return {
                 "message": "[Gateway Fallback] Invoice created successfully.",
                 "invoice_number": payload.invoice_number,
-                "customer_name": payload.customer_name,
+                "customer_name": customer_name_val,
                 "total_amount": payload.total_amount,
                 "payment_status": payload.payment_status,
                 "created_by": user["userId"]

@@ -10,7 +10,7 @@ services:
     name: marketmind-backend
     env: python
     buildCommand: pip install -r Backend_Database/requirements.txt
-    startCommand: uvicorn Backend_Database.app.main:app --host 0.0.0.0 --port 8000
+    startCommand: uvicorn app.main:app --app-dir Backend_Database --host 0.0.0.0 --port ${PORT:-8000}
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -22,7 +22,7 @@ services:
     name: marketmind-gateway
     env: python
     buildCommand: pip install -r Security_APIGateway/requirements.txt
-    startCommand: uvicorn Security_APIGateway.server:app --host 0.0.0.0 --port 5000
+    startCommand: uvicorn Security_APIGateway.server:app --host 0.0.0.0 --port ${PORT:-5000}
     envVars:
       - key: BACKEND_URL
         value: https://marketmind-backend.onrender.com
@@ -33,19 +33,19 @@ services:
       - key: JWT_SECRET
         generateValue: true
 
-  # AI/ML Forecasting Stub Service
+  # AI/ML Analytics Engine Service
   - type: web
     name: marketmind-aiml
     env: python
-    buildCommand: pip install -r AIML/week\ 1/stub_service/requirements.txt
-    startCommand: python AIML/week\ 1/stub_service/app.py
+    buildCommand: pip install -r AIML/requirements.txt
+    startCommand: python AIML/Integrated_API/app.py
 
   # Streamlit Frontend Web Service
   - type: web
     name: marketmind-frontend
     env: python
     buildCommand: pip install -r frontend/requirements.txt
-    startCommand: streamlit run frontend/app.py --server.port 3000 --server.address 0.0.0.0
+    startCommand: streamlit run frontend/app.py --server.port ${PORT:-3000} --server.address 0.0.0.0
     envVars:
       - key: BACKEND_URL
         value: https://marketmind-gateway.onrender.com
@@ -56,5 +56,3 @@ services:
     env: python
     buildCommand: pip install -r DevOps_Integration/notifications/requirements.txt
     startCommand: python DevOps_Integration/notifications/app.py
-
-

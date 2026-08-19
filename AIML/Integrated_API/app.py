@@ -720,11 +720,19 @@ def customer_group():
                 "is_realtime_prediction": False
             })
 
-    # Case 3: Customer ID not found in database
-    logger.info(f"Customer '{customer_id}' not found in database.")
+    # Case 3: Customer ID not found in database - Return graceful cold-start baseline
+    logger.info(f"Customer '{customer_id}' not found in database. Returning cold-start baseline.")
     return jsonify({
-        "error": f"Customer ID '{customer_id}' was not found in the database. Please enter a valid customer ID (e.g., AA-10315, CG-12520, DV-13045)."
-    }), 404
+        "Customer ID": customer_id,
+        "Customer Group": "Regular Customers",
+        "Cluster": 1,
+        "Total Spending": 0.0,
+        "Purchase Frequency": 0,
+        "Average Order Value": 0.0,
+        "Cohort Playbook": cluster_playbooks.get(1, {}),
+        "is_realtime_prediction": False,
+        "is_cold_start": True
+    }), 200
 
 
 @app.route("/customer-group/batch", methods=["POST"])
@@ -891,11 +899,25 @@ def churn_risk():
                 "is_realtime_prediction": False
             })
 
-    # Case 3: Customer ID not found in database / reference table
-    logger.info(f"Customer '{customer_id}' not found in database.")
+    # Case 3: Customer ID not found in database / reference table - Return graceful cold-start baseline
+    logger.info(f"Customer '{customer_id}' not found in database. Returning cold-start baseline.")
     return jsonify({
-        "error": f"Customer ID '{customer_id}' was not found in the database. Please enter a valid customer ID (e.g., AA-10315, CG-12520, DV-13045)."
-    }), 404
+        "Customer ID": customer_id,
+        "Risk": "Low Risk",
+        "Risk Score": 0.05,
+        "Total Orders": 0,
+        "Total Revenue": 0.0,
+        "Last Purchase Date": "N/A",
+        "Days Since Last Purchase": 0,
+        "Explainable AI": {
+            "Summary": "Cold-start customer profile. Defaulting to Low Risk pending transaction history.",
+            "Priority Tier": "P3 - Standard Onboarding",
+            "Top Risk Factors": ["New Account (No churn indicators detected)"],
+            "Recommended Actions": ["Engage via welcome series and monitor early purchasing behavior."]
+        },
+        "is_realtime_prediction": False,
+        "is_cold_start": True
+    }), 200
 
 
 @app.route("/churn-risk/batch", methods=["POST"])

@@ -60,7 +60,7 @@ def run_security_audit():
         cwd=os.path.dirname(os.path.abspath(__file__)),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        env={**os.environ, "TESTING": "true"}
+        env={**os.environ, "TESTING": "true", "BACKEND_URL": "http://127.0.0.1:8000", "AI_URL": "http://127.0.0.1:5002"}
     )
 
     # Wait for server to bind

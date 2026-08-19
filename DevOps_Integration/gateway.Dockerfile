@@ -20,4 +20,4 @@ EXPOSE 5000
 ENV PYTHONUNBUFFERED=1
 
 # Run Gateway process
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-5000}"]
