@@ -15,23 +15,25 @@ def get_churn_risk(customer_id="AA-10315"):
 
         import time
         response = None
+        status_box = st.empty()
         for attempt in range(4):
             try:
-                timeout = 3 if attempt == 0 else 60
                 if attempt > 0:
-                    st.info(f"⏳ Connection attempt {attempt}/3 to the AI Churn engine (Render is waking up)...")
+                    status_box.info(f"⏳ Connecting to AI Churn engine (attempt {attempt}/3)...")
                 response = requests.post(
                     f"{BASE_URL}/churn-risk",
                     json=payload,
-                    timeout=timeout
+                    timeout=45
                 )
                 if response.status_code not in [502, 503]:
                     break
-                time.sleep(3)
+                time.sleep(2)
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                 if attempt == 3:
                     raise
-                time.sleep(3)
+                time.sleep(2)
+
+        status_box.empty()
 
         if response is None:
             raise requests.exceptions.RequestException("Failed to contact Churn engine.")
