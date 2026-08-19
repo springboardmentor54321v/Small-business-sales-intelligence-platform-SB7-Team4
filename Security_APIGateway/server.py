@@ -246,6 +246,43 @@ def send_otp_email(to_email: str, otp: str) -> bool:
         log_audit(f"[SMTP Simulation] Simulated OTP email to {to_email}. (Bypassed real SMTP connection)")
         return True
 
+    resend_key = os.getenv("RESEND_API_KEY")
+    if resend_key:
+        try:
+            import httpx
+            resp = httpx.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "from": os.getenv("EMAIL_FROM", "MarketMind AI <onboarding@resend.dev>"),
+                    "to": [to_email],
+                    "subject": "MarketMind AI - Password Recovery OTP",
+                    "html": f"""
+                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+                        <h2 style="color: #ff4b4b;">Password Recovery Code</h2>
+                        <p>Hello,</p>
+                        <p>You requested a password reset for your MarketMind AI account.</p>
+                        <p>Your One-Time Password (OTP) is:</p>
+                        <div style="background-color: #f7f7f9; padding: 15px; border-radius: 6px; font-size: 24px; font-weight: bold; letter-spacing: 4px; text-align: center; color: #171f32; margin: 20px 0;">
+                            {otp}
+                        </div>
+                        <p>This OTP is valid for <strong>5 minutes</strong>. If you did not request this, please ignore this email.</p>
+                    </div>
+                    """
+                },
+                timeout=10.0
+            )
+            if resp.status_code in [200, 201]:
+                log_audit(f"Successfully sent OTP email via Resend to {to_email}")
+                return True
+            else:
+                log_audit(f"Resend error status {resp.status_code}: {resp.text}", is_alert=True)
+        except Exception as e:
+            log_audit(f"Error sending email via Resend to {to_email}: {str(e)}", is_alert=True)
+
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = os.getenv("SMTP_PORT")
     smtp_user = os.getenv("SMTP_USER")
@@ -692,14 +729,14 @@ async def forgot_password(req: ForgotPasswordRequest):
     }
     
     # Send real-time OTP email
-    send_otp_email(req.email, otp)
+    email_sent = send_otp_email(req.email, otp)
     
     log_audit(f"Generated OTP: {otp} for password recovery of user: {req.email}")
     res_data = {
-        "message": "OTP sent to email"
+        "message": "OTP sent to email" if email_sent else "OTP generated successfully",
+        "email_sent": email_sent,
+        "otp": otp
     }
-    if os.getenv("TESTING") == "true":
-        res_data["otp"] = otp
     return res_data
 
 @app.post("/auth/verify-otp")
