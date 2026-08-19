@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'Security_API_Gateway/**'
+      - '.github/workflows/render-gateway-deploy.yml'
 
 jobs:
   deploy-gateway:
