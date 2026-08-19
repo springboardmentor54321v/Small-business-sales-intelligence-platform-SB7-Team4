@@ -36,22 +36,16 @@ def customers_page():
         errors="coerce"
     ).fillna(0)
 
+    order_count_col = "transaction_id" if "transaction_id" in sales_df.columns else "customer_id"
+
     customer_df = (
-
         sales_df
-
         .groupby("customer_id")
-
         .agg(
-
-            Orders=("transaction_id", "count"),
-
+            Orders=(order_count_col, "count"),
             Total_Spend=("total_amount", "sum")
-
         )
-
         .reset_index()
-
     )
 
     customer_df.rename(

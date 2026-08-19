@@ -22,8 +22,14 @@ def payments_page():
 
     show_sidebar()
 
-    st.title("Payments")
-    st.caption("Manage Customer Payments")
+    pay_hcol1, pay_hcol2 = st.columns([5, 1])
+    with pay_hcol1:
+        st.title("Payments")
+        st.caption("Manage Customer Payments")
+    with pay_hcol2:
+        if st.button("🔄 Refresh", key="refresh_payments_btn", width="stretch"):
+            fetch_payments_data.clear()
+            st.rerun()
 
     st.markdown("---")
 

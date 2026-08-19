@@ -64,7 +64,30 @@ def forecast_vs_actual_page():
         )
 
         if uploaded_file is None:
-            st.info("Please upload your daily_sales.csv file to generate Forecast vs Actual analysis.")
+            col_hint, col_plat = st.columns([3, 2])
+            with col_hint:
+                st.info("Upload a sales CSV or run analysis directly on platform data.")
+            with col_plat:
+                if st.button("📊 Analyze Platform Sales Data", help="Run Forecast vs Actual on current platform dataset", width="stretch", type="primary"):
+                    from services.sales_service import fetch_all_sales_df
+                    import io
+                    active_sales = fetch_all_sales_df()
+                    if not active_sales.empty:
+                        csv_bytes = active_sales[["transaction_date", "total_amount"]].rename(
+                            columns={"transaction_date": "Order Date", "total_amount": "Total amount"}
+                        ).to_csv(index=False).encode("utf-8")
+                        f_obj = io.BytesIO(csv_bytes)
+                        f_obj.name = "platform_sales.csv"
+                        with st.spinner("Generating Forecast vs Actual from platform data..."):
+                            result = get_forecast_backtest(f_obj)
+                        if result["error"] is not None:
+                            st.error(result["error"])
+                            return
+                        st.session_state["forecast_backtest_result"] = result
+                        st.session_state["forecast_backtest_filename"] = "Platform Active Sales"
+                        st.rerun()
+                    else:
+                        st.warning("No sales transactions found in platform database.")
             return
 
         with st.spinner("Generating Forecast vs Actual analysis..."):

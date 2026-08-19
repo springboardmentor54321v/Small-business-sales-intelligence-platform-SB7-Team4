@@ -48,8 +48,7 @@ def dashboard_page():
             return
 
         if inventory_df.empty:
-            st.warning("No Inventory Data Available")
-            return
+            inventory_df = pd.DataFrame(columns=["id", "product_id", "product_name", "category", "stock_quantity", "low_stock_threshold"])
 
         # ---------------- Numeric Conversion ---------------- #
 

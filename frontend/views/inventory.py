@@ -170,6 +170,38 @@ def inventory_page():
 
     st.markdown("---")
 
+    # ================= Quick Stock Update ================= #
+    with st.expander("⚙️ Update Product Stock Quantity", expanded=False):
+        prod_list = data["product_id"].dropna().unique().tolist()
+        if prod_list:
+            u_col1, u_col2, u_col3 = st.columns([2, 1, 1])
+            with u_col1:
+                selected_prod = st.selectbox("Select Product ID to Update", prod_list, key="inv_update_prod_select")
+            
+            # Fetch current stock for selected product
+            curr_row = data[data["product_id"] == selected_prod].iloc[0] if not data[data["product_id"] == selected_prod].empty else None
+            curr_stock = int(curr_row["stock_quantity"]) if curr_row is not None and "stock_quantity" in curr_row else 0
+            curr_thresh = int(curr_row["low_stock_threshold"]) if curr_row is not None and "low_stock_threshold" in curr_row else 10
+
+            with u_col2:
+                new_stock = st.number_input("New Stock Quantity", min_value=0, max_value=100000, value=curr_stock, step=1, key="inv_new_stock_input")
+            with u_col3:
+                new_thresh = st.number_input("Low Stock Threshold", min_value=0, max_value=1000, value=curr_thresh, step=1, key="inv_new_thresh_input")
+
+            if st.button("💾 Save Stock Update", key="inv_save_update_btn", type="primary"):
+                try:
+                    import requests
+                    payload = {"stock_quantity": int(new_stock), "low_stock_threshold": int(new_thresh)}
+                    res = requests.put(f"{BASE_URL}/inventory/{selected_prod}", json=payload, timeout=15)
+                    if res.ok:
+                        fetch_inventory_df.clear()
+                        st.success(f"✅ Stock for Product `{selected_prod}` updated to {new_stock} units!")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Update failed (HTTP {res.status_code}): {res.text}")
+                except Exception as e:
+                    st.error(f"❌ Update error: {e}")
+
     # ================= Download ================= #
 
     st.download_button(
