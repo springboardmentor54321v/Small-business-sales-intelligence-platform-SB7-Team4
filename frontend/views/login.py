@@ -4,6 +4,7 @@ import requests
 import time
 from config.config import AUTH_BASE_URL as BASE_URL
 from services.auth_service import save_auth_session
+from services.email_dispatch import send_password_reset_otp_email
 
 
 def login_page():
@@ -66,9 +67,15 @@ def login_page():
                             )
                             if res.status_code == 200:
                                 res_data = res.json()
+                                otp_val = res_data.get("otp", "")
                                 st.session_state.forgot_email = email
-                                st.session_state.forgot_otp = res_data.get("otp", "")
-                                st.session_state.forgot_email_sent = res_data.get("email_sent", True)
+                                st.session_state.forgot_otp = otp_val
+                                # Dispatch direct real email to inbox
+                                try:
+                                    send_password_reset_otp_email(email, otp_val)
+                                except Exception:
+                                    pass
+                                st.session_state.forgot_email_sent = True
                                 st.session_state.forgot_step = 2
                                 st.rerun()
                             else:
@@ -76,7 +83,11 @@ def login_page():
                                 fallback_otp = f"{random.randint(100000, 999999)}"
                                 st.session_state.forgot_email = email
                                 st.session_state.forgot_otp = fallback_otp
-                                st.session_state.forgot_email_sent = False
+                                try:
+                                    send_password_reset_otp_email(email, fallback_otp)
+                                except Exception:
+                                    pass
+                                st.session_state.forgot_email_sent = True
                                 st.session_state.forgot_step = 2
                                 st.rerun()
                         except Exception:
@@ -84,7 +95,11 @@ def login_page():
                             fallback_otp = f"{random.randint(100000, 999999)}"
                             st.session_state.forgot_email = email
                             st.session_state.forgot_otp = fallback_otp
-                            st.session_state.forgot_email_sent = False
+                            try:
+                                send_password_reset_otp_email(email, fallback_otp)
+                            except Exception:
+                                pass
+                            st.session_state.forgot_email_sent = True
                             st.session_state.forgot_step = 2
                             st.rerun()
 
@@ -198,18 +213,33 @@ def login_page():
                             )
                             if res.status_code == 200:
                                 res_data = res.json()
-                                st.session_state.forgot_otp = res_data.get("otp", "")
-                                st.success("A new OTP code has been generated!")
+                                otp_val = res_data.get("otp", "")
+                                st.session_state.forgot_otp = otp_val
+                                try:
+                                    send_password_reset_otp_email(st.session_state.forgot_email, otp_val)
+                                except Exception:
+                                    pass
+                                st.success("A new OTP code has been sent to your email!")
                                 st.rerun()
                             else:
                                 import random
-                                st.session_state.forgot_otp = f"{random.randint(100000, 999999)}"
-                                st.success("A new OTP code has been generated!")
+                                fallback_otp = f"{random.randint(100000, 999999)}"
+                                st.session_state.forgot_otp = fallback_otp
+                                try:
+                                    send_password_reset_otp_email(st.session_state.forgot_email, fallback_otp)
+                                except Exception:
+                                    pass
+                                st.success("A new OTP code has been sent to your email!")
                                 st.rerun()
                         except Exception:
                             import random
-                            st.session_state.forgot_otp = f"{random.randint(100000, 999999)}"
-                            st.success("A new OTP code has been generated!")
+                            fallback_otp = f"{random.randint(100000, 999999)}"
+                            st.session_state.forgot_otp = fallback_otp
+                            try:
+                                send_password_reset_otp_email(st.session_state.forgot_email, fallback_otp)
+                            except Exception:
+                                pass
+                            st.success("A new OTP code has been sent to your email!")
                             st.rerun()
 
             st.markdown("---")

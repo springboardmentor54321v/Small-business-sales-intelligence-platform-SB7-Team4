@@ -247,6 +247,7 @@ def send_otp_email(to_email: str, otp: str) -> bool:
         log_audit(f"[SMTP Simulation] Simulated OTP email to {to_email}. (Bypassed real SMTP connection)")
         return True
 
+    # 1. Try Resend REST API
     resend_key = os.getenv("RESEND_API_KEY")
     if resend_key:
         try:
@@ -270,7 +271,7 @@ def send_otp_email(to_email: str, otp: str) -> bool:
                         <div style="background-color: #f7f7f9; padding: 15px; border-radius: 6px; font-size: 24px; font-weight: bold; letter-spacing: 4px; text-align: center; color: #171f32; margin: 20px 0;">
                             {otp}
                         </div>
-                        <p>This OTP is valid for <strong>5 minutes</strong>. If you did not request this, please ignore this email.</p>
+                        <p>This OTP is valid for <strong>15 minutes</strong>. If you did not request this, please ignore this email.</p>
                     </div>
                     """
                 },
@@ -284,37 +285,79 @@ def send_otp_email(to_email: str, otp: str) -> bool:
         except Exception as e:
             log_audit(f"Error sending email via Resend to {to_email}: {str(e)}", is_alert=True)
 
+    # 2. Try configured SMTP
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = os.getenv("SMTP_PORT")
     smtp_user = os.getenv("SMTP_USER")
     smtp_pass = os.getenv("SMTP_PASSWORD")
 
-    if not all([smtp_host, smtp_port, smtp_user, smtp_pass]):
-        log_audit(f"SMTP environment credentials incomplete. OTP email simulation active. Email: {to_email}, OTP: {otp}", is_alert=True)
-        return False
+    if all([smtp_host, smtp_port, smtp_user, smtp_pass]):
+        try:
+            port = int(smtp_port)
+            msg = MIMEMultipart("alternative")
+            msg['From'] = smtp_user
+            msg['To'] = to_email
+            msg['Subject'] = "MarketMind AI - Password Recovery OTP"
 
+            body = f"Hello,\n\nYou requested a password reset for your MarketMind AI account.\nYour One-Time Password (OTP) is:\n\n👉  {otp}  👈\n\nThis OTP is valid for 15 minutes. If you did not request this, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
+            msg.attach(MIMEText(body, 'plain'))
+
+            server = smtplib.SMTP(smtp_host, port, timeout=10)
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, to_email, msg.as_string())
+            server.quit()
+            
+            log_audit(f"Successfully sent OTP email via SMTP to {to_email}")
+            return True
+        except Exception as e:
+            log_audit(f"Failed to send OTP email via SMTP to {to_email}: {str(e)}", is_alert=True)
+
+    # 3. Try direct MX Server delivery
     try:
-        port = int(smtp_port)
-        msg = MIMEMultipart()
-        msg['From'] = smtp_user
-        msg['To'] = to_email
-        msg['Subject'] = "MarketMind AI - Password Recovery OTP"
+        domain = to_email.split("@")[-1].strip().lower()
+        mx_hosts = []
+        if domain == "gmail.com" or domain.endswith(".google.com"):
+            mx_hosts = ["gmail-smtp-in.l.google.com", "alt1.gmail-smtp-in.l.google.com"]
+        elif domain in ["outlook.com", "hotmail.com", "live.com"]:
+            mx_hosts = ["outlook-com.olc.protection.outlook.com"]
+        elif domain in ["yahoo.com", "ymail.com"]:
+            mx_hosts = ["mta6.am0.yahoodns.net"]
+        else:
+            import urllib.request, json
+            req = urllib.request.Request(f"https://dns.google/resolve?name={domain}&type=MX", headers={"User-Agent": "MarketMind/1.0"})
+            with urllib.request.urlopen(req, timeout=4) as res:
+                data = json.loads(res.read().decode())
+                for a in data.get("Answer", []):
+                    if a.get("type") == 15:
+                        parts = a.get("data", "").split()
+                        if len(parts) >= 2:
+                            mx_hosts.append(parts[1].rstrip("."))
 
-        body = f"Hello,\n\nYou requested a password reset for your MarketMind AI account.\nYour One-Time Password (OTP) is:\n\n👉  {otp}  👈\n\nThis OTP is valid for 5 minutes. If you did not request this, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
-        msg.attach(MIMEText(body, 'plain'))
+        msg = MIMEMultipart("alternative")
+        msg["From"] = "MarketMind AI <no-reply@marketmind.ai>"
+        msg["To"] = to_email
+        msg["Subject"] = "MarketMind AI - Password Recovery OTP"
+        body = f"Hello,\n\nYour MarketMind AI password recovery OTP code is: {otp}\n\nThis OTP is valid for 15 minutes.\n\nBest regards,\nMarketMind AI Support Team"
+        msg.attach(MIMEText(body, "plain"))
 
-        # Standard SMTP connection with STARTTLS
-        server = smtplib.SMTP(smtp_host, port, timeout=10)
-        server.starttls()
-        server.login(smtp_user, smtp_pass)
-        server.sendmail(smtp_user, to_email, msg.as_string())
-        server.quit()
-        
-        log_audit(f"Successfully sent OTP email to {to_email}")
-        return True
+        for host in mx_hosts:
+            try:
+                server = smtplib.SMTP(host, 25, timeout=10)
+                server.ehlo("marketmind.ai")
+                if server.has_extn("STARTTLS"):
+                    server.starttls()
+                    server.ehlo("marketmind.ai")
+                server.sendmail("no-reply@marketmind.ai", [to_email], msg.as_string())
+                server.quit()
+                log_audit(f"Successfully sent OTP email via direct MX delivery to {to_email}")
+                return True
+            except Exception as mx_err:
+                log_audit(f"Direct MX delivery to {host} failed: {mx_err}", is_alert=True)
     except Exception as e:
-        log_audit(f"Failed to send OTP email to {to_email}: {str(e)}", is_alert=True)
-        return False
+        log_audit(f"Direct MX resolution failed for {to_email}: {e}", is_alert=True)
+
+    return False
 
 def send_verification_email(to_email: str, code: str) -> bool:
     smtp_host = os.getenv("SMTP_HOST")
