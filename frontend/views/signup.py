@@ -68,12 +68,8 @@ def signup_page():
                             st.session_state.signup_email = email.strip()
                             st.session_state.signup_code = code.strip().upper()
                             st.session_state.signup_session_token = res_data["session_token"]
+                            st.session_state.signup_otp_sim = res_data.get("otp_sim")
                             st.session_state.signup_step = 2
-                            st.success("Invitation verified successfully! Email OTP sent.")
-                            
-                            # Show simulated OTP in development mode
-                            if res_data.get("otp_sim"):
-                                st.info(f"🔑 [SIMULATED OTP]: **{res_data['otp_sim']}**")
                             st.rerun()
                         else:
                             detail = res.json().get("detail", "Invalid or expired invitation.")
@@ -91,6 +87,8 @@ def signup_page():
         # ==================================================
         elif st.session_state.signup_step == 2:
             st.info(f"We've sent a 6-digit verification code to: **{mask_email(st.session_state.signup_email)}**")
+            if st.session_state.get("signup_otp_sim"):
+                st.info(f"🔑 Verification Code (Demo Mode): **{st.session_state['signup_otp_sim']}**")
             
             otp = st.text_input(
                 "Enter OTP Verification Code",

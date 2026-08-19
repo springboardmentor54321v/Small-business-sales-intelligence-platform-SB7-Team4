@@ -118,6 +118,18 @@ def invoice_page():
         width="stretch"
     ):
 
+        if not customer_id.strip():
+            st.warning("Please enter a Customer ID.")
+            return
+
+        if not store_id.strip():
+            st.warning("Please enter a Store ID.")
+            return
+
+        if not product_id.strip():
+            st.warning("Please enter a Product ID.")
+            return
+
         try:
 
             with st.spinner("Creating Invoice..."):

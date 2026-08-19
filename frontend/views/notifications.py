@@ -34,8 +34,14 @@ def notifications_page():
 
     show_sidebar()
 
-    st.title("Notifications Center")
-    st.caption("Real-Time Business Notifications")
+    head_col1, head_col2 = st.columns([5, 1])
+    with head_col1:
+        st.title("Notifications Center")
+        st.caption("Real-Time Business Notifications")
+    with head_col2:
+        if st.button("🔄 Refresh", key="refresh_notifications_btn", width="stretch"):
+            fetch_notifications.clear()
+            st.rerun()
 
     st.markdown("---")
 
@@ -46,7 +52,7 @@ def notifications_page():
 
         if not notifications or len(notifications) == 0:
 
-            st.warning("No Notifications Available")
+            st.info("ℹ️ All caught up! There are currently no active notifications for your store.")
             return
 
         df = pd.DataFrame(notifications)

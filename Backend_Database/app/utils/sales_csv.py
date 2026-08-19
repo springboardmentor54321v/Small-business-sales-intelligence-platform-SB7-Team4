@@ -52,6 +52,9 @@ COLUMN_ALIASES = {
         "total amount",
         "amount",
         "total",
+        "sales",
+        "sale",
+        "revenue",
     ],
     "payment_method": [
         "payment_method",
