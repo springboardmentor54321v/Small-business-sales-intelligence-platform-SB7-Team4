@@ -339,19 +339,12 @@ def payments_page():
             "Amount Received",
 
             "Payment Methods"
-
         ],
-
         "Value": [
-
-            total_payments,
-
+            str(total_payments),
             f"₹ {total_amount:,.2f}",
-
-            payment_methods
-
+            str(payment_methods)
         ]
-
     })
 
     st.dataframe(
