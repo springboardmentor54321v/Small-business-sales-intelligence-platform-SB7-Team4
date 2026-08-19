@@ -24,43 +24,41 @@ def sales_upload_page():
 
     st.markdown("---")
 
-    uploaded_file = st.file_uploader(
-        "Choose a CSV File",
-        type=["csv"],
-        key="sales_upload_file_widget"
-    )
-
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-            st.session_state["sales_upload_df"] = df
-            st.session_state["sales_upload_filename"] = uploaded_file.name
-            st.session_state["sales_upload_file_bytes"] = uploaded_file.getvalue()
-            st.session_state["sales_upload_size"] = uploaded_file.size
-        except Exception as e:
-            st.error(f"❌ Unable to read CSV.\n\n{e}")
-            return
-        filename = uploaded_file.name
-        file_size = uploaded_file.size
-        st.success(f" CSV Loaded Successfully: **{filename}**")
-
-    elif "sales_upload_df" in st.session_state:
+    if "sales_upload_df" in st.session_state:
         df = st.session_state["sales_upload_df"]
         filename = st.session_state.get("sales_upload_filename", "sales.csv")
         file_size = st.session_state.get("sales_upload_size", 0)
 
         col_info, col_clear = st.columns([5, 1])
         with col_info:
-            st.success(f"📊 Active CSV loaded: **{filename}**")
+            st.success(f"📊 Active File: **{filename}** (Ready to validate & upload)")
         with col_clear:
-            if st.button("🗑️ Clear", help="Remove loaded CSV and select a new file"):
+            if st.button("🔄 Choose Different CSV", help="Remove loaded CSV and select a new file", width="stretch"):
                 for k in ["sales_upload_df", "sales_upload_filename", "sales_upload_file_bytes", "sales_upload_size"]:
                     if k in st.session_state:
                         del st.session_state[k]
                 st.rerun()
     else:
-        st.info(" Please upload a CSV file to continue.")
-        return
+        uploaded_file = st.file_uploader(
+            "Choose a CSV File",
+            type=["csv"],
+            key="sales_upload_file_widget"
+        )
+
+        if uploaded_file is None:
+            st.info(" Please upload a CSV file to continue.")
+            return
+
+        try:
+            df = pd.read_csv(uploaded_file)
+            st.session_state["sales_upload_df"] = df
+            st.session_state["sales_upload_filename"] = uploaded_file.name
+            st.session_state["sales_upload_file_bytes"] = uploaded_file.getvalue()
+            st.session_state["sales_upload_size"] = uploaded_file.size
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ Unable to read CSV.\n\n{e}")
+            return
 
     c1, c2, c3 = st.columns(3)
 
