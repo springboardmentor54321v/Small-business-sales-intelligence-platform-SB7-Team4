@@ -227,7 +227,7 @@ def add_customer_section():
                 )
 
                 # Clear cached customer list
-                st.cache_data.clear()
+                get_customers.clear()
 
                 st.rerun()
 
@@ -529,7 +529,7 @@ def delete_customer_section():
                     "was deleted successfully."
                 )
 
-                st.cache_data.clear()
+                get_customers.clear()
 
                 st.rerun()
 

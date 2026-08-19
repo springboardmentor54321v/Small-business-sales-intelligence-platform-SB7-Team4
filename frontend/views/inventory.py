@@ -10,8 +10,14 @@ def inventory_page():
 
     show_sidebar()
 
-    st.title("Inventory Management")
-    st.caption("Manage and Monitor Product Inventory")
+    head_col1, head_col2 = st.columns([5, 1])
+    with head_col1:
+        st.title("Inventory Management")
+        st.caption("Manage and Monitor Product Inventory")
+    with head_col2:
+        if st.button("🔄 Refresh", key="refresh_inventory_btn", width="stretch"):
+            fetch_inventory_df.clear()
+            st.rerun()
 
     st.markdown("---")
 

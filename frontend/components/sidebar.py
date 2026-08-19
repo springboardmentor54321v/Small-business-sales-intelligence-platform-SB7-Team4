@@ -75,6 +75,7 @@ def show_sidebar():
              "Customer Insights",
              "Churn Risk",
              "Invoice",
+             "Payments",
              "Sales Upload",
              "Reports",
              "Settings"
@@ -89,6 +90,7 @@ def show_sidebar():
             "Notifications",
             "Inventory",
             "Invoice",
+            "Payments",
             "Sales Upload",
             "Churn Risk",
             "Settings"
@@ -101,6 +103,7 @@ def show_sidebar():
             "Notifications",
             "Sales Upload",
             "Invoice",
+            "Payments",
             "Churn Risk",
             "Settings"
         ]
@@ -115,9 +118,10 @@ def show_sidebar():
             "Notifications",
             "Inventory",
             "Customer Insights",
-            "Customer Management",   # ⭐ NEW
+            "Customer Management",
             "Churn Risk",
             "Invoice",
+            "Payments",
             "Sales Upload",
             "Reports",
             "Settings"

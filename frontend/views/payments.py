@@ -91,13 +91,13 @@ def payments_page():
 
     if st.button(
         "Add Payment",
-        use_container_width=True
+        width="stretch"
     ):
 
-        if invoice_id == "":
-
+        if not invoice_id.strip():
             st.warning("Please enter Invoice ID.")
-
+        elif amount_paid <= 0:
+            st.warning("Please enter a valid amount paid (greater than 0).")
         else:
 
             try:

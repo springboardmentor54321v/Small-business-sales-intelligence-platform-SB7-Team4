@@ -27,8 +27,15 @@ def dashboard_page():
 
     show_sidebar()
 
-    st.title("MarketMind AI Dashboard")
-    st.caption("Small Business Sales Intelligence Platform")
+    head_col1, head_col2 = st.columns([5, 1])
+    with head_col1:
+        st.title("MarketMind AI Dashboard")
+        st.caption("Small Business Sales Intelligence Platform")
+    with head_col2:
+        if st.button("🔄 Sync Data", key="sync_dashboard_data", width="stretch"):
+            from services.sales_service import clear_sales_cache
+            clear_sales_cache()
+            st.rerun()
 
     st.markdown("---")
 

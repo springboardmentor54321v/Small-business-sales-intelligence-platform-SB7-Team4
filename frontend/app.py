@@ -10,6 +10,7 @@ from views.inventory import inventory_page
 from views.customers import customers_page
 from views.reports import reports_page
 from views.invoice import invoice_page
+from views.payments import payments_page
 from views.sales_upload import sales_upload_page
 from views.admin import admin_page
 from views.settings import settings_page
@@ -115,6 +116,9 @@ else:
 
     elif st.session_state.page == "Invoice":
         invoice_page()
+
+    elif st.session_state.page == "Payments":
+        payments_page()
 
     elif st.session_state.page == "Sales Upload":
         sales_upload_page()
