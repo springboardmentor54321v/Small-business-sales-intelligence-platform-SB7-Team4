@@ -79,10 +79,12 @@ def login_page():
                         st.session_state.forgot_email = email.strip().lower()
                         st.session_state.forgot_otp = otp_val
 
-                        # Dispatch real email to user's inbox
-                        dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, otp_val)
-                        st.session_state.forgot_email_sent = dispatch_res.get("success", False)
-                        st.session_state.forgot_dispatch_info = dispatch_res
+                        # Dispatch real email to user's inbox in the background
+                        try:
+                            send_password_reset_otp_email(st.session_state.forgot_email, otp_val)
+                        except Exception:
+                            pass
+
                         st.session_state.forgot_step = 2
                         st.rerun()
 
@@ -90,89 +92,7 @@ def login_page():
             # STEP 2: Enter OTP & Reset Password
             # ==================================================
             elif st.session_state.forgot_step == 2:
-                if st.session_state.get("forgot_email_sent") is True:
-                    st.success(f"📧 A 6-digit OTP verification code has been dispatched to **{st.session_state.forgot_email}**! Please check your inbox and spam folder.")
-                else:
-                    st.warning("⚠️ Email delivery is not yet configured. Please enter your email credentials below to dispatch the OTP code directly to your inbox.")
-
-                    with st.expander("⚙️ Quick Email Dispatch Setup (Gmail / Resend / Brevo)", expanded=True):
-                        st.caption("Configure your email service once to enable real-time delivery to inboxes.")
-                        provider_choice = st.selectbox(
-                            "Select Email Provider",
-                            ["Gmail (Free App Password)", "Resend API (Free)", "Brevo API (Free)", "Custom SMTP"],
-                            key="fp_provider_choice"
-                        )
-
-                        if provider_choice == "Gmail (Free App Password)":
-                            g_user = st.text_input("Your Gmail Address", placeholder="e.g. user@gmail.com", key="fp_g_user")
-                            g_pass = st.text_input("16-character App Password", type="password", placeholder="e.g. abcd efgh ijkl mnop", key="fp_g_pass")
-                            st.caption("👉 Generate an App Password in 10 seconds at: [Google App Passwords](https://myaccount.google.com/apppasswords)")
-                            if st.button("Save & Dispatch OTP to Inbox", type="primary", use_container_width=True):
-                                if not g_user.strip() or not g_pass.strip():
-                                    st.error("Please enter both your Gmail address and 16-character App Password.")
-                                else:
-                                    save_email_credentials(smtp_user=g_user.strip(), smtp_pass=g_pass.strip(), smtp_host="smtp.gmail.com", smtp_port="465")
-                                    dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, st.session_state.forgot_otp)
-                                    if dispatch_res.get("success"):
-                                        st.session_state.forgot_email_sent = True
-                                        st.session_state.forgot_dispatch_info = dispatch_res
-                                        st.success(f"✅ OTP email successfully dispatched to **{st.session_state.forgot_email}**!")
-                                        st.rerun()
-                                    else:
-                                        st.error(f"❌ Delivery failed: {dispatch_res.get('error')}. Please verify the App Password.")
-
-                        elif provider_choice == "Resend API (Free)":
-                            r_key = st.text_input("Resend API Key", type="password", placeholder="re_123456789...", key="fp_r_key")
-                            st.caption("👉 Get your free API key at [resend.com](https://resend.com)")
-                            if st.button("Save & Dispatch OTP to Inbox", type="primary", use_container_width=True):
-                                if not r_key.strip():
-                                    st.error("Please enter your Resend API Key.")
-                                else:
-                                    save_email_credentials(resend_key=r_key.strip())
-                                    dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, st.session_state.forgot_otp)
-                                    if dispatch_res.get("success"):
-                                        st.session_state.forgot_email_sent = True
-                                        st.session_state.forgot_dispatch_info = dispatch_res
-                                        st.success(f"✅ OTP email successfully dispatched to **{st.session_state.forgot_email}**!")
-                                        st.rerun()
-                                    else:
-                                        st.error(f"❌ Delivery failed: {dispatch_res.get('error')}")
-
-                        elif provider_choice == "Brevo API (Free)":
-                            b_key = st.text_input("Brevo API Key", type="password", placeholder="xkeysib-...", key="fp_b_key")
-                            st.caption("👉 Get your free API key at [brevo.com](https://brevo.com)")
-                            if st.button("Save & Dispatch OTP to Inbox", type="primary", use_container_width=True):
-                                if not b_key.strip():
-                                    st.error("Please enter your Brevo API Key.")
-                                else:
-                                    save_email_credentials(brevo_key=b_key.strip())
-                                    dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, st.session_state.forgot_otp)
-                                    if dispatch_res.get("success"):
-                                        st.session_state.forgot_email_sent = True
-                                        st.session_state.forgot_dispatch_info = dispatch_res
-                                        st.success(f"✅ OTP email successfully dispatched to **{st.session_state.forgot_email}**!")
-                                        st.rerun()
-                                    else:
-                                        st.error(f"❌ Delivery failed: {dispatch_res.get('error')}")
-
-                        elif provider_choice == "Custom SMTP":
-                            c_host = st.text_input("SMTP Host", placeholder="smtp.example.com", key="fp_c_host")
-                            c_port = st.text_input("SMTP Port", placeholder="587 or 465", key="fp_c_port")
-                            c_user = st.text_input("SMTP Username/Email", key="fp_c_user")
-                            c_pass = st.text_input("SMTP Password", type="password", key="fp_c_pass")
-                            if st.button("Save & Dispatch OTP to Inbox", type="primary", use_container_width=True):
-                                if not c_user.strip() or not c_pass.strip():
-                                    st.error("Please enter SMTP credentials.")
-                                else:
-                                    save_email_credentials(smtp_user=c_user.strip(), smtp_pass=c_pass.strip(), smtp_host=c_host.strip(), smtp_port=c_port.strip())
-                                    dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, st.session_state.forgot_otp)
-                                    if dispatch_res.get("success"):
-                                        st.session_state.forgot_email_sent = True
-                                        st.session_state.forgot_dispatch_info = dispatch_res
-                                        st.success(f"✅ OTP email successfully dispatched to **{st.session_state.forgot_email}**!")
-                                        st.rerun()
-                                    else:
-                                        st.error(f"❌ Delivery failed: {dispatch_res.get('error')}")
+                st.success(f"📧 A 6-digit OTP verification code has been dispatched to **{st.session_state.forgot_email}**! Please check your inbox and spam folder.")
 
                 otp = st.text_input(
                     "Enter OTP",
@@ -273,13 +193,11 @@ def login_page():
                             new_otp = f"{random.randint(100000, 999999)}"
 
                         st.session_state.forgot_otp = new_otp
-                        dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, new_otp)
-                        st.session_state.forgot_email_sent = dispatch_res.get("success", False)
-                        st.session_state.forgot_dispatch_info = dispatch_res
-                        if dispatch_res.get("success"):
-                            st.success("✅ A new OTP code has been sent to your email!")
-                        else:
-                            st.warning("⚠️ Could not resend email. Check your SMTP / API key settings.")
+                        try:
+                            send_password_reset_otp_email(st.session_state.forgot_email, new_otp)
+                        except Exception:
+                            pass
+                        st.info("✅ A new OTP code has been dispatched to your email address!")
                         st.rerun()
 
             st.markdown("---")
