@@ -60,9 +60,9 @@ def validate_customer_id(customer_id):
     if not customer_id:
         return "Customer ID is required."
 
-    # Example format: AH-234567
-    if not re.fullmatch(r"[A-Za-z]{2}-\d{6}", customer_id):
-        return "Customer ID must be like AH-234567."
+    # Example format: AA-10315 or AH-234567
+    if not re.fullmatch(r"[A-Za-z]{2}-\d{4,7}", customer_id):
+        return "Customer ID must follow format like AA-10315 or AH-234567."
 
     return None
 

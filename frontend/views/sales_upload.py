@@ -196,6 +196,9 @@ def sales_upload_page():
 
             if response.ok:
 
+                from services.sales_service import clear_sales_cache
+                clear_sales_cache()
+
                 st.balloons()
 
                 st.success(
