@@ -80,9 +80,9 @@ def fetch_all_sales(base_url=DB_BASE_URL):
 
 
 @st.cache_data(ttl=86400, persist="disk", show_spinner=False)
-def fetch_all_sales_df(base_url=DB_BASE_URL):
+def _fetch_base_sales_df(base_url=DB_BASE_URL):
     """
-    Returns pre-processed sales DataFrame cached in disk memory to eliminate
+    Returns pre-processed base sales DataFrame cached in disk memory to eliminate
     repetitive dataframe conversion and date parsing latency on reruns.
     """
     sales = fetch_all_sales(base_url)
@@ -112,6 +112,33 @@ def fetch_all_sales_df(base_url=DB_BASE_URL):
         )
 
     return df
+
+
+def fetch_all_sales_df(base_url=DB_BASE_URL):
+    """
+    Returns complete sales DataFrame (base database sales + all active custom uploaded CSVs)
+    reflecting instant app-wide updates when files are appended or removed.
+    """
+    base_df = _fetch_base_sales_df(base_url)
+    uploaded_files = st.session_state.get("uploaded_sales_files", [])
+    
+    if not uploaded_files:
+        return base_df.copy() if not base_df.empty else pd.DataFrame()
+
+    appended_dfs = [f["df"] for f in uploaded_files if "df" in f and isinstance(f["df"], pd.DataFrame) and not f["df"].empty]
+    if not appended_dfs:
+        return base_df.copy() if not base_df.empty else pd.DataFrame()
+
+    if base_df.empty:
+        combined = pd.concat(appended_dfs, ignore_index=True)
+    else:
+        combined = pd.concat([base_df] + appended_dfs, ignore_index=True)
+
+    if "transaction_date" in combined.columns:
+        combined["transaction_date"] = pd.to_datetime(combined["transaction_date"], errors="coerce")
+        combined = combined.sort_values(by="transaction_date", ascending=False)
+
+    return combined
 
 
 @st.cache_data(ttl=86400, persist="disk", show_spinner=False)
@@ -148,8 +175,8 @@ def fetch_inventory_df(base_url=DB_BASE_URL):
 
 
 @st.cache_data(ttl=86400, persist="disk", show_spinner=False)
-def fetch_revenue_summary(base_url=DB_BASE_URL):
-    """Fetch revenue summary dictionary from backend with disk caching."""
+def _fetch_base_revenue_summary(base_url=DB_BASE_URL):
+    """Fetch base revenue summary dictionary from backend with disk caching."""
     url = f"{base_url}/revenue/summary"
     session = requests.Session()
     for attempt in range(3):
@@ -166,10 +193,58 @@ def fetch_revenue_summary(base_url=DB_BASE_URL):
     return {}
 
 
+def fetch_revenue_summary(base_url=DB_BASE_URL):
+    """
+    Returns revenue summary including contributions from custom appended CSV files.
+    """
+    base_rev = _fetch_base_revenue_summary(base_url).copy()
+    uploaded_files = st.session_state.get("uploaded_sales_files", [])
+    
+    if uploaded_files:
+        extra_rev = sum(float(f.get("total_amount", 0)) for f in uploaded_files)
+        try:
+            current_tot = float(base_rev.get("total_revenue", 0))
+            base_rev["total_revenue"] = f"{current_tot + extra_rev:.2f}"
+        except Exception:
+            pass
+
+    return base_rev
+
+
+def add_appended_sales_file(file_name: str, df: pd.DataFrame, total_amount: float):
+    """Register an uploaded sales CSV file into active session state."""
+    import uuid
+    from datetime import datetime
+    
+    if "uploaded_sales_files" not in st.session_state:
+        st.session_state["uploaded_sales_files"] = []
+        
+    file_id = f"UPL-{str(uuid.uuid4())[:8].upper()}"
+    record = {
+        "file_id": file_id,
+        "file_name": file_name,
+        "uploaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "row_count": len(df),
+        "total_amount": float(total_amount),
+        "df": df.copy()
+    }
+    st.session_state["uploaded_sales_files"].append(record)
+    return record
+
+
+def remove_appended_sales_file(file_id: str):
+    """Remove an uploaded sales CSV file from active session state."""
+    if "uploaded_sales_files" in st.session_state:
+        st.session_state["uploaded_sales_files"] = [
+            f for f in st.session_state["uploaded_sales_files"]
+            if f.get("file_id") != file_id
+        ]
+
+
 def clear_sales_cache():
     """Clear cached sales, inventory, and revenue data."""
     fetch_all_sales.clear()
-    fetch_all_sales_df.clear()
+    _fetch_base_sales_df.clear()
     fetch_inventory_data.clear()
     fetch_inventory_df.clear()
-    fetch_revenue_summary.clear()
+    _fetch_base_revenue_summary.clear()
