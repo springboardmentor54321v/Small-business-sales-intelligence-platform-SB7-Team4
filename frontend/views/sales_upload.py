@@ -192,8 +192,9 @@ def sales_upload_page():
                     else:
                         st.error(f"❌ Upload Failed (HTTP {response.status_code})")
                         try:
-                            error = response.json()
-                            st.error(error.get("message", "Upload failed."))
+                            err_data = response.json()
+                            detail = err_data.get("detail") or err_data.get("message") or str(err_data)
+                            st.error(f"Backend details: {detail}")
                         except Exception:
                             st.write(response.text)
 
