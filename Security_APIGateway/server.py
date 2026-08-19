@@ -36,9 +36,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {"status": "healthy"}
+
+@app.api_route("/", methods=["GET", "HEAD"])
+def root_check():
+    return {"status": "healthy", "service": "Security API Gateway"}
 
 # CORS configurations
 app.add_middleware(

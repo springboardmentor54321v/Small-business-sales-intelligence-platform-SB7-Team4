@@ -321,8 +321,8 @@ def generate_churn_xai_explanation(prob: float, freq: int, spend: float, days_si
 # HEALTH & SERVICE DIAGNOSTICS
 # ============================================================
 
-@app.route("/", methods=["GET"])
-@app.route("/health", methods=["GET"])
+@app.route("/", methods=["GET", "HEAD"])
+@app.route("/health", methods=["GET", "HEAD"])
 def health():
     """Liveness & Readiness Health Check with model status and runtime metrics."""
     uptime_sec = round(time.time() - START_TIME, 2)
