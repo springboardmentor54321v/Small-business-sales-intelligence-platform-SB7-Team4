@@ -152,17 +152,14 @@ def sales_upload_page():
             # Upload Trigger
             if st.button("🚀 Upload & Append Sales Data", width="stretch", type="primary"):
                 try:
-                    file_bytes = st.session_state.get("sales_upload_file_bytes")
+                    norm_df = normalize_uploaded_df(df)
+                    upload_csv_bytes = norm_df.to_csv(index=False).encode("utf-8")
                     file_name = st.session_state.get("sales_upload_filename", "sales.csv")
-
-                    if not file_bytes:
-                        st.error("No file data available to upload.")
-                        return
 
                     files = {
                         "file": (
                             file_name,
-                            file_bytes,
+                            upload_csv_bytes,
                             "text/csv"
                         )
                     }

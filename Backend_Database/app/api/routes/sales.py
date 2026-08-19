@@ -98,83 +98,25 @@ async def upload_sales_csv(
 
     if "store_id" not in dataframe.columns:
 
-        required_location = [
-            "city",
-            "state",
-            "country",
-        ]
-
-        missing_location = [
-            column
-            for column in required_location
-            if column not in dataframe.columns
-        ]
-
-        if missing_location:
-
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "message":
-                        "Store information is required.",
-                    "missing_columns":
-                        missing_location,
-                },
-            )
-
         stores = db.query(Store).all()
+        default_store_id = stores[0].store_id if stores else "1"
 
-        store_map = {}
+        required_location = ["city", "state", "country"]
+        has_location = all(col in dataframe.columns for col in required_location)
 
-        for store in stores:
+        if has_location and stores:
+            store_map = {}
+            for store in stores:
+                if store.location:
+                    store_map[store.location.strip().lower()] = store.store_id
 
-            if not store.location:
-                continue
-
-            location_key = (
-                store.location
-                .strip()
-                .lower()
-            )
-
-            store_map[
-                location_key
-            ] = store.store_id
-
-        resolved_store_ids = []
-
-        for _, row in dataframe.iterrows():
-
-            location = (
-                f"{str(row['city']).strip()}, "
-                f"{str(row['state']).strip()}, "
-                f"{str(row['country']).strip()}"
-            ).lower()
-
-            store_id = store_map.get(
-                location
-            )
-
-            if not store_id:
-
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "message":
-                            "Could not match CSV "
-                            "location to an existing store.",
-                        "location":
-                            location,
-                    },
-                )
-
-            resolved_store_ids.append(
-                store_id
-            )
-
-        dataframe["store_id"] = (
-            resolved_store_ids
-        )
+            resolved_store_ids = []
+            for _, row in dataframe.iterrows():
+                loc_key = f"{str(row.get('city', '')).strip()}, {str(row.get('state', '')).strip()}, {str(row.get('country', '')).strip()}".lower()
+                resolved_store_ids.append(store_map.get(loc_key, default_store_id))
+            dataframe["store_id"] = resolved_store_ids
+        else:
+            dataframe["store_id"] = default_store_id
 
     # ---------------------------------------------
     # 5. Import
