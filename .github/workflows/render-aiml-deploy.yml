@@ -1,0 +1,25 @@
+name: Deploy AIML to Render
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'AIML/**'
+      - '.github/workflows/render-aiml-deploy.yml'
+
+jobs:
+  deploy-aiml:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render AIML Deployment
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_AIML_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Triggering Render AIML Deployment via Deploy Hook..."
+            curl -f -X POST "$RENDER_DEPLOY_HOOK"
+          else
+            echo "RENDER_AIML_DEPLOY_HOOK secret is not configured in GitHub repository secrets. Render will automatically build and deploy via its native GitHub repository integration."
+          fi

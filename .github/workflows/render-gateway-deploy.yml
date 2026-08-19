@@ -1,0 +1,25 @@
+name: Deploy Security API Gateway to Render
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Security_APIGateway/**'
+      - '.github/workflows/render-gateway-deploy.yml'
+
+jobs:
+  deploy-gateway:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render Gateway Deployment
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_GATEWAY_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Triggering Render Gateway Deployment via Deploy Hook..."
+            curl -f -X POST "$RENDER_DEPLOY_HOOK"
+          else
+            echo "RENDER_GATEWAY_DEPLOY_HOOK secret is not configured in GitHub repository secrets. Render will automatically build and deploy via its native GitHub repository integration."
+          fi
