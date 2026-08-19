@@ -14,5 +14,9 @@ jobs:
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}
         run: |
-          curl -X POST "$RENDER_DEPLOY_HOOK"
-          
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Triggering Render Backend Deployment via Deploy Hook..."
+            curl -f -X POST "$RENDER_DEPLOY_HOOK"
+          else
+            echo "RENDER_BACKEND_DEPLOY_HOOK secret is not configured in GitHub repository secrets. Render will automatically build and deploy via its native GitHub repository integration."
+          fi

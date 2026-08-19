@@ -68,6 +68,7 @@ def login_page():
                                 res_data = res.json()
                                 st.session_state.forgot_email = email
                                 st.session_state.forgot_otp = res_data.get("otp", "")
+                                st.session_state.forgot_email_sent = res_data.get("email_sent", True)
                                 st.session_state.forgot_step = 2
                                 st.rerun()
                             else:
@@ -75,6 +76,7 @@ def login_page():
                                 fallback_otp = f"{random.randint(100000, 999999)}"
                                 st.session_state.forgot_email = email
                                 st.session_state.forgot_otp = fallback_otp
+                                st.session_state.forgot_email_sent = False
                                 st.session_state.forgot_step = 2
                                 st.rerun()
                         except Exception:
@@ -82,6 +84,7 @@ def login_page():
                             fallback_otp = f"{random.randint(100000, 999999)}"
                             st.session_state.forgot_email = email
                             st.session_state.forgot_otp = fallback_otp
+                            st.session_state.forgot_email_sent = False
                             st.session_state.forgot_step = 2
                             st.rerun()
 
@@ -89,10 +92,9 @@ def login_page():
             # STEP 2: Enter OTP & Reset Password
             # ==================================================
             elif st.session_state.forgot_step == 2:
-                if st.session_state.get("forgot_otp"):
-                    st.success(f"📬 Verification code for **{st.session_state.forgot_email}**: **`{st.session_state.forgot_otp}`**")
-                else:
-                    st.info(f"📬 Verification code sent to: **{st.session_state.forgot_email}**")
+                if st.session_state.get("forgot_email_sent") is True:
+                    st.success(f"✅ An email containing your 6-digit OTP code has been dispatched to **{st.session_state.forgot_email}**! Please check your inbox (and spam folder).")
+                st.info(f"🔑 Your One-Time Password (OTP) verification code is: **`{st.session_state.get('forgot_otp', '')}`**")
 
                 otp = st.text_input(
                     "Enter OTP",
@@ -149,7 +151,8 @@ def login_page():
                                         timeout=10
                                     )
                                     if reset_res.status_code == 200:
-                                        st.success("Password reset successfully! You can now sign in with your new password.")
+                                        st.session_state.reset_success_msg = "🎉 Password reset successfully! Please sign in with your new password."
+                                        st.session_state.default_username = st.session_state.forgot_email
                                         st.session_state.forgot_password = False
                                         st.session_state.forgot_step = 1
                                         st.session_state.forgot_email = ""
@@ -157,7 +160,8 @@ def login_page():
                                             del st.session_state["forgot_otp"]
                                         st.rerun()
                                     else:
-                                        st.success("Password updated successfully! You can now sign in.")
+                                        st.session_state.reset_success_msg = "🎉 Password reset successfully! Please sign in with your new password."
+                                        st.session_state.default_username = st.session_state.forgot_email
                                         st.session_state.forgot_password = False
                                         st.session_state.forgot_step = 1
                                         st.session_state.forgot_email = ""
@@ -165,7 +169,8 @@ def login_page():
                                             del st.session_state["forgot_otp"]
                                         st.rerun()
                                 else:
-                                    st.success("Password updated successfully! You can now sign in.")
+                                    st.session_state.reset_success_msg = "🎉 Password reset successfully! Please sign in with your new password."
+                                    st.session_state.default_username = st.session_state.forgot_email
                                     st.session_state.forgot_password = False
                                     st.session_state.forgot_step = 1
                                     st.session_state.forgot_email = ""
@@ -173,7 +178,8 @@ def login_page():
                                         del st.session_state["forgot_otp"]
                                     st.rerun()
                             except Exception:
-                                st.success("Password updated successfully! You can now sign in.")
+                                st.session_state.reset_success_msg = "🎉 Password reset successfully! Please sign in with your new password."
+                                st.session_state.default_username = st.session_state.forgot_email
                                 st.session_state.forgot_password = False
                                 st.session_state.forgot_step = 1
                                 st.session_state.forgot_email = ""
@@ -229,13 +235,18 @@ def login_page():
         st.caption(f"Security Gateway: `{BASE_URL}`")
         st.markdown("---")
 
+        if st.session_state.get("reset_success_msg"):
+            st.success(st.session_state.reset_success_msg)
+            del st.session_state["reset_success_msg"]
+
         # --------------------------------------------------
         # USERNAME
         # --------------------------------------------------
 
         username = st.text_input(
-            "Username",
-            placeholder="Enter Username"
+            "Username or Email",
+            value=st.session_state.get("default_username", ""),
+            placeholder="Enter Username or Email"
         )
 
         # --------------------------------------------------
