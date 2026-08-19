@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'AIML/**'
+      - '.github/workflows/render-aiml-deploy.yml'
 
 jobs:
   deploy-aiml:
