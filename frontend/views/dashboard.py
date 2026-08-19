@@ -12,10 +12,9 @@ from components.charts import (
 # ---------------- API Configuration ---------------- #
 from config.config import DB_BASE_URL as BASE_URL
 from services.sales_service import (
-    fetch_all_sales,
-    fetch_inventory_data,
-    fetch_revenue_summary,
-    clear_sales_cache
+    fetch_all_sales_df,
+    fetch_inventory_df,
+    fetch_revenue_summary
 )
 
 INVENTORY_API = f"{BASE_URL}/inventory/"
@@ -28,30 +27,20 @@ def dashboard_page():
 
     show_sidebar()
 
-    top_col1, top_col2 = st.columns([5, 1])
-    with top_col1:
-        st.title("MarketMind AI Dashboard")
-        st.caption("Small Business Sales Intelligence Platform")
-    with top_col2:
-        st.write("")
-        if st.button("🔄 Refresh Data", help="Clear cache and fetch latest data"):
-            clear_sales_cache()
-            st.rerun()
+    st.title("MarketMind AI Dashboard")
+    st.caption("Small Business Sales Intelligence Platform")
 
     st.markdown("---")
 
     with st.spinner("Loading Dashboard..."):
-        sales = fetch_all_sales(BASE_URL)
-        inventory = fetch_inventory_data(BASE_URL)
+        sales_df = fetch_all_sales_df(BASE_URL)
+        inventory_df = fetch_inventory_df(BASE_URL)
         revenue = fetch_revenue_summary(BASE_URL)
 
-    if not sales and not inventory:
+    if sales_df.empty and inventory_df.empty:
         st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
         st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
         return
-
-    sales_df = pd.DataFrame(sales)
-    inventory_df = pd.DataFrame(inventory)
 
     try:
         if sales_df.empty:

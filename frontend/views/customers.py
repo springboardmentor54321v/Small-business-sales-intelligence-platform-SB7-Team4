@@ -7,39 +7,26 @@ from components.sidebar import show_sidebar
 
 # ---------------- API Configuration ---------------- #
 from config.config import DB_BASE_URL as BASE_URL
-from services.sales_service import fetch_all_sales, clear_sales_cache
+from services.sales_service import fetch_all_sales_df
 
 
 def customers_page():
 
     show_sidebar()
 
-    top_col1, top_col2 = st.columns([5, 1])
-    with top_col1:
-        st.title(" Customer Insights")
-        st.caption("Customer Segmentation & Business Insights")
-    with top_col2:
-        st.write("")
-        if st.button("🔄 Refresh Data", key="refresh_cust_insights", help="Clear cache and fetch latest data"):
-            clear_sales_cache()
-            st.rerun()
+    st.title(" Customer Insights")
+    st.caption("Customer Segmentation & Business Insights")
 
     st.markdown("---")
 
     # ---------------- Load Sales Data ---------------- #
 
     with st.spinner("Loading Customer Insights..."):
-        sales = fetch_all_sales(BASE_URL)
-
-    if not sales:
-        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
-        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
-        return
-
-    sales_df = pd.DataFrame(sales)
+        sales_df = fetch_all_sales_df(BASE_URL)
 
     if sales_df.empty:
-        st.warning("No Sales Data Available")
+        st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
+        st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
         return
 
     # ---------------- Prepare Customer Data ---------------- #
