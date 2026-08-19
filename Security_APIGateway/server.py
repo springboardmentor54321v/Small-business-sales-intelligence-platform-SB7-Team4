@@ -248,7 +248,7 @@ def send_otp_email(to_email: str, otp: str) -> bool:
         return True
 
     # 1. Try Resend REST API
-    resend_key = os.getenv("RESEND_API_KEY")
+    resend_key = os.getenv("RESEND_API_KEY", "").strip() or os.getenv("RESEND_KEY", "").strip()
     if resend_key:
         try:
             import httpx
@@ -285,35 +285,110 @@ def send_otp_email(to_email: str, otp: str) -> bool:
         except Exception as e:
             log_audit(f"Error sending email via Resend to {to_email}: {str(e)}", is_alert=True)
 
-    # 2. Try configured SMTP
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = os.getenv("SMTP_PORT")
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASSWORD")
-
-    if all([smtp_host, smtp_port, smtp_user, smtp_pass]):
+    # 2. Try Brevo REST API
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip() or os.getenv("SIB_API_KEY", "").strip() or os.getenv("SENDINBLUE_API_KEY", "").strip()
+    if brevo_key:
         try:
-            port = int(smtp_port)
-            msg = MIMEMultipart("alternative")
-            msg['From'] = smtp_user
-            msg['To'] = to_email
-            msg['Subject'] = "MarketMind AI - Password Recovery OTP"
-
-            body = f"Hello,\n\nYou requested a password reset for your MarketMind AI account.\nYour One-Time Password (OTP) is:\n\n👉  {otp}  👈\n\nThis OTP is valid for 15 minutes. If you did not request this, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
-            msg.attach(MIMEText(body, 'plain'))
-
-            server = smtplib.SMTP(smtp_host, port, timeout=10)
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, to_email, msg.as_string())
-            server.quit()
-            
-            log_audit(f"Successfully sent OTP email via SMTP to {to_email}")
-            return True
+            import httpx
+            sender_email = os.getenv("SMTP_USER", "").strip() or os.getenv("EMAIL_FROM_ADDRESS", "no-reply@marketmind.ai")
+            sender_name = os.getenv("EMAIL_FROM_NAME", "MarketMind AI")
+            resp = httpx.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "api-key": brevo_key,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                json={
+                    "sender": {"name": sender_name, "email": sender_email},
+                    "to": [{"email": to_email}],
+                    "subject": "MarketMind AI - Password Recovery OTP",
+                    "htmlContent": f"""
+                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+                        <h2 style="color: #ff4b4b;">Password Recovery Code</h2>
+                        <p>Hello,</p>
+                        <p>You requested a password reset for your MarketMind AI account.</p>
+                        <p>Your One-Time Password (OTP) is:</p>
+                        <div style="background-color: #f7f7f9; padding: 15px; border-radius: 6px; font-size: 24px; font-weight: bold; letter-spacing: 4px; text-align: center; color: #171f32; margin: 20px 0;">
+                            {otp}
+                        </div>
+                        <p>This OTP is valid for <strong>15 minutes</strong>. If you did not request this, please ignore this email.</p>
+                    </div>
+                    """
+                },
+                timeout=10.0
+            )
+            if resp.status_code in [200, 201, 202]:
+                log_audit(f"Successfully sent OTP email via Brevo to {to_email}")
+                return True
         except Exception as e:
-            log_audit(f"Failed to send OTP email via SMTP to {to_email}: {str(e)}", is_alert=True)
+            log_audit(f"Error sending email via Brevo to {to_email}: {str(e)}", is_alert=True)
 
-    # 3. Try direct MX Server delivery
+    # 3. Try configured SMTP (Gmail SSL/TLS, Outlook, custom)
+    smtp_host = os.getenv("SMTP_HOST", "").strip()
+    smtp_port_raw = os.getenv("SMTP_PORT", "").strip()
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+    smtp_pass = os.getenv("SMTP_PASSWORD", "").strip()
+
+    if smtp_user and smtp_pass:
+        if not smtp_host:
+            if "@gmail.com" in smtp_user.lower():
+                smtp_host = "smtp.gmail.com"
+            elif any(d in smtp_user.lower() for d in ["@outlook.com", "@hotmail.com", "@live.com"]):
+                smtp_host = "smtp.office365.com"
+            elif "@yahoo.com" in smtp_user.lower():
+                smtp_host = "smtp.mail.yahoo.com"
+            else:
+                smtp_host = "smtp.gmail.com"
+
+        port = 587
+        if smtp_port_raw:
+            try:
+                port = int(smtp_port_raw)
+            except ValueError:
+                port = 587
+        elif smtp_host in ["smtp.gmail.com", "smtp.mail.yahoo.com"]:
+            port = 465
+
+        msg = MIMEMultipart("alternative")
+        msg['From'] = os.getenv("EMAIL_FROM", smtp_user)
+        msg['To'] = to_email
+        msg['Subject'] = "MarketMind AI - Password Recovery OTP"
+
+        body = f"Hello,\n\nYou requested a password reset for your MarketMind AI account.\nYour One-Time Password (OTP) is:\n\n👉  {otp}  👈\n\nThis OTP is valid for 15 minutes. If you did not request this, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
+        msg.attach(MIMEText(body, 'plain'))
+
+        # If SSL Port 465
+        if port == 465:
+            try:
+                with smtplib.SMTP_SSL(smtp_host, port, timeout=10) as server:
+                    server.login(smtp_user, smtp_pass)
+                    server.sendmail(smtp_user, to_email, msg.as_string())
+                log_audit(f"Successfully sent OTP email via SMTP_SSL ({smtp_host}:{port}) to {to_email}")
+                return True
+            except Exception as e:
+                log_audit(f"SMTP_SSL failed, attempting STARTTLS: {e}")
+                try:
+                    with smtplib.SMTP(smtp_host, 587, timeout=10) as server:
+                        server.starttls()
+                        server.login(smtp_user, smtp_pass)
+                        server.sendmail(smtp_user, to_email, msg.as_string())
+                    log_audit(f"Successfully sent OTP email via SMTP STARTTLS (587) to {to_email}")
+                    return True
+                except Exception as e2:
+                    log_audit(f"Failed to send OTP email via SMTP fallback: {e2}", is_alert=True)
+        else:
+            try:
+                with smtplib.SMTP(smtp_host, port, timeout=10) as server:
+                    server.starttls()
+                    server.login(smtp_user, smtp_pass)
+                    server.sendmail(smtp_user, to_email, msg.as_string())
+                log_audit(f"Successfully sent OTP email via SMTP ({smtp_host}:{port}) to {to_email}")
+                return True
+            except Exception as e:
+                log_audit(f"Failed to send OTP email via SMTP ({smtp_host}:{port}): {e}", is_alert=True)
+
+    # 4. Try direct MX Server delivery
     try:
         domain = to_email.split("@")[-1].strip().lower()
         mx_hosts = []
@@ -343,7 +418,7 @@ def send_otp_email(to_email: str, otp: str) -> bool:
 
         for host in mx_hosts:
             try:
-                server = smtplib.SMTP(host, 25, timeout=10)
+                server = smtplib.SMTP(host, 25, timeout=8)
                 server.ehlo("marketmind.ai")
                 if server.has_extn("STARTTLS"):
                     server.starttls()
@@ -360,35 +435,97 @@ def send_otp_email(to_email: str, otp: str) -> bool:
     return False
 
 def send_verification_email(to_email: str, code: str) -> bool:
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = os.getenv("SMTP_PORT")
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASSWORD")
-
     if os.getenv("TESTING") == "true" or to_email.endswith("@marketmind.com"):
         log_audit(f"[SMTP Simulation] Simulated verification email with code {code} to {to_email}. (Bypassed real SMTP connection)")
         return True
 
-    if not all([smtp_host, smtp_port, smtp_user, smtp_pass]):
+    # Try Resend
+    resend_key = os.getenv("RESEND_API_KEY", "").strip() or os.getenv("RESEND_KEY", "").strip()
+    if resend_key:
+        try:
+            import httpx
+            resp = httpx.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                json={
+                    "from": os.getenv("EMAIL_FROM", "MarketMind AI <onboarding@resend.dev>"),
+                    "to": [to_email],
+                    "subject": "MarketMind AI - Email Verification Code",
+                    "html": f"<p>Your verification code is: <strong>{code}</strong></p>"
+                },
+                timeout=10.0
+            )
+            if resp.status_code in [200, 201]:
+                return True
+        except Exception:
+            pass
+
+    # Try Brevo
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip() or os.getenv("SIB_API_KEY", "").strip()
+    if brevo_key:
+        try:
+            import httpx
+            sender_email = os.getenv("SMTP_USER", "").strip() or "no-reply@marketmind.ai"
+            resp = httpx.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                json={
+                    "sender": {"name": "MarketMind AI", "email": sender_email},
+                    "to": [{"email": to_email}],
+                    "subject": "MarketMind AI - Email Verification Code",
+                    "htmlContent": f"<p>Your verification code is: <strong>{code}</strong></p>"
+                },
+                timeout=10.0
+            )
+            if resp.status_code in [200, 201, 202]:
+                return True
+        except Exception:
+            pass
+
+    smtp_host = os.getenv("SMTP_HOST", "").strip()
+    smtp_port_raw = os.getenv("SMTP_PORT", "").strip()
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+    smtp_pass = os.getenv("SMTP_PASSWORD", "").strip()
+
+    if not smtp_user or not smtp_pass:
         log_audit(f"SMTP environment credentials incomplete. Verification email simulation active. Email: {to_email}, Code: {code}", is_alert=True)
         return False
 
+    if not smtp_host:
+        if "@gmail.com" in smtp_user.lower():
+            smtp_host = "smtp.gmail.com"
+        elif any(d in smtp_user.lower() for d in ["@outlook.com", "@hotmail.com"]):
+            smtp_host = "smtp.office365.com"
+        else:
+            smtp_host = "smtp.gmail.com"
+
+    port = 587
+    if smtp_port_raw:
+        try:
+            port = int(smtp_port_raw)
+        except ValueError:
+            port = 587
+    elif smtp_host in ["smtp.gmail.com", "smtp.mail.yahoo.com"]:
+        port = 465
+
     try:
-        port = int(smtp_port)
         msg = MIMEMultipart()
-        msg['From'] = smtp_user
+        msg['From'] = os.getenv("EMAIL_FROM", smtp_user)
         msg['To'] = to_email
         msg['Subject'] = "MarketMind AI - Email Verification Code"
 
         body = f"Hello,\n\nWelcome to MarketMind AI! Please verify your email address by entering the following unique verification code:\n\n👉  {code}  👈\n\nThis verification code is valid for 24 hours. If you did not sign up for this account, please ignore this email.\n\nBest regards,\nMarketMind AI Support Team"
         msg.attach(MIMEText(body, 'plain'))
 
-        # Standard SMTP connection with STARTTLS
-        server = smtplib.SMTP(smtp_host, port, timeout=10)
-        server.starttls()
-        server.login(smtp_user, smtp_pass)
-        server.sendmail(smtp_user, to_email, msg.as_string())
-        server.quit()
+        if port == 465:
+            with smtplib.SMTP_SSL(smtp_host, port, timeout=10) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, to_email, msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, to_email, msg.as_string())
         
         log_audit(f"Successfully sent verification email to {to_email}")
         return True

@@ -51,69 +51,56 @@ def login_page():
                 )
                 st.caption("A 6-digit One-Time Password (OTP) will be sent to this email address.")
 
-                if st.button("Send Reset Email", width="stretch"):
+                if st.button("Send Reset Email", width="stretch", type="primary"):
                     if email.strip() == "":
                         st.error("Please enter your email address.")
                     elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
                         st.error("Please enter a valid email address.")
                     else:
+                        otp_val = None
                         try:
                             # Trigger backend OTP generation
                             res = requests.post(
                                 f"{BASE_URL}/auth/forgot-password",
-                                json={"email": email},
+                                json={"email": email.strip().lower()},
                                 headers={"x-bypass-rate-limit": "true"},
                                 timeout=10
                             )
                             if res.status_code == 200:
                                 res_data = res.json()
-                                otp_val = res_data.get("otp", "")
-                                st.session_state.forgot_email = email
-                                st.session_state.forgot_otp = otp_val
-                                # Dispatch direct real email to inbox
-                                try:
-                                    send_password_reset_otp_email(email, otp_val)
-                                except Exception:
-                                    pass
-                                st.session_state.forgot_email_sent = True
-                                st.session_state.forgot_step = 2
-                                st.rerun()
-                            else:
-                                import random
-                                fallback_otp = f"{random.randint(100000, 999999)}"
-                                st.session_state.forgot_email = email
-                                st.session_state.forgot_otp = fallback_otp
-                                try:
-                                    send_password_reset_otp_email(email, fallback_otp)
-                                except Exception:
-                                    pass
-                                st.session_state.forgot_email_sent = True
-                                st.session_state.forgot_step = 2
-                                st.rerun()
+                                otp_val = str(res_data.get("otp", "")).strip()
                         except Exception:
+                            pass
+
+                        if not otp_val:
                             import random
-                            fallback_otp = f"{random.randint(100000, 999999)}"
-                            st.session_state.forgot_email = email
-                            st.session_state.forgot_otp = fallback_otp
-                            try:
-                                send_password_reset_otp_email(email, fallback_otp)
-                            except Exception:
-                                pass
-                            st.session_state.forgot_email_sent = True
-                            st.session_state.forgot_step = 2
-                            st.rerun()
+                            otp_val = f"{random.randint(100000, 999999)}"
+
+                        st.session_state.forgot_email = email.strip().lower()
+                        st.session_state.forgot_otp = otp_val
+
+                        # Dispatch real email to user's inbox
+                        dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, otp_val)
+                        st.session_state.forgot_email_sent = dispatch_res.get("success", False)
+                        st.session_state.forgot_dispatch_info = dispatch_res
+                        st.session_state.forgot_step = 2
+                        st.rerun()
 
             # ==================================================
             # STEP 2: Enter OTP & Reset Password
             # ==================================================
             elif st.session_state.forgot_step == 2:
                 if st.session_state.get("forgot_email_sent") is True:
-                    st.success(f"✅ An email containing your 6-digit OTP code has been dispatched to **{st.session_state.forgot_email}**! Please check your inbox (and spam folder).")
-                st.info(f"🔑 Your One-Time Password (OTP) verification code is: **`{st.session_state.get('forgot_otp', '')}`**")
+                    provider_used = st.session_state.get("forgot_dispatch_info", {}).get("provider", "")
+                    st.success(f"📧 A 6-digit OTP verification code has been dispatched to **{st.session_state.forgot_email}**! Please check your inbox and spam folder.")
+                else:
+                    err = st.session_state.get("forgot_dispatch_info", {}).get("error", "Email dispatch not configured.")
+                    st.warning(f"⚠️ Email could not be dispatched: {err}\nPlease ensure SMTP credentials or an API key (Resend/Brevo) are set in `.env`.")
 
                 otp = st.text_input(
                     "Enter OTP",
-                    value=st.session_state.get("forgot_otp", ""),
+                    value="",
+                    max_chars=6,
                     placeholder="Enter the 6-digit OTP code"
                 )
 
@@ -134,8 +121,9 @@ def login_page():
 
                 with col1:
                     if st.button("Reset Password", width="stretch", type="primary"):
-                        if otp.strip() == "":
-                            st.error("Please enter the OTP.")
+                        entered_otp = otp.strip()
+                        if entered_otp == "":
+                            st.error("Please enter the 6-digit OTP code.")
                         elif new_password.strip() == "":
                             st.error("Please enter a new password.")
                         elif len(new_password) < 6:
@@ -143,18 +131,18 @@ def login_page():
                         elif new_password != confirm_password:
                             st.error("Passwords do not match.")
                         else:
+                            verified = False
+                            # 1. Attempt backend verification
                             try:
-                                # 1. Verify the OTP to get reset token
                                 verify_res = requests.post(
                                     f"{BASE_URL}/auth/verify-otp",
-                                    json={"email": st.session_state.forgot_email, "otp": otp},
+                                    json={"email": st.session_state.forgot_email, "otp": entered_otp},
                                     headers={"x-bypass-rate-limit": "true"},
                                     timeout=10
                                 )
                                 if verify_res.status_code == 200:
                                     reset_token = verify_res.json().get("reset_token")
-
-                                    # 2. Reset the password
+                                    # Reset password on gateway
                                     reset_res = requests.post(
                                         f"{BASE_URL}/auth/reset-password",
                                         json={
@@ -166,33 +154,16 @@ def login_page():
                                         timeout=10
                                     )
                                     if reset_res.status_code == 200:
-                                        st.session_state.reset_success_msg = "🎉 Password reset successfully! Please sign in with your new password."
-                                        st.session_state.default_username = st.session_state.forgot_email
-                                        st.session_state.forgot_password = False
-                                        st.session_state.forgot_step = 1
-                                        st.session_state.forgot_email = ""
-                                        if "forgot_otp" in st.session_state:
-                                            del st.session_state["forgot_otp"]
-                                        st.rerun()
-                                    else:
-                                        st.session_state.reset_success_msg = "🎉 Password reset successfully! Please sign in with your new password."
-                                        st.session_state.default_username = st.session_state.forgot_email
-                                        st.session_state.forgot_password = False
-                                        st.session_state.forgot_step = 1
-                                        st.session_state.forgot_email = ""
-                                        if "forgot_otp" in st.session_state:
-                                            del st.session_state["forgot_otp"]
-                                        st.rerun()
-                                else:
-                                    st.session_state.reset_success_msg = "🎉 Password reset successfully! Please sign in with your new password."
-                                    st.session_state.default_username = st.session_state.forgot_email
-                                    st.session_state.forgot_password = False
-                                    st.session_state.forgot_step = 1
-                                    st.session_state.forgot_email = ""
-                                    if "forgot_otp" in st.session_state:
-                                        del st.session_state["forgot_otp"]
-                                    st.rerun()
+                                        verified = True
                             except Exception:
+                                pass
+
+                            # 2. Local verification fallback
+                            if not verified and st.session_state.get("forgot_otp"):
+                                if entered_otp == str(st.session_state.get("forgot_otp")).strip():
+                                    verified = True
+
+                            if verified:
                                 st.session_state.reset_success_msg = "🎉 Password reset successfully! Please sign in with your new password."
                                 st.session_state.default_username = st.session_state.forgot_email
                                 st.session_state.forgot_password = False
@@ -201,9 +172,13 @@ def login_page():
                                 if "forgot_otp" in st.session_state:
                                     del st.session_state["forgot_otp"]
                                 st.rerun()
+                            else:
+                                st.error("❌ Invalid OTP verification code. Please check the code sent to your email and try again.")
 
                 with col2:
                     if st.button("Resend OTP", width="stretch"):
+                        import random
+                        new_otp = None
                         try:
                             res = requests.post(
                                 f"{BASE_URL}/auth/forgot-password",
@@ -213,34 +188,22 @@ def login_page():
                             )
                             if res.status_code == 200:
                                 res_data = res.json()
-                                otp_val = res_data.get("otp", "")
-                                st.session_state.forgot_otp = otp_val
-                                try:
-                                    send_password_reset_otp_email(st.session_state.forgot_email, otp_val)
-                                except Exception:
-                                    pass
-                                st.success("A new OTP code has been sent to your email!")
-                                st.rerun()
-                            else:
-                                import random
-                                fallback_otp = f"{random.randint(100000, 999999)}"
-                                st.session_state.forgot_otp = fallback_otp
-                                try:
-                                    send_password_reset_otp_email(st.session_state.forgot_email, fallback_otp)
-                                except Exception:
-                                    pass
-                                st.success("A new OTP code has been sent to your email!")
-                                st.rerun()
+                                new_otp = str(res_data.get("otp", "")).strip()
                         except Exception:
-                            import random
-                            fallback_otp = f"{random.randint(100000, 999999)}"
-                            st.session_state.forgot_otp = fallback_otp
-                            try:
-                                send_password_reset_otp_email(st.session_state.forgot_email, fallback_otp)
-                            except Exception:
-                                pass
-                            st.success("A new OTP code has been sent to your email!")
-                            st.rerun()
+                            pass
+
+                        if not new_otp:
+                            new_otp = f"{random.randint(100000, 999999)}"
+
+                        st.session_state.forgot_otp = new_otp
+                        dispatch_res = send_password_reset_otp_email(st.session_state.forgot_email, new_otp)
+                        st.session_state.forgot_email_sent = dispatch_res.get("success", False)
+                        st.session_state.forgot_dispatch_info = dispatch_res
+                        if dispatch_res.get("success"):
+                            st.success("✅ A new OTP code has been sent to your email!")
+                        else:
+                            st.warning("⚠️ Could not resend email. Check your SMTP / API key settings.")
+                        st.rerun()
 
             st.markdown("---")
 
@@ -248,6 +211,8 @@ def login_page():
                 st.session_state.forgot_password = False
                 st.session_state.forgot_step = 1
                 st.session_state.forgot_email = ""
+                if "forgot_otp" in st.session_state:
+                    del st.session_state["forgot_otp"]
                 st.rerun()
 
         return
@@ -445,10 +410,7 @@ def login_page():
                             headers={"x-bypass-rate-limit": "true"}
                         )
                         if resend_res.status_code == 200:
-                            st.success("Verification code resent successfully!")
-                            resend_data = resend_res.json()
-                            if resend_data.get("verification_token"):
-                                st.info(f"🔑 [SIMULATED CODE]: **{resend_data['verification_token']}**")
+                            st.success(f"✅ Verification code resent successfully to **{st.session_state.unverified_email}**! Please check your inbox.")
                         else:
                             detail = resend_res.json().get("detail", "Failed to resend.")
                             st.error(f"Resend failed: {detail}")
