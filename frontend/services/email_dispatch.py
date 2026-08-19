@@ -422,3 +422,28 @@ def save_email_credentials(
     return True, "Email credentials saved and activated successfully!"
 
 
+def dispatch_real_email(to_email: str, subject: str, html_body: str, text_body: str = "") -> bool:
+    """Legacy boolean wrapper around dispatch_real_email_with_status."""
+    res = dispatch_real_email_with_status(to_email, subject, html_body, text_body)
+    return res.get("success", False)
+
+
+def send_password_reset_otp_email(to_email: str, otp: str) -> dict:
+    """Send branded password reset OTP email to recipient and return dispatch status."""
+    subject = "MarketMind AI - Your Password Recovery Code"
+    html_body = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 560px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #ffffff;">
+        <h2 style="color: #ff4b4b; margin-top: 0;">MarketMind AI Security</h2>
+        <p style="font-size: 15px; color: #333333;">Hello,</p>
+        <p style="font-size: 15px; color: #333333;">You requested a password reset for your <strong>MarketMind AI</strong> account.</p>
+        <p style="font-size: 15px; color: #333333;">Your One-Time Password (OTP) verification code is:</p>
+        <div style="background-color: #f7f7f9; padding: 18px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 6px; text-align: center; color: #171f32; margin: 20px 0; border: 1px dashed #ff4b4b;">
+            {otp}
+        </div>
+        <p style="font-size: 14px; color: #666666;">This verification code is valid for <strong>15 minutes</strong>. If you did not request a password reset, please ignore this email or contact support.</p>
+        <hr style="border: none; border-top: 1px solid #eeeeee; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #999999; margin-bottom: 0;">&copy; MarketMind AI Platform. All rights reserved.</p>
+    </div>
+    """
+    text_body = f"Hello,\n\nYour MarketMind AI password recovery OTP code is: {otp}\n\nThis code is valid for 15 minutes.\n\nBest regards,\nMarketMind AI Team"
+    return dispatch_real_email_with_status(to_email, subject, html_body, text_body)
