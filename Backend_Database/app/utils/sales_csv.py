@@ -284,18 +284,23 @@ def detect_and_map_columns(df: pd.DataFrame) -> pd.DataFrame:
         df["created_by_user_id"] = 1
 
     # -------------------------------------------------
-    # Remove exact duplicate rows
+    # Remove all-null and exact duplicate rows
     # -------------------------------------------------
 
     df = (
         df
+        .dropna(how="all")
         .drop_duplicates()
         .reset_index(drop=True)
     )
 
     # -------------------------------------------------
-    # Validate values
+    # Validate values & filter invalid rows
     # -------------------------------------------------
+
+    for col in ["customer_id", "product_id"]:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip().replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
 
     invalid_mask = (
         df["transaction_date"].isna()
@@ -307,18 +312,18 @@ def detect_and_map_columns(df: pd.DataFrame) -> pd.DataFrame:
         | (df["total_amount"] < 0)
     )
 
-    invalid_rows = df[invalid_mask]
+    valid_df = df[~invalid_mask].copy().reset_index(drop=True)
 
-    if not invalid_rows.empty:
+    if valid_df.empty:
 
         raise HTTPException(
             status_code=400,
             detail={
                 "message":
-                    "Sales CSV contains invalid rows.",
+                    "Sales CSV contains no valid data rows.",
                 "invalid_row_count":
-                    len(invalid_rows),
+                    len(df),
             },
         )
 
-    return df
+    return valid_df

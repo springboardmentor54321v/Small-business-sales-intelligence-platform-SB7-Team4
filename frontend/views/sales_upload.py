@@ -13,8 +13,8 @@ UPLOAD_API = f"{BASE_URL}/api/sales/upload"
 
 
 def normalize_uploaded_df(raw_df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize column names to match platform standard schema."""
-    df = raw_df.copy()
+    """Normalize column names and clean rows to match platform standard schema."""
+    df = raw_df.dropna(how="all").copy()
     col_mapping = {}
     
     aliases = {
@@ -41,17 +41,42 @@ def normalize_uploaded_df(raw_df: pd.DataFrame) -> pd.DataFrame:
                 
     df = df.rename(columns=col_mapping)
     
+    # Clean string columns
+    for str_col in ["customer_id", "product_id"]:
+        if str_col in df.columns:
+            df[str_col] = df[str_col].astype(str).str.strip().replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
+
     # Numeric formatting
     for num_col in ["quantity", "unit_price", "discount", "total_amount"]:
         if num_col in df.columns:
-            df[num_col] = pd.to_numeric(df[num_col], errors="coerce").fillna(0)
+            df[num_col] = pd.to_numeric(df[num_col], errors="coerce")
             
     if "total_amount" not in df.columns and "quantity" in df.columns and "unit_price" in df.columns:
         df["total_amount"] = df["quantity"] * df["unit_price"]
         
+    if "unit_price" not in df.columns and "quantity" in df.columns and "total_amount" in df.columns:
+        df["unit_price"] = (df["total_amount"] / df["quantity"].replace(0, 1)).round(2)
+    elif "unit_price" not in df.columns:
+        df["unit_price"] = 0.0
+
+    if "discount" not in df.columns:
+        df["discount"] = 0.0
+
+    if "payment_method" not in df.columns:
+        df["payment_method"] = "Card"
+
+    if "store_id" not in df.columns:
+        df["store_id"] = "1"
+        
     if "transaction_date" in df.columns:
         df["transaction_date"] = pd.to_datetime(df["transaction_date"], errors="coerce")
-        
+
+    # Drop any corrupt/blank rows
+    df = df.dropna(subset=["transaction_date", "customer_id", "product_id", "quantity", "total_amount"])
+    df = df[df["quantity"] > 0]
+    df = df[df["total_amount"] >= 0]
+    df = df.reset_index(drop=True)
+
     return df
 
 
