@@ -706,23 +706,14 @@ def business_overview_page():
             ],
 
             "Value": [
-
                 f"₹ {total_revenue:,.2f}",
-
                 f"₹ {total_outstanding:,.2f}",
-
                 f"₹ {daily_collections:,.2f}",
-
-                total_orders,
-
-                total_products_sold,
-
-                inventory_count,
-
-                len(low_stock_df)
-
+                str(total_orders),
+                str(total_products_sold),
+                str(inventory_count),
+                str(len(low_stock_df))
             ]
-
         })
 
         st.dataframe(
