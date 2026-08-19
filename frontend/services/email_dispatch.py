@@ -28,6 +28,16 @@ def _load_env_files():
     except Exception as e:
         logger.debug(f"dotenv load skipped/failed: {e}")
 
+    # Also automatically read from Streamlit Cloud st.secrets
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets"):
+            for k in ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "EMAIL_FROM", "RESEND_API_KEY", "BREVO_API_KEY", "SENDGRID_API_KEY"]:
+                if k in st.secrets and not os.getenv(k):
+                    os.environ[k] = str(st.secrets[k])
+    except Exception:
+        pass
+
 
 # Initialize env loading on import
 _load_env_files()
