@@ -28,9 +28,13 @@ app = FastAPI(
     title="MarketMind AI Backend"
 )
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {"status": "healthy"}
+
+@app.api_route("/", methods=["GET", "HEAD"])
+def root_check():
+    return {"status": "healthy", "service": "MarketMind AI Backend"}
 
 # =====================================
 # CORS Configuration
