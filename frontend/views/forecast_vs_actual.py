@@ -40,48 +40,44 @@ def forecast_vs_actual_page():
     )
 
     # ========================================================
-    # UPLOAD CSV
+    # UPLOAD CSV / SESSION STATE
     # ========================================================
 
     uploaded_file = st.file_uploader(
         "Upload Sales CSV",
-        type=["csv"]
+        type=["csv"],
+        key="forecast_vs_actual_uploader"
     )
 
-    if uploaded_file is None:
+    if uploaded_file is not None:
+        with st.spinner("Generating Forecast vs Actual analysis..."):
+            result = get_forecast_backtest(uploaded_file)
 
-        st.info(
-            "Please upload your daily_sales.csv file."
-        )
+        if result["error"] is not None:
+            st.error(result["error"])
+            return
 
-        return
+        st.session_state["forecast_backtest_result"] = result
+        st.session_state["forecast_backtest_filename"] = uploaded_file.name
 
-    # ========================================================
-    # RUN BACKTEST
-    # ========================================================
-
-    with st.spinner(
-        "Generating Forecast vs Actual analysis..."
-    ):
-
-        result = get_forecast_backtest(
-            uploaded_file
-        )
-
-    # ========================================================
-    # CHECK ERROR
-    # ========================================================
-
-    if result["error"] is not None:
-
-        st.error(
-            result["error"]
-        )
-
+    elif "forecast_backtest_result" in st.session_state:
+        result = st.session_state["forecast_backtest_result"]
+        filename = st.session_state.get("forecast_backtest_filename", "daily_sales.csv")
+        
+        col_info, col_clear = st.columns([5, 1])
+        with col_info:
+            st.success(f"📊 Active analysis loaded for **{filename}**")
+        with col_clear:
+            if st.button("🗑️ Clear", help="Remove saved analysis and upload a new CSV"):
+                del st.session_state["forecast_backtest_result"]
+                if "forecast_backtest_filename" in st.session_state:
+                    del st.session_state["forecast_backtest_filename"]
+                st.rerun()
+    else:
+        st.info("Please upload your daily_sales.csv file.")
         return
 
     df = result["results"]
-
     metrics = result["metrics"]
 
     
