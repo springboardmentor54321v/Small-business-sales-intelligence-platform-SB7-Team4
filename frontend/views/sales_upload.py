@@ -204,9 +204,6 @@ def sales_upload_page():
 
             if response.ok:
 
-                from services.sales_service import clear_sales_cache
-                clear_sales_cache()
-
                 for k in ["sales_upload_df", "sales_upload_filename", "sales_upload_file_bytes", "sales_upload_size"]:
                     if k in st.session_state:
                         del st.session_state[k]
