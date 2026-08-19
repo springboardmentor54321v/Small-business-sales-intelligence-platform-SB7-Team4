@@ -95,41 +95,36 @@ def sales_upload_page():
 
     st.subheader(" CSV Validation")
 
-    required_columns = [
+    COLUMN_ALIASES = {
+        "Transaction Date": ["transaction_date", "transaction date", "order_date", "order date", "invoice_date", "date"],
+        "Customer ID": ["customer_id", "customer id", "customer"],
+        "Product ID": ["product_id", "product id", "product"],
+        "Quantity": ["quantity", "qty"],
+        "Sales / Total Amount": ["total_amount", "total amount", "amount", "total", "sales", "sale", "revenue"]
+    }
 
-        "transaction_id",
-        "invoice_id",
-        "transaction_date",
-        "customer_id",
-        "product_id",
-        "store_id",
-        "quantity",
-        "unit_price",
-        "discount",
-        "total_amount",
-        "payment_method"
+    norm_cols = [str(c).strip().lower().replace("-", "_").replace(" ", "_") for c in df.columns]
+    missing_fields = []
+    detected_fields = []
 
-    ]
+    for field_name, aliases in COLUMN_ALIASES.items():
+        found = False
+        for a in aliases:
+            if a.replace(" ", "_") in norm_cols:
+                found = True
+                detected_fields.append(field_name)
+                break
+        if not found:
+            missing_fields.append(field_name)
 
-    missing_columns = [
-
-        col
-        for col in required_columns
-        if col not in df.columns
-
-    ]
-
-    if missing_columns:
-
-        st.error("❌ CSV Validation Failed")
-
-        st.write("Missing Columns:")
-
-        st.code("\n".join(missing_columns))
-
+    if missing_fields:
+        st.error("❌ CSV Validation Failed: Required business fields missing.")
+        st.write("Missing Required Fields:")
+        st.code("\n".join(missing_fields))
+        st.info("💡 Supported formats: Superstore CSV (Order Date, Customer ID, Product ID, Quantity, Sales) or Standard Sales CSV.")
         return
 
-    st.success(" Required columns found.")
+    st.success(f"✅ All required sales columns verified ({', '.join(detected_fields)}).")
 
     c1, c2 = st.columns(2)
 
