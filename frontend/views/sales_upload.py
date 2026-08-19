@@ -26,36 +26,41 @@ def sales_upload_page():
 
     uploaded_file = st.file_uploader(
         "Choose a CSV File",
-        type=["csv"]
+        type=["csv"],
+        key="sales_upload_file_widget"
     )
 
-    if uploaded_file is None:
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
+            st.session_state["sales_upload_df"] = df
+            st.session_state["sales_upload_filename"] = uploaded_file.name
+            st.session_state["sales_upload_file_bytes"] = uploaded_file.getvalue()
+            st.session_state["sales_upload_size"] = uploaded_file.size
+        except Exception as e:
+            st.error(f"❌ Unable to read CSV.\n\n{e}")
+            return
+        filename = uploaded_file.name
+        file_size = uploaded_file.size
+        st.success(f" CSV Loaded Successfully: **{filename}**")
 
-        st.info(
-            " Please upload a CSV file to continue."
-        )
+    elif "sales_upload_df" in st.session_state:
+        df = st.session_state["sales_upload_df"]
+        filename = st.session_state.get("sales_upload_filename", "sales.csv")
+        file_size = st.session_state.get("sales_upload_size", 0)
 
+        col_info, col_clear = st.columns([5, 1])
+        with col_info:
+            st.success(f"📊 Active CSV loaded: **{filename}**")
+        with col_clear:
+            if st.button("🗑️ Clear", help="Remove loaded CSV and select a new file"):
+                for k in ["sales_upload_df", "sales_upload_filename", "sales_upload_file_bytes", "sales_upload_size"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.rerun()
+    else:
+        st.info(" Please upload a CSV file to continue.")
         return
-
-    # ================= Read CSV ================= #
-
-    try:
-
-        df = pd.read_csv(
-            uploaded_file
-        )
-
-    except Exception as e:
-
-        st.error(
-            f"❌ Unable to read CSV.\n\n{e}"
-        )
-
-        return
-
-    st.success(
-        " CSV Loaded Successfully"
-    )
 
     c1, c2, c3 = st.columns(3)
 
@@ -71,7 +76,7 @@ def sales_upload_page():
 
     c3.metric(
         "File Size",
-        f"{uploaded_file.size / 1024:.1f} KB"
+        f"{file_size / 1024:.1f} KB"
     )
 
     st.markdown("---")
@@ -165,17 +170,27 @@ def sales_upload_page():
 
     if st.button(
         "Upload Sales Data",
-        use_container_width=True
+        width="stretch"
     ):
 
         try:
 
-            uploaded_file.seek(0)
+            file_bytes = st.session_state.get("sales_upload_file_bytes")
+            file_name = st.session_state.get("sales_upload_filename", "sales.csv")
+
+            if file_bytes is None and uploaded_file is not None:
+                uploaded_file.seek(0)
+                file_bytes = uploaded_file.getvalue()
+                file_name = uploaded_file.name
+
+            if not file_bytes:
+                st.error("No file data available to upload.")
+                return
 
             files = {
                 "file": (
-                    uploaded_file.name,
-                    uploaded_file.getvalue(),
+                    file_name,
+                    file_bytes,
                     "text/csv"
                 )
             }
@@ -198,6 +213,10 @@ def sales_upload_page():
 
                 from services.sales_service import clear_sales_cache
                 clear_sales_cache()
+
+                for k in ["sales_upload_df", "sales_upload_filename", "sales_upload_file_bytes", "sales_upload_size"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
 
                 st.balloons()
 

@@ -71,6 +71,22 @@ def reports_page():
         key="report_sales_file"
     )
 
+    if uploaded_file is not None:
+        st.session_state["reports_uploaded_file_bytes"] = uploaded_file.getvalue()
+        st.session_state["reports_uploaded_filename"] = uploaded_file.name
+    elif "reports_uploaded_file_bytes" in st.session_state:
+        r_fname = st.session_state.get("reports_uploaded_filename", "sales.csv")
+        r_col_info, r_col_clear = st.columns([5, 1])
+        with r_col_info:
+            st.success(f"📊 Active CSV for report: **{r_fname}**")
+        with r_col_clear:
+            if st.button("🗑️ Clear", key="clear_reports_csv", help="Clear uploaded CSV"):
+                if "reports_uploaded_file_bytes" in st.session_state:
+                    del st.session_state["reports_uploaded_file_bytes"]
+                if "reports_uploaded_filename" in st.session_state:
+                    del st.session_state["reports_uploaded_filename"]
+                st.rerun()
+
     # ============================================================
     # GENERATE BUTTON
     # ============================================================
@@ -129,14 +145,19 @@ def reports_page():
             # FORECAST
             # ========================================
 
-            if uploaded_file is not None:
+            report_file_bytes = st.session_state.get("reports_uploaded_file_bytes")
+            report_file_name = st.session_state.get("reports_uploaded_filename", "sales.csv")
 
+            if uploaded_file is not None:
                 forecast_df = get_sales_forecast(
                     uploaded_file
                 )
-
+            elif report_file_bytes is not None:
+                import io
+                f_obj = io.BytesIO(report_file_bytes)
+                f_obj.name = report_file_name
+                forecast_df = get_sales_forecast(f_obj)
             else:
-
                 forecast_df = pd.DataFrame()
 
             # ========================================
