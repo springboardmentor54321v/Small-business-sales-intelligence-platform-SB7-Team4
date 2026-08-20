@@ -106,6 +106,29 @@ def get_invoice_by_invoice_id(
 
 def generate_invoice_number(db: Session):
 
+    latest_invoice = (
+        db.query(Invoice)
+        .order_by(Invoice.invoice_number.desc())
+        .first()
+    )
+
+    # No invoices exist
+    if latest_invoice is None:
+        return "INV900001"
+
+    invoice_number = latest_invoice.invoice_number
+
+    # Normal application invoice format: INV + digits
+    if (
+        invoice_number
+        and invoice_number.startswith("INV")
+        and invoice_number[3:].isdigit()
+    ):
+        latest_number = int(invoice_number[3:])
+        return f"INV{latest_number + 1:06d}"
+
+    # If the latest database invoice uses another format,
+    # find the highest valid INV number.
     invoices = (
         db.query(Invoice.invoice_number)
         .filter(
@@ -116,19 +139,18 @@ def generate_invoice_number(db: Session):
 
     latest_number = 900000
 
-    for (invoice_number,) in invoices:
+    for (number,) in invoices:
 
-        if not invoice_number:
+        if not number:
             continue
 
-        number_part = invoice_number.replace("INV", "", 1)
+        number_part = number[3:]
 
         if number_part.isdigit():
-
-            number = int(number_part)
-
-            if number > latest_number:
-                latest_number = number
+            latest_number = max(
+                latest_number,
+                int(number_part)
+            )
 
     return f"INV{latest_number + 1:06d}"
 
