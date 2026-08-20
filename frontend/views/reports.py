@@ -65,6 +65,7 @@ def reports_page():
 
     st.subheader("Sales Forecast")
 
+    uploaded_file = None
     if "reports_uploaded_file_bytes" in st.session_state:
         r_fname = st.session_state.get("reports_uploaded_filename", "sales.csv")
         r_col_info, r_col_clear = st.columns([5, 1])
@@ -150,15 +151,15 @@ def reports_page():
             report_file_bytes = st.session_state.get("reports_uploaded_file_bytes")
             report_file_name = st.session_state.get("reports_uploaded_filename", "sales.csv")
 
-            if uploaded_file is not None:
-                forecast_df = get_sales_forecast(
-                    uploaded_file
-                )
-            elif report_file_bytes is not None:
+            if report_file_bytes is not None:
                 import io
                 f_obj = io.BytesIO(report_file_bytes)
                 f_obj.name = report_file_name
                 forecast_df = get_sales_forecast(f_obj)
+            elif uploaded_file is not None:
+                forecast_df = get_sales_forecast(
+                    uploaded_file
+                )
             else:
                 from services.sales_service import fetch_all_sales_df
                 import io
