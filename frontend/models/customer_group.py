@@ -38,12 +38,15 @@ def get_customer_group(customer_id="AA-10315"):
             raise requests.exceptions.RequestException("Failed to contact Customer Grouping engine.")
 
         if response.status_code == 404:
-            try:
-                res_data = response.json()
-                error_msg = res_data.get("error", res_data.get("detail", f"Customer ID '{customer_id}' not found in database."))
-            except Exception:
-                error_msg = f"Customer ID '{customer_id}' was not found in the database."
-            return pd.DataFrame({"Error": [error_msg]})
+            return pd.DataFrame([{
+                "Customer ID": customer_id,
+                "Customer Segment": "New / Cold-Start Customer",
+                "Cluster": "Baseline Group",
+                "Total Orders": 1,
+                "Total Revenue": "₹0.00",
+                "Recency (Days)": 0,
+                "Profile Status": f"Baseline Profile (Customer ID '{customer_id}')"
+            }])
 
         response.raise_for_status()
 
@@ -54,9 +57,15 @@ def get_customer_group(customer_id="AA-10315"):
                 return pd.DataFrame({"Error": [data["error"]]})
 
             if data.get("is_cold_start") or (data.get("Total Orders", 0) == 0 and data.get("Total Revenue", 0) == 0):
-                return pd.DataFrame({
-                    "Error": [f"Customer ID '{customer_id}' was not found in the database. Please enter a valid customer ID from the dataset (e.g., AA-10315, CG-12520, DV-13045)."]
-                })
+                return pd.DataFrame([{
+                    "Customer ID": customer_id,
+                    "Customer Segment": "New / Cold-Start Customer",
+                    "Cluster": "Baseline Group",
+                    "Total Orders": data.get("Total Orders", 1),
+                    "Total Revenue": f"₹{data.get('Total Revenue', 0):,.2f}",
+                    "Recency (Days)": data.get("Recency", 0),
+                    "Profile Status": f"Baseline Profile (Customer ID '{customer_id}')"
+                }])
 
             return pd.DataFrame([data])
 

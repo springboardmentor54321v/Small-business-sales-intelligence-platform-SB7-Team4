@@ -596,6 +596,54 @@ def reports_page():
                 pass
 
 
+        # Format Thresholds dictionary if present
+        if "Thresholds" in anomaly_display.columns:
+            def format_thresh(val):
+                if isinstance(val, dict):
+                    lower = val.get("Lower Limit", 0.0)
+                    upper = val.get("Upper Limit", 0.0)
+                    return f"₹{lower:,.2f} - ₹{upper:,.2f}"
+                elif isinstance(val, str) and "Limit" in val:
+                    try:
+                        import ast
+                        parsed = ast.literal_eval(val)
+                        if isinstance(parsed, dict):
+                            lower = parsed.get("Lower Limit", 0.0)
+                            upper = parsed.get("Upper Limit", 0.0)
+                            return f"₹{lower:,.2f} - ₹{upper:,.2f}"
+                    except Exception:
+                        pass
+                return str(val)
+            anomaly_display["Thresholds"] = anomaly_display["Thresholds"].apply(format_thresh)
+
+        # Format Total Sales / Total amount float
+        for col in ["Total Sales", "Total amount"]:
+            if col in anomaly_display.columns:
+                def format_curr(v):
+                    try:
+                        val = float(v)
+                        return f"₹{val:,.2f}"
+                    except (ValueError, TypeError):
+                        return str(v)
+                anomaly_display[col] = anomaly_display[col].apply(format_curr)
+
+        # Format Z-Score float
+        if "Z-Score" in anomaly_display.columns:
+            def format_z(v):
+                try:
+                    val = float(v)
+                    return f"{val:.2f}"
+                except (ValueError, TypeError):
+                    return str(v)
+            anomaly_display["Z-Score"] = anomaly_display["Z-Score"].apply(format_z)
+
+        # Convert is_realtime_evaluation boolean checkbox into friendly label
+        if "is_realtime_evaluation" in anomaly_display.columns:
+            anomaly_display["Real-time Evaluation"] = anomaly_display["is_realtime_evaluation"].apply(
+                lambda v: "⚡ Yes (Real-time)" if str(v).strip().lower() in ["true", "1", "yes"] else "📊 No (Batch)"
+            )
+            anomaly_display = anomaly_display.drop(columns=["is_realtime_evaluation"])
+
         if "Total Sales" in anomaly_display.columns:
             styled_anomaly = anomaly_display.style.set_properties(
                 subset=["Total Sales"],
