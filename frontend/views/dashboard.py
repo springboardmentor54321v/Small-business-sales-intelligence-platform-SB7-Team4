@@ -14,7 +14,8 @@ from config.config import DB_BASE_URL as BASE_URL
 from services.sales_service import (
     fetch_all_sales_df,
     fetch_inventory_df,
-    fetch_revenue_summary
+    fetch_revenue_summary,
+    clear_sales_cache
 )
 
 INVENTORY_API = f"{BASE_URL}/inventory/"
@@ -38,13 +39,15 @@ def dashboard_page():
         revenue = fetch_revenue_summary(BASE_URL)
 
     if sales_df.empty and inventory_df.empty:
+        clear_sales_cache()
         st.warning("⚠️ The remote database server is currently sleeping or experiencing connection issues on Render. The dashboard will automatically update once it wakes up.")
         st.info("💡 Please wait 10-15 seconds and try refreshing the page, or verify the database service status in your Render dashboard.")
         return
 
     try:
         if sales_df.empty:
-            st.warning("No Sales Data Available")
+            clear_sales_cache()
+            st.warning("No Sales Data Available. If your backend database recently restarted, please wait a few seconds and refresh.")
             return
 
         if inventory_df.empty:

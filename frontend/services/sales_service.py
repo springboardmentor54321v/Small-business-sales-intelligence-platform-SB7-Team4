@@ -6,11 +6,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from config.config import DB_BASE_URL
 
 
-@st.cache_data(ttl=86400, persist="disk", show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def fetch_all_sales(base_url=DB_BASE_URL):
     """
-    Fetch all sales transactions from backend with session pooling, concurrency,
-    and Streamlit disk-persisted caching. Returns raw list preserving 100% of data.
+    Fetch all sales transactions from backend with session pooling and concurrency.
+    Returns raw list preserving 100% of data.
     """
     session = requests.Session()
     url_p1 = f"{base_url}/sales/?page=1&page_size=2000"
@@ -19,26 +19,29 @@ def fetch_all_sales(base_url=DB_BASE_URL):
     # 1. Fetch first page (handling possible Render cold-start)
     for attempt in range(3):
         try:
-            timeout = 10 if attempt == 0 else 60
+            timeout = 15 if attempt == 0 else 60
             r = session.get(url_p1, timeout=timeout)
             r.raise_for_status()
             first_page = r.json()
             break
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
             if attempt == 2:
+                fetch_all_sales.clear()
                 return []
             time.sleep(2)
         except Exception:
+            fetch_all_sales.clear()
             return []
 
     if not first_page or not isinstance(first_page, list):
+        fetch_all_sales.clear()
         return []
 
     # If dataset fits in 1 page, return immediately
     if len(first_page) < 2000:
         return first_page
 
-    # 2. Multi-page fetch using ThreadPoolExecutor (3 workers to avoid rate-limiting/overload)
+    # 2. Multi-page fetch using ThreadPoolExecutor
     all_pages = {1: first_page}
     page = 2
     done = False
@@ -79,14 +82,15 @@ def fetch_all_sales(base_url=DB_BASE_URL):
     return ordered_sales
 
 
-@st.cache_data(ttl=86400, persist="disk", show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def _fetch_base_sales_df(base_url=DB_BASE_URL):
     """
-    Returns pre-processed base sales DataFrame cached in disk memory to eliminate
+    Returns pre-processed base sales DataFrame cached in memory to eliminate
     repetitive dataframe conversion and date parsing latency on reruns.
     """
     sales = fetch_all_sales(base_url)
     if not sales:
+        _fetch_base_sales_df.clear()
         return pd.DataFrame()
 
     df = pd.DataFrame(sales)
@@ -141,9 +145,9 @@ def fetch_all_sales_df(base_url=DB_BASE_URL):
     return combined
 
 
-@st.cache_data(ttl=86400, persist="disk", show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def fetch_inventory_data(base_url=DB_BASE_URL):
-    """Fetch all inventory records from backend with disk caching."""
+    """Fetch all inventory records from backend with memory caching."""
     url = f"{base_url}/inventory/"
     session = requests.Session()
     for attempt in range(3):
@@ -152,19 +156,25 @@ def fetch_inventory_data(base_url=DB_BASE_URL):
             r = session.get(url, timeout=timeout)
             r.raise_for_status()
             data = r.json()
-            return data if isinstance(data, list) else []
+            if isinstance(data, list) and data:
+                return data
+            fetch_inventory_data.clear()
+            return []
         except Exception:
             if attempt == 2:
+                fetch_inventory_data.clear()
                 return []
             time.sleep(1)
+    fetch_inventory_data.clear()
     return []
 
 
-@st.cache_data(ttl=86400, persist="disk", show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def fetch_inventory_df(base_url=DB_BASE_URL):
-    """Returns pre-processed inventory DataFrame cached in disk memory."""
+    """Returns pre-processed inventory DataFrame cached in memory."""
     inv = fetch_inventory_data(base_url)
     if not inv:
+        fetch_inventory_df.clear()
         return pd.DataFrame()
 
     df = pd.DataFrame(inv)
@@ -174,9 +184,9 @@ def fetch_inventory_df(base_url=DB_BASE_URL):
     return df
 
 
-@st.cache_data(ttl=86400, persist="disk", show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def _fetch_base_revenue_summary(base_url=DB_BASE_URL):
-    """Fetch base revenue summary dictionary from backend with disk caching."""
+    """Fetch base revenue summary dictionary from backend with memory caching."""
     url = f"{base_url}/revenue/summary"
     session = requests.Session()
     for attempt in range(3):
@@ -185,11 +195,16 @@ def _fetch_base_revenue_summary(base_url=DB_BASE_URL):
             r = session.get(url, timeout=timeout)
             r.raise_for_status()
             data = r.json()
-            return data if isinstance(data, dict) else {}
+            if isinstance(data, dict) and data:
+                return data
+            _fetch_base_revenue_summary.clear()
+            return {}
         except Exception:
             if attempt == 2:
+                _fetch_base_revenue_summary.clear()
                 return {}
             time.sleep(1)
+    _fetch_base_revenue_summary.clear()
     return {}
 
 
