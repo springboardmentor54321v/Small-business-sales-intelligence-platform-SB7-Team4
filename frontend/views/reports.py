@@ -56,7 +56,8 @@ def reports_page():
     customer_id = st.text_input(
         "Customer ID",
         value="AA-10315",
-        key="report_customer"
+        key="report_customer",
+        help="Enter a valid Customer ID from dataset (e.g., AA-10315, CG-12520, DV-13045, SO-20335)"
     )
 
     # ============================================================
@@ -630,10 +631,11 @@ def reports_page():
         )
 
     elif "Error" in customer_group_df.columns:
-
-        st.error(
-            customer_group_df.iloc[0]["Error"]
-        )
+        err_msg = customer_group_df.iloc[0]["Error"]
+        if "not found" in str(err_msg).lower():
+            st.warning(f"⚠️ {err_msg}")
+        else:
+            st.error(err_msg)
 
     else:
 
@@ -663,10 +665,11 @@ def reports_page():
         )
 
     elif "Error" in churn_df.columns:
-
-        st.error(
-            churn_df.iloc[0]["Error"]
-        )
+        err_msg = churn_df.iloc[0]["Error"]
+        if "not found" in str(err_msg).lower():
+            st.warning(f"⚠️ {err_msg}")
+        else:
+            st.error(err_msg)
 
     else:
 
