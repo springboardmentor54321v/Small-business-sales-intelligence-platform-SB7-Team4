@@ -106,18 +106,29 @@ def get_invoice_by_invoice_id(
 
 def generate_invoice_number(db: Session):
 
-    latest_invoice = (
-        db.query(Invoice)
-        .order_by(Invoice.invoice_number.desc())
-        .first()
+    invoices = (
+        db.query(Invoice.invoice_number)
+        .filter(
+            Invoice.invoice_number.like("INV%")
+        )
+        .all()
     )
 
-    if latest_invoice is None:
-        return "INV900001"
+    latest_number = 900000
 
-    latest_number = int(
-        latest_invoice.invoice_number.replace("INV", "")
-    )
+    for (invoice_number,) in invoices:
+
+        if not invoice_number:
+            continue
+
+        number_part = invoice_number.replace("INV", "", 1)
+
+        if number_part.isdigit():
+
+            number = int(number_part)
+
+            if number > latest_number:
+                latest_number = number
 
     return f"INV{latest_number + 1:06d}"
 
