@@ -595,10 +595,18 @@ def reports_page():
                 pass
 
 
-        styled_anomaly = anomaly_display.style.set_properties(
-            subset=["Total Sales"],
-            **{"text-align": "center"}
-        )
+        if "Total Sales" in anomaly_display.columns:
+            styled_anomaly = anomaly_display.style.set_properties(
+                subset=["Total Sales"],
+                **{"text-align": "center"}
+            )
+        elif "Total amount" in anomaly_display.columns:
+            styled_anomaly = anomaly_display.style.set_properties(
+                subset=["Total amount"],
+                **{"text-align": "center"}
+            )
+        else:
+            styled_anomaly = anomaly_display
 
         st.dataframe(
             styled_anomaly,
