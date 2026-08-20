@@ -228,7 +228,7 @@ def run_tests():
         # Test connection
         try:
             with httpx.Client() as client:
-                res = client.get("http://localhost:5000/docs")
+                res = client.get("http://127.0.0.1:5000/docs")
                 if res.status_code == 200:
                     started = True
                     break
@@ -242,7 +242,7 @@ def run_tests():
         sys.exit(1)
 
     print("\nServer started successfully. Beginning test requests...")
-    base_url = "http://localhost:5000"
+    base_url = "http://127.0.0.1:5000"
     owner_token = ""
     sales_token = ""
 

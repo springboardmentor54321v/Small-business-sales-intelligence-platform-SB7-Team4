@@ -52,11 +52,11 @@ jobs:
 
       - name: Run Security Gateway Integration Tests
         run: |
-          python Security_APIGateway/test_gateway.py
+          PYTHONPATH=Security_APIGateway python Security_APIGateway/test_gateway.py
 
       - name: Run Security Matrix Audit Scan Tests
         run: |
-          python Security_APIGateway/test_security_audit.py
+          PYTHONPATH=Security_APIGateway python Security_APIGateway/test_security_audit.py
 
   validate-dockerfiles:
     runs-on: ubuntu-latest

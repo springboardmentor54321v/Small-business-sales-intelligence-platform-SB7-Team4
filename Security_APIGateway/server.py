@@ -1087,9 +1087,9 @@ async def reset_password(req: ResetPasswordRequest):
         "message": "Password reset successfully"
     }
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
-AI_URL = os.getenv("AI_URL", "http://localhost:5002")
-NOTIFICATIONS_URL = os.getenv("NOTIFICATIONS_URL", "http://localhost:5003")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+AI_URL = os.getenv("AI_URL", "http://127.0.0.1:5002")
+NOTIFICATIONS_URL = os.getenv("NOTIFICATIONS_URL", "http://127.0.0.1:5003")
 
 
 # --- Proxy Routes with Validation ---

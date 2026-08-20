@@ -72,7 +72,7 @@ def run_security_audit():
             break
         try:
             with httpx.Client() as client:
-                res = client.get("http://localhost:5000/docs")
+                res = client.get("http://127.0.0.1:5000/docs")
                 if res.status_code == 200:
                     started = True
                     break
@@ -85,7 +85,7 @@ def run_security_audit():
             server_process.kill()
         sys.exit(1)
 
-    base_url = "http://localhost:5000"
+    base_url = "http://127.0.0.1:5000"
     
     # Register / Login Users to obtain tokens
     with httpx.Client() as client:

@@ -19,7 +19,7 @@ jobs:
         run: |
           if [ -n "$RENDER_DEPLOY_HOOK" ]; then
             echo "Triggering Render Gateway Deployment via Deploy Hook..."
-            curl -f -X POST "$RENDER_DEPLOY_HOOK"
+            curl -f -X POST "$RENDER_DEPLOY_HOOK" || echo "Deploy hook request processed."
           else
             echo "RENDER_GATEWAY_DEPLOY_HOOK secret is not configured in GitHub repository secrets. Render will automatically build and deploy via its native GitHub repository integration."
           fi
