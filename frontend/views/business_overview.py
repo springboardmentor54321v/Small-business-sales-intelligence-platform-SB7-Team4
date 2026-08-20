@@ -14,7 +14,8 @@ from config.config import DB_BASE_URL as BASE_URL
 from services.sales_service import (
     fetch_all_sales_df,
     fetch_inventory_df,
-    fetch_revenue_summary
+    fetch_revenue_summary,
+    clear_sales_cache
 )
 
 INVENTORY_API = f"{BASE_URL}/inventory/"
